@@ -4,6 +4,8 @@
 #include "map.h"
 #include "stdio.h"
 #include "stdbool.h"
+#include <string.h>
+#include <time.h>
 
 //#define CAT(A, B) CAT2(A, B)
 //#define CAT2(A, B) A ## B
@@ -216,6 +218,7 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
 /*
  * Turns standard types into printf's format specifier
  */
+#define EXTRA 0
 #define printf_dec_format(x) _Generic((x), \
     char: "%c", \
     signed char: "%hhd", \
@@ -235,33 +238,65 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
     const char *: "%s", \
     void *: "%p", \
     const void *: "%p", \
+    IF(EXTRA)(EXTRA_SPECIFIER, EAT)() \
     bool: "%s" \
 )
 
-static inline const char *bool_to_string(bool arg) { return arg ? "true" : "false"; }
-#define _each_printf_args(arg) _Generic((arg),          \
-        bool: bool_to_string((bool)(arg)),              \
-        default: (arg)                                  \
-)
+static inline char _p_char(char c) { return c; }
+static inline signed char _p_schar(signed char c) { return c; }
+static inline unsigned char _p_uchar(unsigned char c) { return c; }
+
+static inline signed short _p_sshort(signed short c) { return c; }
+static inline unsigned short _p_ushort(unsigned short c) { return c; }
+
+static inline signed int _p_sint(signed int c) { return c; }
+static inline unsigned int _p_uint(unsigned int c) { return c; }
+
+static inline signed long int _p_slong(signed long int c) { return c; }
+static inline unsigned long int _p_ulong(unsigned long int c) { return c; }
+
+static inline signed long long int _p_sllong(signed long long int c) { return c; }
+static inline unsigned long long int _p_ullong(unsigned long long int c) { return c; }
+
+static inline float _p_float(float c) { return c; }
+static inline double _p_double(double c) { return c; }
+static inline long double _p_ldouble(long double c) { return c;}
+
+static inline char * _p_char_ptr(char *c) { return c; }
+static inline const char * _p_cchar_ptr(const char *c) { return c; }
+
+static inline void * _p_void_ptr(void *c) { return c; }
+static inline const void * _p_cvoid_ptr(const void *c) { return c; }
+
+static inline const char * _p_bool(bool c) { return c ? "true" : "false"; }
+
+#define _each_printf_args(arg) _Generic((arg),\
+        char: _p_char,                        \
+        signed char: _p_schar,                \
+        unsigned char: _p_uchar,              \
+        signed short: _p_sshort,              \
+        unsigned short: _p_ushort,            \
+        signed int: _p_sint,                  \
+        unsigned int: _p_uint,                \
+        long int: _p_slong,                   \
+        unsigned long int: _p_ulong,          \
+        long long int: _p_sllong,             \
+        unsigned long long int: _p_ullong,    \
+        float: _p_float,                      \
+        double: _p_double,                    \
+        long double: _p_ldouble,              \
+        char *: _p_char_ptr,                  \
+        const char *: _p_cchar_ptr,           \
+        void *: _p_void_ptr,                  \
+        const void *: _p_cvoid_ptr,           \
+        IF(EXTRA)(EXTRA_SPECIFIER_PRINT, EAT)() \
+        bool: _p_bool                         \
+)((arg))
 
 /* This macro is used to convert values for printing
- * currently only bool converted to strings "true" or "false" other values are printed as is */
+ * currently only bool converted to strings "true" or "false". other values are printed as is */
 #define printf_args_pre_process(...) \
     MAP_LIST(_each_printf_args, __VA_ARGS__)
-
-static inline void printf_bool(const char *fmt, bool val) {
-    (void)fmt;
-    printf(val ? "true" : "false");
-}
-/*
- * Prints any standard varable
- */
-#define print_var(x) _Generic((x),  \
-    bool: printf_bool,              \
-    default: printf                 \
-)(printf_dec_format(x), x)
-
-#define print_var_nl(x) print_var(x); printf("\n")
 
 /*
  * printf_specifier_string(endl, ...):
@@ -294,6 +329,7 @@ static const union struct_as_array __struct_as_array = { \
 __struct_as_array.arr;                                   \
 })
 
+
 /*
  * Prints any number(almost) of any standard variables
  */
@@ -308,6 +344,8 @@ __struct_as_array.arr;                                   \
 
 #define dprint(fd, ...)   dprintf(fd, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 #define dprintln(fd, ...) dprintf(fd, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+
+#define sprint(buf, ...) sprintf(buf, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
 /*
  * Concatenates any number of variables of any type into buffer
@@ -353,5 +391,22 @@ __struct_as_array.arr;                                   \
     string[size] = '\0';                                           \
     string;                                                        \
 })
+
+
+/* Obsolete */
+
+static inline void printf_bool(const char *fmt, bool val) {
+    (void)fmt;
+    printf(val ? "true" : "false");
+}
+/*
+ * Prints any standard varable
+ */
+#define print_var(x) _Generic((x),  \
+    bool: printf_bool,              \
+    default: printf                 \
+)(printf_dec_format(x), x)
+
+#define print_var_nl(x) print_var(x); printf("\n")
 
 #endif // MISC_H
