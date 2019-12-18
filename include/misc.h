@@ -255,16 +255,16 @@ static inline void printf_bool(const char *fmt, bool val) {
  * printf_specifier_string:
  *  returns static single zero-terminated string with format specifiers for all variables passed
  */
-#define __gen_printf_specifier(x) char CAT(arr , __COUNTER__ ) [sizeof(printf_dec_format(x)) - 1];
+#define __gen_printf_specifier(x) const char CAT(arr , __COUNTER__ ) [sizeof(printf_dec_format(x)) - 1];
 #define printf_specifier_string(...) ({                  \
 struct printf_specifiers {                               \
     MAP(__gen_printf_specifier, __VA_ARGS__)             \
-    char null;                                           \
+    const char null;                                     \
 };                                                       \
                                                          \
 union struct_as_array {                                  \
-    struct printf_specifiers p;                          \
-    char arr [sizeof(struct printf_specifiers)];         \
+    const struct printf_specifiers p;                          \
+    const char arr [sizeof(struct printf_specifiers)];         \
 };                                                       \
                                                          \
 static const union struct_as_array __struct_as_array = { \
