@@ -212,6 +212,7 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
     memcpy(var_name, src + _var_name##start, _var_name##count); \
     var_name[_var_name##count] = '\0'
 
+
 /*
  * Turns standard types into printf's format specifier
  */
@@ -234,8 +235,19 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
     const char *: "%s", \
     void *: "%p", \
     const void *: "%p", \
-    bool: "%d" \
+    bool: "%s" \
 )
+
+static inline const char *bool_to_string(bool arg) { return arg ? "true" : "false"; }
+#define _each_printf_args(arg) _Generic((arg),          \
+        bool: bool_to_string((bool)(arg)),              \
+        default: (arg)                                  \
+)
+
+/* This macro is used to convert values for printing
+ * currently only bool converted to strings "true" or "false" other values are printed as is */
+#define printf_args_pre_process(...) \
+    MAP_LIST(_each_printf_args, __VA_ARGS__)
 
 static inline void printf_bool(const char *fmt, bool val) {
     (void)fmt;
@@ -244,49 +256,58 @@ static inline void printf_bool(const char *fmt, bool val) {
 /*
  * Prints any standard varable
  */
-#define print_var(x) _Generic((x), \
-    bool: printf_bool, \
-    default: printf \
+#define print_var(x) _Generic((x),  \
+    bool: printf_bool,              \
+    default: printf                 \
 )(printf_dec_format(x), x)
 
 #define print_var_nl(x) print_var(x); printf("\n")
 
 /*
- * printf_specifier_string:
- *  returns static single zero-terminated string with format specifiers for all variables passed
+ * printf_specifier_string(endl, ...):
+ * returns static single zero-terminated string with format specifiers for all variables passed
+ * @endl: if set to non zero then it will add \n symbol to printf specifiers string
  */
-#define __gen_printf_specifier(x) const char CAT(arr , __COUNTER__ ) [sizeof(printf_dec_format(x)) - 1];
-#define printf_specifier_string(...) ({                  \
+#define _gen_printf_specifier(x) const char CAT(arr , __COUNTER__ ) [sizeof(printf_dec_format(x)) - 1];
+#define _add_endline(...) const char endl;
+#define _add_endline_symbol(...) '\n',
+
+#define printf_specifier_string(endl, ...) ({            \
 struct printf_specifiers {                               \
-    MAP(__gen_printf_specifier, __VA_ARGS__)             \
+    MAP(_gen_printf_specifier, __VA_ARGS__)              \
+    IF(endl)(_add_endline, EAT)()                        \
     const char null;                                     \
 };                                                       \
                                                          \
 union struct_as_array {                                  \
-    const struct printf_specifiers p;                          \
-    const char arr [sizeof(struct printf_specifiers)];         \
+    const struct printf_specifiers p;                    \
+    const char arr [sizeof(struct printf_specifiers)];   \
 };                                                       \
                                                          \
 static const union struct_as_array __struct_as_array = { \
-    .p = { MAP_LIST(printf_dec_format, __VA_ARGS__), 0 } \
+    .p = {                                               \
+        MAP_LIST(printf_dec_format, __VA_ARGS__),        \
+        IF(endl)(_add_endline_symbol, EAT)()             \
+        0                                                \
+    }                                                    \
 };                                                       \
 __struct_as_array.arr;                                   \
 })
 
 /*
- * Prints any number of any standard variables
+ * Prints any number(almost) of any standard variables
  */
-#define print(...) printf(printf_specifier_string(__VA_ARGS__), __VA_ARGS__)
-#define println(...) print(__VA_ARGS__, "\n")
+#define print(...)   printf(printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+#define println(...) printf(printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
-#define fprint(stream, ...) fprintf(stream, printf_specifier_string(__VA_ARGS__), __VA_ARGS__)
-#define fprintln(stream, ...) fprint(stream, __VA_ARGS__, "\n")
+#define fprint(stream, ...)   fprintf(stream, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+#define fprintln(stream, ...) fprintf(stream, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
-#define printerr(...) fprint(stderr, __VA_ARGS__)
-#define printerrln(...) fprint(stderr, __VA_ARGS__, "\n")
+#define printerr(...)   fprint(stderr, __VA_ARGS__)
+#define printerrln(...) fprintln(stderr, __VA_ARGS__)
 
-#define dprint(fd, ...) dprintf(fd, printf_specifier_string(__VA_ARGS__), __VA_ARGS__)
-#define dprintln(fd, ...) dprint(fd, __VA_ARGS__, "\n")
+#define dprint(fd, ...)   dprintf(fd, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+#define dprintln(fd, ...) dprintf(fd, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
 /*
  * Concatenates any number of variables of any type into buffer
@@ -308,13 +329,13 @@ __struct_as_array.arr;                                   \
  */
 
 #define concat_vla(var_name, ...) \
-    const char * const fmt___ ## var_name = printf_specifier_string(__VA_ARGS__); \
+    const char * const fmt___ ## var_name = printf_specifier_string(0, __VA_ARGS__); \
     char var_name[snprintf(NULL, 0, fmt___ ## var_name, __VA_ARGS__) + 1];        \
     sprintf(var_name, fmt___ ## var_name, __VA_ARGS__);                           \
     var_name[ sizeof(var_name) - 1  ] = '\0'
 
 #define concat_alloca(...) ({ \
-    const char * const fmt = printf_specifier_string(__VA_ARGS__); \
+    const char * const fmt = printf_specifier_string(0, __VA_ARGS__); \
     size_t size = snprintf(NULL, 0, fmt, __VA_ARGS__);             \
     char * string = alloca(size + 1);                              \
     sprintf(string, fmt, __VA_ARGS__);                             \
@@ -323,7 +344,7 @@ __struct_as_array.arr;                                   \
 })
 
 #define concat(...) ({ \
-    const char * const fmt = printf_specifier_string(__VA_ARGS__); \
+    const char * const fmt = printf_specifier_string(0, __VA_ARGS__); \
     size_t size = snprintf(NULL, 0, fmt, __VA_ARGS__);             \
     char * string = malloc(size + 1);                              \
     if(!string)                                                    \
