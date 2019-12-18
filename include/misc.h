@@ -140,9 +140,6 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
 /*
  * COUNT_PARAMS will return count of parameters passed, up to 62
  */
-//#define COUNT_PARMS2(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _, ...) _
-//#define COUNT_PARMS(...) COUNT_PARMS2(__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
-
 #define PP_ARG_N( \
           _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8,  _9, _10, \
          _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, \
@@ -153,7 +150,7 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
          _61, _62, _63, N, ...) N
 
 #define PP_RSEQ_N()                                        \
-         62, 61, 60,                                       \
+         63, 62, 61, 60,                                   \
          59, 58, 57, 56, 55, 54, 53, 52, 51, 50,           \
          49, 48, 47, 46, 45, 44, 43, 42, 41, 40,           \
          39, 38, 37, 36, 35, 34, 33, 32, 31, 30,           \
@@ -162,8 +159,35 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
           9,  8,  7,  6,  5,  4,  3,  2,  1,  0
 
 #define PP_NARG_(...)    PP_ARG_N(__VA_ARGS__)
-#define COUNT_PARMS(...)     PP_NARG_(_, ##__VA_ARGS__, PP_RSEQ_N())
 
+#define PP_COMMASEQ_N()                                    \
+          1,  1,  1,  1,                                   \
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,           \
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,           \
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,           \
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,           \
+          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,           \
+          1,  1,  1,  1,  1,  1,  1,  1,  0,  0
+
+#define PP_COMMA(...)    ,
+
+#define PP_HASCOMMA(...)                                   \
+          PP_NARG_(__VA_ARGS__, PP_COMMASEQ_N())
+
+#define PP_NARG(...)                                       \
+          PP_NARG_HELPER1(                                 \
+              PP_HASCOMMA(__VA_ARGS__),                    \
+              PP_HASCOMMA(PP_COMMA __VA_ARGS__ ()),        \
+              PP_NARG_(__VA_ARGS__, PP_RSEQ_N()))
+
+#define PP_NARG_HELPER1(a, b, N)    PP_NARG_HELPER2(a, b, N)
+#define PP_NARG_HELPER2(a, b, N)    PP_NARG_HELPER3_ ## a ## b(N)
+#define PP_NARG_HELPER3_01(N)    0
+#define PP_NARG_HELPER3_00(N)    1
+#define PP_NARG_HELPER3_11(N)    N
+
+/* Compatibility */
+#define COUNT_PARMS(...)     PP_NARG(__VA_ARGS__)
 
 /*
  * this macroses will create zero-terminated slice of string and
