@@ -138,7 +138,7 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
     dst[len] = '\0'
 
 /*
- * COUNT_PARAMS will return count of parameters passed, up to 62
+ * PP_NARG will return count of parameters passed, up to 63
  */
 #define PP_ARG_N( \
           _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8,  _9, _10, \
@@ -186,8 +186,6 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
 #define PP_NARG_HELPER3_00(N)    1
 #define PP_NARG_HELPER3_11(N)    N
 
-/* Compatibility */
-#define COUNT_PARMS(...)     PP_NARG(__VA_ARGS__)
 
 /*
  * this macroses will create zero-terminated slice of string and
@@ -327,8 +325,8 @@ static inline const char * _p_bool(bool c) { return c ? "true" : "false"; }
  * returns static single zero-terminated string with format specifiers for all variables passed
  * @endl: if set to non zero then it will add \n symbol to printf specifiers string
  */
-#define _gen_printf_specifier(x) const char CAT(arr , __COUNTER__ ) [sizeof(printf_dec_format(x)) - 1];
-#define _add_endline(...) const char endl;
+#define _gen_printf_specifier(x)  const char CAT(arr , __COUNTER__ ) [sizeof(printf_dec_format(x)) - 1];
+#define _add_endline(...)  const char endl;
 #define _add_endline_symbol(...) '\n',
 
 #define printf_specifier_string(endl, ...) ({            \
@@ -350,6 +348,8 @@ static const union struct_as_array __struct_as_array = { \
         0                                                \
     }                                                    \
 };                                                       \
+_Static_assert(_Alignof(char) == 1, "Char alignment should be 1 for generating prinf specifiers"); \
+_Static_assert(sizeof(struct printf_specifiers) == sizeof(union struct_as_array), "Struct printf_specifiers and it's union differs in size"); \
 __struct_as_array.arr;                                   \
 })
 
@@ -432,5 +432,8 @@ static inline void printf_bool(const char *fmt, bool val) {
 )(printf_dec_format(x), x)
 
 #define print_var_nl(x) print_var(x); printf("\n")
+
+/* Compat */
+#define COUNT_PARMS(...)     PP_NARG(__VA_ARGS__)
 
 #endif // MISC_H
