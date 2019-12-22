@@ -260,7 +260,7 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
 
  */
 #define to_hex(x, ...) IF(PP_NARG(__VA_ARGS__))(to_hexp, _to_hex_single)(x, __VA_ARGS__)
-#define _to_hex_single(x, ...) to_hexp(x, 0)
+#define _to_hex_single(x, ...) to_hexp(x, 1)
 
 #define hex_gens 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
 
@@ -301,23 +301,23 @@ MAP_TWOARG(_gen_hex_padding_to, __hex_unsigned_long_long, unsigned long long, he
 /* helper. part of _Generic selection for printf_dec_format().
  * maps hexademical union type to printf specifier */
 #define _printf_hex_format(union_type, spec) \
-        union_type ## 0:     "%" spec   ,  \
-        union_type ## 1:     "%01" spec ,  \
-        union_type ## 2:     "%02" spec ,  \
-        union_type ## 3:     "%03" spec ,  \
-        union_type ## 4:     "%04" spec ,  \
-        union_type ## 5:     "%05" spec ,  \
-        union_type ## 6:     "%06" spec ,  \
-        union_type ## 7:     "%07" spec ,  \
-        union_type ## 8:     "%08" spec ,  \
-        union_type ## 9:     "%09" spec ,  \
-        union_type ## 10:    "%010" spec,  \
-        union_type ## 11:    "%011" spec,  \
-        union_type ## 12:    "%012" spec,  \
-        union_type ## 13:    "%013" spec,  \
-        union_type ## 14:    "%014" spec,  \
-        union_type ## 15:    "%015" spec,  \
-        union_type ## 16:    "%016" spec   \
+        union_type ## 0:     "%.0" spec ,  \
+        union_type ## 1:     "%"   spec ,  \
+        union_type ## 2:     "%.2" spec ,  \
+        union_type ## 3:     "%.3" spec ,  \
+        union_type ## 4:     "%.4" spec ,  \
+        union_type ## 5:     "%.5" spec ,  \
+        union_type ## 6:     "%.6" spec ,  \
+        union_type ## 7:     "%.7" spec ,  \
+        union_type ## 8:     "%.8" spec ,  \
+        union_type ## 9:     "%.9" spec ,  \
+        union_type ## 10:    "%.10" spec,  \
+        union_type ## 11:    "%.11" spec,  \
+        union_type ## 12:    "%.12" spec,  \
+        union_type ## 13:    "%.13" spec,  \
+        union_type ## 14:    "%.14" spec,  \
+        union_type ## 15:    "%.15" spec,  \
+        union_type ## 16:    "%.16" spec   \
 
 #define _printf_hex_format_all                          \
     _printf_hex_format(__hex_unsigned_char,     "hhx"), \
