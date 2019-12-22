@@ -495,6 +495,67 @@ __struct_as_array.arr;                                   \
 })
 
 
+/*** Print optimization ****/
+
+/* This macro just returns third argument and nothing else */
+#define RETURN_THIRD_ARGUMENT(nothing, nothing2, return_value, ...) return_value
+
+/* returns 1 if args are completely empty, or 0 if something is present in __VA_ARGS__, including commas, () or other values
+ *
+ * we are calling RETURN_THIRD_ARGUMENT with four args, if __VA_ARGS__ is empty,
+ * second argument will be removed, so fourth argument becomes thrid and returned */
+#define IS_ARGS_EMPTY(x, ...) _IS_ARGS_EMPTY(x)
+#define _IS_ARGS_EMPTY(...) RETURN_THIRD_ARGUMENT(nothing, ## __VA_ARGS__, 0, 1 )
+
+/* is_same_type(variable, _type_, SIMPLE, CONST)
+ * returns true if variable is _type_, or returns false
+ *
+ * if SIMPLE is not 0, then check for basic _type_ match will be performed
+ * if CONST is not 0, then returns true if variable is const _type_
+ */
+#define is_same_type(var, _type_, SIMPLE, CONST) _Generic((var), \
+                        IF(SIMPLE)(simple_type, EAT)(_type_)     \
+                        IF(CONST)(const_type, EAT)(_type_)       \
+                        default: false)
+
+#define simple_type(_type_) _type_: true,
+#define const_type(_type_) const _type_: true,
+
+/* checks if providied value is [const] char *, and returns var if true, or returns NULL if false */
+#define char_ptr_or_nullptr(var) _Generic((var), char*: var, const char*:var, default: NULL)
+
+/* puts()/fputs() functions should not receive NULL, if var is NULL then we will return "(null)" string,
+ * emulating printf() behavior */
+#define puts_charptr_guard(var) char_ptr_or_nullptr(var) ? char_ptr_or_nullptr(var) : "(null)"
+
+/* returns var if var is char, or returns 0 */
+#define char_or_zero(var) _Generic((var), char: var, const char: var, default: 0)
+
+/* single println variant, optimised cases when single argument is string or char
+ * if argument is char* then we will use puts(),
+ * if it is single char then we will send to fwrite() an array with two elements: char and endline */
+#define single_println(arg, ...) \
+        is_same_type(arg, char*, 1, 1) ? puts( puts_charptr_guard(arg) ) : \
+        is_same_type(arg, char, 1, 1)  ? fwrite( (const char[]){ char_or_zero(arg), '\n'}, sizeof(char), 2, stdout ) : \
+        println_main(arg)
+
+/* single print variant, optimised cases when single argument is string or char */
+#define single_print(arg, ...) \
+        is_same_type(arg, char*, 1, 1)  ? fputs( puts_charptr_guard(arg), stdout ) : \
+        is_same_type(arg, char, 1, 1)   ? putchar( char_or_zero(arg) ) : \
+        print_main(arg)
+
+/* single fprint variant, optimised cases when single argument is string or char */
+#define single_fprint(stream, arg, ...) \
+        is_same_type(arg, char*, 1, 1)  ? fputs( puts_charptr_guard(arg), stream ) : \
+        is_same_type(arg, char, 1, 1)   ? fputc( char_or_zero(arg), stream ) : \
+        fprint_main(stream, arg)
+
+/* These functions are real printx() functions */
+#define print_main(...)   printf(printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+#define println_main(...) printf(printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+#define fprint_main(stream, ...)   fprintf(stream, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+
 /*
  * Prints any number(almost) of any standard variables
  * usage:
@@ -503,18 +564,24 @@ __struct_as_array.arr;                                   \
      // will print:
      // this is int:45, this is float:65.139999 and this is unsigned long to hex:0x23fc
  */
-#define print(...)   printf(printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
-#define println(...) printf(printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
-#define fprint(stream, ...)   fprintf(stream, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+/* Print to stdout */
+#define print(first_arg, ...)   IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_print, print_main)(first_arg, __VA_ARGS__)
+#define println(first_arg, ...) IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_println, println_main)(first_arg, __VA_ARGS__)
+
+/* Print to FILE* */
+#define fprint(stream, first_arg, ...) IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_fprint, fprint_main)(stream, first_arg, __VA_ARGS__)
 #define fprintln(stream, ...) fprintf(stream, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
+/* Print to stderr */
 #define printerr(...)   fprint(stderr, __VA_ARGS__)
 #define printerrln(...) fprintln(stderr, __VA_ARGS__)
 
+/* Print to fd */
 #define dprint(fd, ...)   dprintf(fd, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 #define dprintln(fd, ...) dprintf(fd, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
+/* Print to buffer */
 #define sprint(buf, ...) sprintf(buf, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
 /*
