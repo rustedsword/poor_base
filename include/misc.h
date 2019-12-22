@@ -391,7 +391,7 @@ MAP_TWOARG(_from_hex_fmt, __hex_unsigned_long_long, unsigned long long, hex_gens
     void *:             "%p"  ,            \
     const void *:       "%p"  ,            \
     IF(EXTRA)(EXTRA_SPECIFIER, EAT)()      \
-    bool: "%s"                             \
+    bool:               "%s"               \
 )
 
 static inline char               _p_char(char c)          { return c; }
