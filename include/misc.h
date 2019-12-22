@@ -239,18 +239,21 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
 
 /***** Hexademical print support *****/
 
-/* to_hex(integer_variable, padding):
+/* to_hex(integer_variable, precision):
  *
  * Println modifier for integers. allows to print integers as hexademical value.
- * optional second argument is for number of padding zeros from 1 to 16
- * padding argument must be static number, not a variable.
- * if padding argument is not provided or it is equals 0, then no padding will be forced.
+ * optional second argument is for number of padding zeros from 0 to 16 (called precision in docs, for some reason)
+ * precision must be static number, not a variable.
+ * if precision argument is not provided, then it is implicitly equals 1
+ *
+ * NOTE: if precision is 0 and value of integer_variable is also 0, then nothing will be printed
  *
  * examples:
 
+    //basically same as printf(hex value of 345: 0x%x\n, 345);
     println("hex value of 345: 0x", to_hex(345)); //prints: hex value of 345: 0x159
 
-    //print hex value with padding 6
+    //basically same as printf(hex value of 10000: 0x%.6x\n", 6);
     println("hex value of 10000: 0x", to_hex(10000, 6)); //prints: hex value of 10000: 0x002710
 
     uint64_t a = 100500;
@@ -301,16 +304,16 @@ MAP_TWOARG(_gen_hex_padding_to, __hex_unsigned_long_long, unsigned long long, he
 /* helper. part of _Generic selection for printf_dec_format().
  * maps hexademical union type to printf specifier */
 #define _printf_hex_format(union_type, spec) \
-        union_type ## 0:     "%.0" spec ,  \
-        union_type ## 1:     "%"   spec ,  \
-        union_type ## 2:     "%.2" spec ,  \
-        union_type ## 3:     "%.3" spec ,  \
-        union_type ## 4:     "%.4" spec ,  \
-        union_type ## 5:     "%.5" spec ,  \
-        union_type ## 6:     "%.6" spec ,  \
-        union_type ## 7:     "%.7" spec ,  \
-        union_type ## 8:     "%.8" spec ,  \
-        union_type ## 9:     "%.9" spec ,  \
+        union_type ## 0:     "%.0"  spec,  \
+        union_type ## 1:     "%"    spec,  \
+        union_type ## 2:     "%.2"  spec,  \
+        union_type ## 3:     "%.3"  spec,  \
+        union_type ## 4:     "%.4"  spec,  \
+        union_type ## 5:     "%.5"  spec,  \
+        union_type ## 6:     "%.6"  spec,  \
+        union_type ## 7:     "%.7"  spec,  \
+        union_type ## 8:     "%.8"  spec,  \
+        union_type ## 9:     "%.9"  spec,  \
         union_type ## 10:    "%.10" spec,  \
         union_type ## 11:    "%.11" spec,  \
         union_type ## 12:    "%.12" spec,  \
@@ -485,7 +488,7 @@ static const union struct_as_array __struct_as_array = { \
 _Static_assert(                                          \
     ( MAP(_check_specifier_size, __VA_ARGS__)            \
     IF(endl)(_check_endline_size, EAT)()                 \
-    1 )  == sizeof(struct printf_specifiers), "Size of all format specifiers strings differs from size of struct printf_specifiers" );        \
+    1 ) == sizeof(struct printf_specifiers), "Size of all format specifiers strings differs from size of struct printf_specifiers" );        \
 _Static_assert(_Alignof(char) == 1, "Char alignment should be 1 for generating printf specifiers");                                           \
 _Static_assert(sizeof(struct printf_specifiers) == sizeof(union struct_as_array), "Struct printf_specifiers and it's union differs in size"); \
 __struct_as_array.arr;                                   \
