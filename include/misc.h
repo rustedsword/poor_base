@@ -4,11 +4,19 @@
 #include "map.h"
 #include "stdio.h"
 #include "stdbool.h"
-#include <string.h>
-#include <time.h>
 
-//#define CAT(A, B) CAT2(A, B)
-//#define CAT2(A, B) A ## B
+/* Redefine true and false so they will be really bools, not int */
+#ifndef __cplusplus
+#ifdef true
+#undef true
+#define true (bool)1
+#endif
+
+#ifdef false
+#undef false
+#define false (bool)0
+#endif
+#endif //__cplusplus
 
 /*=============================================================================
     Copyright (c) 2015 Paul Fultz II
@@ -556,13 +564,47 @@ __struct_as_array.arr;                                   \
 #define println_main(...) printf(printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 #define fprint_main(stream, ...)   fprintf(stream, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
-/*
+/* print[ln]()
+ *
  * Prints any number(almost) of any standard variables
- * usage:
+ *
+ * Basically this is complex wrapper around printf() function.
+ * by using _Generic() and some magic this macro will create printf specifier string
+ * for printf() at compile time for all arguments passed.
+ *
+ * for example, look at this code:
+ *
+   short sh = 5;
+   size_t sz = 9;
+   intmax_t max = 700;
+   bool truth = false;
+   const char str[] = "string";
+   uint_fast16_t hx = 0xfefe;
+
+   println(sh, sz, max, truth, str, to_hex(hx, 8));
+
+ * println macro after expanding and compilation will become on amd64 linux platform:
+
+   printf("%hd%lu%ld%s%s%.8lx\n", sh, sz, max, "false", str, hx);
+
+ *
+ *  variable sz of size_t mapped to unsigned long on this platform - %lu
+ *  variable max of intmax_t mapped to long - %ld
+ *  variable truth is replaced with string "false", (this is actually runtime check)
+ *  specifier for variable hx is %.8lx and uint_fast16_t is actiually unsigned long on this platform
+ *
+ * So, by using println() you do not need to remember all these specifiers.
+ * Just print them and don't fuck your brain anymore!
+ *
+ * usage examples:
 
      println("this is int:", 45, ", this is float:", 65.14f, " and this is unsigned long to hex:0x", to_hex(9212UL));
      // will print:
      // this is int:45, this is float:65.139999 and this is unsigned long to hex:0x23fc
+
+     println(true, " or ", false, "? That is the question.");
+     // will print
+     // true or false? That is the question.
  */
 
 /* Print to stdout */
