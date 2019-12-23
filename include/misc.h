@@ -539,7 +539,7 @@ __struct_as_array.arr;                                   \
 /* returns var if var is char, or returns 0 */
 #define char_or_zero(var) _Generic((var), char: var, const char: var, default: 0)
 
-/* single println variant, optimised cases when single argument is string or char
+/* single println variant, optimized cases when single argument is string or char
  * if argument is char* then we will use puts(),
  * if it is single char then we will send to fwrite() an array with two elements: char and endline */
 #define single_println(arg, ...) \
@@ -547,7 +547,7 @@ __struct_as_array.arr;                                   \
         is_same_type(arg, char, 1, 1)  ? fwrite( (const char[]){ char_or_zero(arg), '\n'}, sizeof(char), 2, stdout ) : \
         println_main(arg)
 
-/* single print variant, optimised cases when single argument is string or char */
+/* single print variant, optimized cases when single argument is string or char */
 #define single_print(arg, ...) \
         is_same_type(arg, char*, 1, 1)  ? fputs( puts_charptr_guard(arg), stdout ) : \
         is_same_type(arg, char, 1, 1)   ? putchar( char_or_zero(arg) ) : \
@@ -594,7 +594,7 @@ __struct_as_array.arr;                                   \
  *  specifier for variable hx is %.8lx and uint_fast16_t is actiually unsigned long on this platform
  *
  * So, by using println() you do not need to remember all these specifiers.
- * Just print them and don't fuck your brain anymore!
+ * Just print your variables with println() and don't fuck your brain anymore!
  *
  * usage examples:
 
