@@ -5,16 +5,16 @@
 #include "stdio.h"
 #include "stdbool.h"
 
-/* Redefine true and false so they will be really bools, not int */
+/* Redefine true and false so they will be really bools, not ints */
 #ifndef __cplusplus
 #ifdef true
 #undef true
-#define true (bool)1
+#define true ((bool)+1)
 #endif
 
 #ifdef false
 #undef false
-#define false (bool)0
+#define false ((bool)+0)
 #endif
 #endif //__cplusplus
 
@@ -330,12 +330,12 @@ MAP_TWOARG(_gen_hex_padding_to, __hex_unsigned_long_long, unsigned long long, he
         union_type ## 15:    "%.15" spec,  \
         union_type ## 16:    "%.16" spec   \
 
-#define _printf_hex_format_all                          \
-    _printf_hex_format(__hex_unsigned_char,     "hhx"), \
-    _printf_hex_format(__hex_unsigned_short,    "hx") , \
-    _printf_hex_format(__hex_unsigned_int,      "x")  , \
-    _printf_hex_format(__hex_unsigned_long,     "lx") , \
-    _printf_hex_format(__hex_unsigned_long_long,"llx")  \
+#define _printf_hex_format_all(after)                   \
+    _printf_hex_format(__hex_unsigned_char,     "hhx" after), \
+    _printf_hex_format(__hex_unsigned_short,    "hx"  after), \
+    _printf_hex_format(__hex_unsigned_int,      "x"   after), \
+    _printf_hex_format(__hex_unsigned_long,     "lx"  after), \
+    _printf_hex_format(__hex_unsigned_long_long,"llx" after)  \
 
 /* helper. generates functions for hex unions which returns original integer value from that union */
 #define _from_hex_fmt(union_type, basic_type, num) \
@@ -381,29 +381,33 @@ MAP_TWOARG(_from_hex_fmt, __hex_unsigned_long_long, unsigned long long, hex_gens
  * Turns standard types into printf's format specifier
  */
 #define EXTRA 0
-#define printf_dec_format(x) _Generic((x), \
-    _printf_hex_format_all,                \
-    char:               "%c"  ,            \
-    signed char:        "%hhd",            \
-    unsigned char:      "%hhu",            \
-    short:              "%hd" ,            \
-    unsigned short:     "%hu" ,            \
-    int:                "%d"  ,            \
-    unsigned:           "%u"  ,            \
-    long:               "%ld" ,            \
-    unsigned long:      "%lu" ,            \
-    long long:          "%lld",            \
-    unsigned long long: "%llu",            \
-    float:              "%f"  ,            \
-    double:             "%lf" ,            \
-    long double:        "%Lf" ,            \
-    char *:             "%s"  ,            \
-    const char *:       "%s"  ,            \
-    void *:             "%p"  ,            \
-    const void *:       "%p"  ,            \
-    IF(EXTRA)(EXTRA_SPECIFIER, EAT)()      \
-    bool:               "%s"               \
+
+#define printf_dec_format_base(x, after) _Generic((x), \
+    _printf_hex_format_all(after),               \
+    char:               "%c"   after,            \
+    signed char:        "%hhd" after,            \
+    unsigned char:      "%hhu" after,            \
+    short:              "%hd"  after,            \
+    unsigned short:     "%hu"  after,            \
+    int:                "%d"   after,            \
+    unsigned:           "%u"   after,            \
+    long:               "%ld"  after,            \
+    unsigned long:      "%lu"  after,            \
+    long long:          "%lld" after,            \
+    unsigned long long: "%llu" after,            \
+    float:              "%f"   after,            \
+    double:             "%lf"  after,            \
+    long double:        "%Lf"  after,            \
+    char *:             "%s"   after,            \
+    const char *:       "%s"   after,            \
+    void *:             "%p"   after,            \
+    const void *:       "%p"   after,            \
+    IF(EXTRA)(EXTRA_SPECIFIER, EAT)()            \
+    bool:               "%s"   after             \
 )
+
+#define printf_dec_format(x) printf_dec_format_base(x,)
+#define printf_dec_format_newline(x) printf_dec_format_base(x, "\n")
 
 static inline char               _p_char(char c)          { return c; }
 static inline signed char        _p_schar(signed char c)  { return c; }
@@ -467,6 +471,12 @@ static inline const char *       _p_bool(bool c) { return c ? "true" : "false"; 
  * returns static single zero-terminated string with format specifiers for all variables passed
  * @endl: if set to non zero then it will add \n symbol to printf specifiers string
  */
+#define printf_specifier_string(endl, first_arg, ...) \
+    IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (printf_specifier_single, printf_specifier_string_multi)(endl, first_arg, __VA_ARGS__)
+
+#define printf_specifier_single(endl, arg, ...) \
+    IF( endl ) ( printf_dec_format_newline, printf_dec_format )(arg)
+
 #define _gen_printf_specifier(x)  const char CAT(arr , __COUNTER__ ) [sizeof(printf_dec_format(x)) - 1];
 #define _add_endline(...)  const char endl;
 #define _add_endline_symbol(...) '\n',
@@ -474,7 +484,7 @@ static inline const char *       _p_bool(bool c) { return c ? "true" : "false"; 
 #define _check_specifier_size(x) (sizeof(printf_dec_format(x)) - 1) +
 #define _check_endline_size(...) 1 +
 
-#define printf_specifier_string(endl, ...) ({            \
+#define printf_specifier_string_multi(endl, ...) ({      \
 struct printf_specifiers {                               \
     MAP(_gen_printf_specifier, __VA_ARGS__)              \
     IF(endl)(_add_endline, EAT)()                        \
@@ -511,9 +521,9 @@ __struct_as_array.arr;                                   \
 /* returns 1 if args are completely empty, or 0 if something is present in __VA_ARGS__, including commas, () or other values
  *
  * we are calling RETURN_THIRD_ARGUMENT with four args, if __VA_ARGS__ is empty,
- * second argument will be removed, so fourth argument becomes thrid and returned */
-#define IS_ARGS_EMPTY(x, ...) _IS_ARGS_EMPTY(x)
-#define _IS_ARGS_EMPTY(...) RETURN_THIRD_ARGUMENT(nothing, ## __VA_ARGS__, 0, 1 )
+ * second argument will be removed, so fourth argument(1) becomes thrid and returned */
+#define IS_ARGS_EMPTY(x, ...) IS_ARGS_EMPTY__(x)
+#define IS_ARGS_EMPTY__(...) RETURN_THIRD_ARGUMENT(nothing, ## __VA_ARGS__, 0, 1 )
 
 /* is_same_type(variable, _type_, SIMPLE, CONST)
  * returns true if variable is _type_, or returns false
@@ -533,31 +543,30 @@ __struct_as_array.arr;                                   \
 #define char_ptr_or_nullptr(var) _Generic((var), char*: var, const char*:var, default: NULL)
 
 /* puts()/fputs() functions should not receive NULL, if var is NULL then we will return "(null)" string,
- * emulating printf() behavior */
-#define puts_charptr_guard(var) char_ptr_or_nullptr(var) ? char_ptr_or_nullptr(var) : "(null)"
+ * emulating printf() behavior. But, passing NULL pointer to printf is still undefined behavior. */
+static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)"; }
+#define puts_charptr_guard(var) check_char_ptr( char_ptr_or_nullptr(var) )
 
 /* returns var if var is char, or returns 0 */
 #define char_or_zero(var) _Generic((var), char: var, const char: var, default: 0)
 
-/* single println variant, optimized cases when single argument is string or char
- * if argument is char* then we will use puts(),
- * if it is single char then we will send to fwrite() an array with two elements: char and endline */
-#define single_println(arg, ...) \
+/* single println variant, optimized case when single argument is a string
+ * in that case we will use puts() */
+#define single_println(arg, ...)                                            \
         is_same_type(arg, char*, 1, 1) ? puts( puts_charptr_guard(arg) ) : \
-        is_same_type(arg, char, 1, 1)  ? fwrite( (const char[]){ char_or_zero(arg), '\n'}, sizeof(char), 2, stdout ) : \
         println_main(arg)
 
 /* single print variant, optimized cases when single argument is string or char */
-#define single_print(arg, ...) \
-        is_same_type(arg, char*, 1, 1)  ? fputs( puts_charptr_guard(arg), stdout ) : \
-        is_same_type(arg, char, 1, 1)   ? putchar( char_or_zero(arg) ) : \
+#define single_print(arg, ...)                                                       \
+        is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stdout ) : \
+        is_same_type(arg, char, 1, 1)  ? putchar( char_or_zero(arg) ) :             \
         print_main(arg)
 
 /* single fprint variant, optimised cases when single argument is string or char */
 #define single_fprint(stream, arg, ...) \
-        is_same_type(arg, char*, 1, 1)  ? fputs( puts_charptr_guard(arg), stream ) : \
-        is_same_type(arg, char, 1, 1)   ? fputc( char_or_zero(arg), stream ) : \
-        fprint_main(stream, arg)
+        is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stream ) : \
+        is_same_type(arg, char, 1, 1)  ? fputc( char_or_zero(arg), stream ) : \
+        fprint_main(arg)
 
 /* These functions are real printx() functions */
 #define print_main(...)   printf(printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
