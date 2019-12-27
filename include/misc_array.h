@@ -211,18 +211,20 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
 
 
 /* Get index of an array element where _ref_ is pointing.
+ * @_array_ptr_: pointer to array
+ * @_ref_: pointer to an element inside that array
  * example:
 
     uint64_t test[] = {0x2000, 100, 200, 300};
-    foreach_array_ref(test, val) {
+    foreach_array_ref(&test, val) {
         println("Array index:", array_ref_index(test, val), " Array value:0x", to_hex(*val, 8));
 
         if(array_ref_index(test, val) == 2)
-            println("Magic index 2 detected, value at index 1:", *(val-1) , " and value and index 3:", test[3]);
+            println("Magic index 2 detected, value at index 1 is ", *(val-1) , " and value at index 3 is ", test[3]);
     }
 
 */
-#define array_ref_index(_array_, _ref_) ((_ref_) - &((_array_))[0])
+#define array_ref_index(_array_ptr_, _ref_) ((_ref_) - &(( *(_array_ptr_) ))[0])
 
 /* Declares pointer to first array element */
 #define array_first_ref(_array_ptr_, _ref_ptr_name_) P_ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = get_array_first_ref(_array_ptr_)
@@ -350,6 +352,36 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
  * @start should not be less or equal @end
  * both @start and @end should not be equal or greater than source array size
  *
+ * an array slice is just a pointer to array to some position inside another array.
+ * basically you can write that manually:
+ *
+ * char arr[6] = {'a','b','c','d','e','f'};
+ * char (*slice)[3] = (char (*)[3])(arr + 2); // Same as make_array_slice(slice, 2, 5, &arr),
+ *                                            // or make_array_slice_size(slice, 2, 3, &arr);
+ *
+ * slice pointer here points to arr's element at index 2, and has size 3.
+ * so, if we dereference the slice, we can access arr's values at indexes 2, 3, 4
+ *
+ * print_array(slice); //prints: cde
+ *
+ * and we can modify arr's values through the slice:
+ *
+ * (*slice)[0] = 'x';
+ * (*slice)[1] = 'y';
+ * (*slice)[2] = 'z';
+ *
+ * print_array(&arr); //prints: abxyzf
+ *
+ * we can, of course try to do that: access element above slice bounds.
+ *
+ * (*slice)[3] = 'f'; //NO !
+ *
+ * While in the example above it is fine to do that,
+ * since (*slice)[3] is the same as arr[5] (value 'f'), but doing that is a bad practice
+ * and also compiler may send a warning, that you trying to write to an array above it's bounds
+ *
+ * if you need to access slice above it's bounds, then create larger slice in the first place!
+ *
  * examples:
 
     //make string literal slice
@@ -362,17 +394,17 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
 ...
     //Create concatenated VLA and cut it
     concat_vla(vla, "Int:", 1, " float:", 5.f, "\n");
-    make_array_slice(slice, 6, ARRAY_SIZE(vla), &vla);
+    make_array_slice(slice, 6, ARRAY_SIZE(vla) - 1, &vla);
     print_array(slice); //prints: float:5.000000
 ...
     //Copy three string into one
 
-    // Pack string literals into constant pointers to arrays of constant chars
-    make_array_slice_literal(pre_string, "Everyone ");
-    make_array_slice_literal(mid_string, "Must ");
-    make_array_slice_literal(post_string, "Die");
+    //Declare string literals
+    string_literal(pre_string, "This ");
+    string_literal(mid_string, "is ");
+    string_literal(post_string, "text");
 
-    // Strip '\0' from first two strings
+    // Make slices for first two strings without null terminator
     make_array_slice_string(pre, pre_string);
     make_array_slice_string(mid, mid_string);
 
@@ -380,15 +412,15 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
     char (*string)[P_ARRAYS_SIZE(pre, mid, post_string)];
     malloc_array(string);
 
-    //Make slice from string with size of array pre
+    //Make a slice from string with size of array pre
     make_array_slice_size(string_slice0, 0, P_ARRAY_SIZE(pre), string);
     copy_array(string_slice0, pre);
 
-    //Make slice from string with size of array mid and with start position after pre string
+    //Make a slice from string with size of array mid and with start position after pre string
     make_array_slice_size(string_slice1, P_ARRAY_SIZE(pre), P_ARRAY_SIZE(mid), string);
     copy_array(string_slice1, mid);
 
-    //Make slice from string at position after pre and mid.
+    //Make a slice from string at position after pre and mid.
     make_array_slice_front(string_slice2, P_ARRAYS_SIZE(pre, mid), string);
     copy_array(string_slice2, post_string);
 
@@ -437,34 +469,44 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
  *
  * Special macro for string literals.
  * Declares constant pointer to array of constant chars and sets it's value to provided string literal
+ * array size includes '\0'
  *
  * example:
 
     string_literal(str, "String Literal");
     //str = NULL; // <--Error
-    //str[0] = '1'; // <--Error
+    //(*str)[0] = '1'; // <--Error
 
     //Dereference to const char* and print
     println(*str);
     printf("%s\n", *str);
-    fwrite(*str, 1, P_ARRAY_SIZE(str), stdout);
+    fwrite(*str, 1, P_ARRAY_SIZE(str) - 1, stdout);
 
     //Make slice without '\0' and print it as array of chars
     make_array_slice_string(str_nonull, str);
     print_array(str_nonull);
 
- * Also, you can declare array slice literals at global scope with static keyword (or without)
+ * Also, you can declare string literals at global scope with static keyword (or without)
 
     static string_literal(useful_string, "I am just a string");
 
     int main() {
-        println(*useful_string);
+        println(*useful_string, " with size:", P_ARRAY_SIZE(useful_string));
         return 0;
     }
 
+ * compilers optimizes string literals even at -O0 optimization, but do not rely on it.
+
+    string_literal(str1, "Text ");
+    string_literal(str2, "Text ");
+    string_literal(str3, "Text2");
+
+    println("str1 equals str2? ", (bool)(str1 == str2)); //true
+    println("str1 equals str3? ", (bool)(str1 == str3)); //false
+
  */
 #define string_literal(_name_, _string_) \
-    declare_string_literal_pointer(_name_, _string_) = (const typeof( (_string_)[0] ) (*)[])( (_string_) )
+    declare_string_literal(_name_, _string_) = (const typeof( (_string_)[0] ) (*)[])( (_string_) )
 
 /* Only declares constant pointer to array of constant chars
  * can be used with extern.
@@ -474,7 +516,7 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
 
 //  library.h:
     #define SUPER_STRING "This is string!"
-    extern declare_string_literal_pointer(super_string, SUPER_STRING);
+    extern declare_string_literal(super_string, SUPER_STRING);
 
 //  library.c:
     #include "library.h"
@@ -495,10 +537,8 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
     }
  *
  */
-#define declare_string_literal_pointer(_name_, _string_) \
+#define declare_string_literal(_name_, _string_) \
     const typeof( (_string_)[0] ) (*const (_name_)) [ is_same_type( get_array_first_ref(&(_string_)), char*, 1, 0) ? ARRAY_SIZE(_string_) : -1 ]
-
-//const typeof( (_string_)[0] ) (*const (_name_)) [ is_same_type( get_array_first_ref(&(_string_)), char*, 1, 0) ? ARRAY_SIZE(_string_) : -1 ] = (const typeof( (_string_)[0] ) (*)[])( (_string_) )
 
 
 /* Just prints array.
