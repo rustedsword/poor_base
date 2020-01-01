@@ -317,11 +317,35 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
         }                                                           \
 } while(0)
 
-#define is_arrays_of_same_types(dst_ptr, src_ptr)     \
-        _Generic((dst_ptr),                        \
-            typeof((*(src_ptr))[0]) (*)[]: true,   \
-            default: false                         \
-        )
+
+/* is_arrays_of_same_types(dst_ptr, src_ptr)
+ * checks if two pointers to arrays contain same type, ignoring type constness
+ *
+ * char a[1];
+ * const char b[1];
+ * int c[1];
+ *
+ * is_arrays_of_same_types(&a, &a) // true
+ * is_arrays_of_same_types(&a, &b) // true
+ * is_arrays_of_same_types(&b, &b) // true
+ * is_arrays_of_same_types(&a, &c) // false
+ *
+ * Three-level check for same type:
+ * at first level we return true if types are exactly same (const dst == const src) or (non-const dst == non-const src)
+ * at second level we return true if dst type is const and src type is non const
+ * at third level we return true if dst type is non const and src type is const
+ */
+#define is_arrays_of_same_types(dst_ptr, src_ptr)                               \
+        _Generic((dst_ptr),                                                     \
+                typeof((*(src_ptr))[0]) (*)[]: true,                            \
+                default: _Generic( (dst_ptr),                                   \
+                        const typeof((*(src_ptr))[0]) (*)[]: true,              \
+                        default: _Generic( (src_ptr),                           \
+                                const typeof((*(dst_ptr))[0]) (*)[]: true,	\
+                                default: false                                  \
+                                )                                               \
+                        )                                                       \
+                )
 
 #define copy_array_fast__(dst_ptr, src_ptr)                           \
     (P_ARRAY_SIZE_BYTES(dst_ptr) >= P_ARRAY_SIZE_BYTES(src_ptr))    \
