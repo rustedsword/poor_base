@@ -343,6 +343,37 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
 } while(0)
 
 
+/* Copies multiple arrays into single array
+ * @dst_ptr: pointer to destination array
+ * __VA_ARGS__: pointers to source arrays to copy data from
+ *
+ * All source arrays must contain same element type as destination array
+ * Destination array size must be equal or larger than total size of all source arrays.
+ *
+ * example:
+
+    make_array_slice_string(src1, &"This ");
+    make_array_slice_string(src2, &"Is ");
+    make_array_slice_string(src3, &"A string");
+    char dst[P_ARRAYS_SIZE(src1, src2, src3)];
+    copy_arrays(&dst, src1, src2, src3);
+    print_array(&dst); //prints: This Is A string
+
+ */
+
+#define copy_arrays(dst_ptr, ...) do {                              \
+    MAP_ARG(check_source_arrays, dst_ptr, __VA_ARGS__)              \
+    typeof ((*(dst_ptr))[0]) *tmp_ptr = (typeof(tmp_ptr))dst_ptr;   \
+    (                                                               \
+        MAP_LIST(copy_arrays_helper, __VA_ARGS__)                   \
+    );                                                              \
+} while(0)
+#define check_source_arrays(dst_ptr, src_ptr) \
+    _Static_assert( is_arrays_of_same_types(dst_ptr, src_ptr) == true, "Source array: " #src_ptr " doesn't have same type as destination array");
+
+#define copy_arrays_helper(src_ptr) (void)(tmp_ptr = ((typeof(tmp_ptr))memcpy(tmp_ptr, src_ptr, P_ARRAY_SIZE_BYTES(src_ptr))) + P_ARRAY_SIZE(src_ptr))
+
+
 /* makes array slice
  * @_name_: name of variable to declare for slice
  * @_start_: start index
@@ -433,12 +464,19 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
    { __attribute__((unused)) char end_greater_than_array_size[ (P_ARRAY_SIZE((__VA_ARGS__)) >= end ) ? 1 : -1];} \
    { __attribute__((unused)) char start_index_should_not_be_equal_end_index[ (start == end) ? -1 : 1];} \
    { __attribute__((unused)) char end_index_should_not_be_less_than_start_index[ (end < start) ? -1 : 1];} \
-   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ (end) - (start) ] = (typeof( (*(__VA_ARGS__))[0] ) (*)[])( (*(__VA_ARGS__)) + (start) )
+   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ (end) - (start) ] = array_slice(start, end, (__VA_ARGS__))
+
+//(typeof( (*(__VA_ARGS__))[0] ) (*)[])( (*(__VA_ARGS__)) + (start) )
+
+#define array_slice(start, end, ...) (typeof( (*(__VA_ARGS__))[0] ) (*)[ (end) - (start) ])( &(*(__VA_ARGS__))[start] )
 
 /* make array slice, skipping (start) elements at front */
 #define make_array_slice_front(_name_, start, ...) \
    { __attribute__((unused)) char start_index_is_greater_than_array_size_minus_one [ (P_ARRAY_SIZE((__VA_ARGS__)) > start ) ? 1 : -1];} \
-   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (start) ] = (typeof( (*(__VA_ARGS__))[0] ) (*)[])( (*(__VA_ARGS__)) + (start) )
+   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (start) ] = array_slice_front(start, (__VA_ARGS__))
+
+#define array_slice_front(start, ...) (typeof( (*(__VA_ARGS__))[0] ) (*)[ P_ARRAY_SIZE((__VA_ARGS__)) - start ])( &(*(__VA_ARGS__))[start] )
+
 
 /* make array slice, skipping (end) elements at array end
  * example:
@@ -450,18 +488,25 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
  */
 #define make_array_slice_back(_name_, end, ...) \
    { __attribute__((unused)) char end_index_is_greater_than_array_size_minus_one [ (P_ARRAY_SIZE((__VA_ARGS__)) > end ) ? 1 : -1];} \
-   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (end) ] = (typeof( (*(__VA_ARGS__))[0] ) (*)[])( (*(__VA_ARGS__)) )
+   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (end) ] = array_slice_back(end, (__VA_ARGS__))
+
+#define array_slice_back(end, ...) (typeof( (*(__VA_ARGS__))[0] ) (*)[ P_ARRAY_SIZE((__VA_ARGS__)) - end ])( &(*(__VA_ARGS__))[0] )
+
 
 /* make array slice with size (size), skipping (start) elements at front */
 #define make_array_slice_size(_name_, start, size, ...) \
    { __attribute__((unused)) char start_and_size_together_greater_than_array_size[ (P_ARRAY_SIZE((__VA_ARGS__)) >= start + size ) ? 1 : -1];} \
    { __attribute__((unused)) char size_should_not_be_zero[ size ? 1 : -1 ];  }                                       \
-   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ (size) ] =  (typeof( (*(__VA_ARGS__))[0] ) (*)[]) ( (*(__VA_ARGS__)) + (start) )
+   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ (size) ] = array_slice_size(start, size, (__VA_ARGS__))
+
+#define array_slice_size(start, size, ...) (typeof( (*(__VA_ARGS__))[0] ) (*)[size])( &(*(__VA_ARGS__))[start] )
 
 /* Cuts '\0' from strings */
 #define make_array_slice_string(_name_, ...) \
     _Static_assert( is_same_type( get_array_first_ref((__VA_ARGS__)), char*, 1, 1) == true, "Not a char array"); \
     make_array_slice_back(_name_, 1, (__VA_ARGS__))
+
+#define array_slice_string(...) array_slice_back(1, (__VA_ARGS__))
 
 /* string_literal(_name_, string_literal)
  * @_name_: variable name for new array pointer
@@ -508,7 +553,9 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
 #define string_literal(_name_, _string_) \
     declare_string_literal(_name_, _string_) = (const typeof( (_string_)[0] ) (*)[])( (_string_) )
 
-/* Only declares constant pointer to array of constant chars
+/* declare_string_literal(name, string_literal)
+ *
+ * Only declares constant pointer to array of constant chars
  * can be used with extern.
  * example:
  *
