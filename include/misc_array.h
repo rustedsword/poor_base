@@ -83,18 +83,43 @@ union __you_should_proivde_array_or_pointer_to_array_here___note__array_of_struc
 /* extracts type of array element from pointer to array */
 #define P_ARRAY_ELEMENT_TYPE(_array_ptr_) typeof((*(_array_ptr_))[0])
 
-/* Prints information about array
+/* is_ptr_to_vla(_arr_ptr_)
+ * Returns true if _arr_ptr_ is pointer to VLA. */
+#define is_ptr_to_vla(_arr_ptr_) is_vla(*(_arr_ptr_))
+
+/* is_vla(array)
+ * Returns true if array is variable length array(VLA)
+ *
+ * Well, actually, it returns true if array has size UINT_MAX - 4. But this works for VLA of any size. */
+#define is_vla(_array_) _Generic( &(_array_),                   \
+        typeof( (_array_)[0] ) (*)[ (unsigned)-5 ]: true,	\
+        default: false  	                                \
+        )
+
+/* PRINT_ARRAY_INFO(arr_ptr): Prints information about array
  * @__VA_ARGS__: pointer to an array
  * example:
 
     PRINT_ARRAY_INFO(&(long long[]){1, 2, 3, 4});
-    //prints: Array "&(long long[]){1, 2, 3, 4}" at (0x7fffffffdc40) has size:4 uses 32 bytes, while single element has size:8
+    //prints: Array "&(long long[]){1, 2, 3, 4}" at 0x7fffffffdc40 has size:4 uses 32 bytes, while single element has size:8
+
+...
+int main(int argc, char **argv) {
+    short (*test)[argc * 3];
+    malloc_array(test);
+
+    PRINT_ARRAY_INFO(test);
+    //if argc == 1, prints: VLA "test" at 0x5555555592a0 has size:3 uses 6 bytes, while single element has size:2
+
+    free(test);
+    return 0;
+}
 
  */
-#define PRINT_ARRAY_INFO(...) println("Array \"" #__VA_ARGS__ "\" at (", ((const void*)(__VA_ARGS__)) ,")" \
-                                     " has size:", P_ARRAY_SIZE((__VA_ARGS__)), \
-                                     " uses ", P_ARRAY_SIZE_BYTES((__VA_ARGS__)), \
-                                     " bytes, while single element has size:", P_ARRAY_ELEMENT_SIZE((__VA_ARGS__)))
+#define PRINT_ARRAY_INFO(...) println(is_ptr_to_vla(__VA_ARGS__) ? "VLA" : "Array" , " \"" #__VA_ARGS__ "\" at ", ((const void*)(__VA_ARGS__)) ,	\
+                                     " has size:", P_ARRAY_SIZE((__VA_ARGS__)),                                                                         \
+                                     " uses ", P_ARRAY_SIZE_BYTES((__VA_ARGS__)), " bytes,"                                                             \
+                                     " while single element has size:", P_ARRAY_ELEMENT_SIZE((__VA_ARGS__)))
 
 
 /* make_array_ptr()
