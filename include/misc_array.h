@@ -263,6 +263,39 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
 /* get pointer to last array element */
 #define get_array_last_ref(_array_ptr_) (&(*(_array_ptr_))[ P_ARRAY_SIZE(_array_ptr_) - 1 ])
 
+/* returns true if ref points to last array element */
+#define is_last_array_ref(_arr_ptr_, _ref_) ((_ref_) == get_array_last_ref( (_arr_ptr_) ))
+/* returns true if ref points to first array element */
+#define is_first_array_ref(_arr_ptr_, _ref_) ((_ref_) == get_array_first_ref( (_arr_ptr_) ))
+/* returns true if ref point to first or last array element */
+#define is_first_or_last_array_ref(_arr_ptr_, _ref_) ( is_first_array_ref((_arr_ptr_), (_ref_)) || is_last_array_ref((_arr_ptr_), (_ref_))  )
+
+
+/* Erases single element from array by moving all data after _ref_ towards front
+ * of the array and setting last array value with _val_
+ *
+ * example:
+
+  uint8_t arr[] = {1, 2, 3, 4, 5};
+  uint8_t *ref = arr + 2; //pointer to value '3'
+  array_remove_ref(&arr, ref, 50);
+  //  array now will be: {1, 2, 4, 5, 50}
+
+  ref = arr + 4; //pointer to last element: '50'
+  array_remove_ref(&arr, ref, 0);
+  //  array now will be: {1, 2, 4, 5, 0}
+
+ * BE CAREFUL WHILE ITERATING!
+ */
+#define array_ref_remove(_arr_ptr_, _ref_, _val_) do {                          \
+        if(is_last_array_ref((_arr_ptr_), (_ref_))) {                           \
+                *ref = (_val_);                                                 \
+        } else {                                                                \
+                memmove((_ref_), (_ref_) + 1, P_ARRAY_SIZE_BYTES(_arr_ptr_) - ((array_ref_index( (_arr_ptr_) , (_ref_)) + 1)  * P_ARRAY_ELEMENT_SIZE(_arr_ptr_) ) ); \
+                *(get_array_last_ref(_arr_ptr_)) = (_val_);                     \
+        }                                                                       \
+} while (0)
+
 /* Copies data from src array pointer to dst array pointer per element
  * if dst array is larger or equal than source array, then entire source array will be copied to dst.
  *  excess bytes in dst won't be touched.
@@ -549,6 +582,21 @@ for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
    typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ (size) ] = array_slice_size(start, size, (__VA_ARGS__))
 
 #define array_slice_size(start, size, ...) (typeof( (*(__VA_ARGS__))[0] ) (*)[size])( &(*(__VA_ARGS__))[start] )
+
+/* Make array slice while skipping n bytes from start and n bytes from end
+ * example:
+
+   char data[] = {0, 0, 'H','I', 0, 0, 0};
+   make_array_slice_shrink(data_slc, 2, 3, &data);
+   print_array(data_slc); //prints: HI
+
+ */
+#define make_array_slice_shrink(_name_, skip_start, skip_end, ...) \
+        typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = array_slice_shrink(skip_start, skip_end, (__VA_ARGS__))
+
+#define array_slice_shrink(skip_start, skip_end, ...) \
+        (typeof( (*(__VA_ARGS__))[0] ) (*) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ]) (&(*(__VA_ARGS__))[skip_start])
+
 
 /* Cuts '\0' from strings */
 #define make_array_slice_string(_name_, ...) \
