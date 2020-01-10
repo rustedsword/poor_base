@@ -196,8 +196,8 @@ int main(int argc, char**argv) {
 
 /* This needs more work, don't use */
 #define for_each_bit_in_array(_array_) \
-for(unsigned byte_index = 0; byte_index < XARRAY_SIZE(_array_); byte_index++) \
-    for(unsigned bit_index = 0; bit_index < (XARRAY_SIZE_ELEMENT(_array_) * 8); bit_index++)
+for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
+    for(unsigned bit_index = 0; bit_index < (P_ARRAY_ELEMENT_SIZE(_array_) * 8); bit_index++)
 
 /* Iterate over an array.
  * @_arr_ptr_: pointer to array
