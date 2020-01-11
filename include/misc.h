@@ -484,34 +484,51 @@ static inline const char *       _p_bool(bool c) { return c ? "true" : "false"; 
 #define _check_specifier_size(x) (sizeof(printf_dec_format(x)) - 1) +
 #define _check_endline_size(...) 1 +
 
-#define printf_specifier_string_multi(endl, ...) ({      \
-struct printf_specifiers {                               \
-    MAP(_gen_printf_specifier, __VA_ARGS__)              \
-    IF(endl)(_add_endline, EAT)()                        \
-    const char null;                                     \
-};                                                       \
-                                                         \
-union struct_as_array {                                  \
-    const struct printf_specifiers p;                    \
-    const char arr [sizeof(struct printf_specifiers)];   \
-};                                                       \
-                                                         \
-static const union struct_as_array __struct_as_array = { \
-    .p = {                                               \
-        MAP_LIST(printf_dec_format, __VA_ARGS__),        \
-        IF(endl)(_add_endline_symbol, EAT)()             \
-        0                                                \
-    }                                                    \
-};                                                       \
-_Static_assert(                                          \
-    ( MAP(_check_specifier_size, __VA_ARGS__)            \
-    IF(endl)(_check_endline_size, EAT)()                 \
-    1 ) == sizeof(struct printf_specifiers), "Size of all format specifiers strings differs from size of struct printf_specifiers" );        \
-_Static_assert(_Alignof(char) == 1, "Char alignment should be 1 for generating printf specifiers");                                           \
-_Static_assert(sizeof(struct printf_specifiers) == sizeof(union struct_as_array), "Struct printf_specifiers and it's union differs in size"); \
-__struct_as_array.arr;                                   \
-})
+#define printf_spec_size(endl, ...) \
+        ( MAP(_check_specifier_size, __VA_ARGS__) IF(endl)(_check_endline_size, EAT)()  1 )
 
+#define printf_specifier_string_multi(endl, ...) printf_specifier_string_multi_es(endl, __VA_ARGS__)
+
+/* Variant of creating format string with compound literal,
+ * it uses automatic storage duration, but no compiler extensions used here, except for __COUNTER__ macro */
+#define printf_specifier_string_multi_cl(endl, ...) (           \
+(const union {                                                  \
+        const struct {                                          \
+                MAP(_gen_printf_specifier, __VA_ARGS__)         \
+                IF(endl)(_add_endline, EAT)()                   \
+                const char null;                                \
+        } specifier ;                                           \
+        const char array [printf_spec_size(endl, __VA_ARGS__)]; \
+}){                                                             \
+        .specifier = {                                          \
+                MAP_LIST(printf_dec_format, __VA_ARGS__),       \
+                IF(endl)(_add_endline_symbol, EAT)()            \
+                0                                               \
+        }                                                       \
+}                                  	                        \
+).array                                                         \
+
+/* Variant of creating format string with an expression statement,
+ * resulting object generated at compile time  */
+#define printf_specifier_string_multi_es(endl, ...) ({          \
+static const union {                                            \
+        const struct {                                          \
+                MAP(_gen_printf_specifier, __VA_ARGS__)         \
+                IF(endl)(_add_endline, EAT)()                   \
+                const char null;                                \
+        } specifier;                                            \
+        const char array [printf_spec_size(endl, __VA_ARGS__)]; \
+} generic_printf_format_string = {                              \
+        .specifier = {                                          \
+                MAP_LIST(printf_dec_format, __VA_ARGS__),	\
+                IF(endl)(_add_endline_symbol, EAT)()            \
+                0                                               \
+        }                                                       \
+};                                                              \
+_Static_assert( sizeof(generic_printf_format_string.array) == sizeof(generic_printf_format_string.specifier), \
+"Size of structure for generic format string differs form array"); \
+generic_printf_format_string.array;                             \
+})
 
 /*** Print optimization ****/
 
