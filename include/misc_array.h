@@ -213,11 +213,11 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  */
 
 #define foreach_array_ref(_arr_ptr_, _ref_ptr_name_) \
-    for(array_first_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ != (*(_arr_ptr_)) + P_ARRAY_SIZE((_arr_ptr_)); (_ref_ptr_name_)++  )
+    for(make_array_first_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ != (*(_arr_ptr_)) + P_ARRAY_SIZE((_arr_ptr_)); (_ref_ptr_name_)++  )
 
 /* same as foreach_array_ref(), but _ref_ptr_name_ is always const */
 #define foreach_array_const_ref(_arr_ptr_, _ref_ptr_name_) \
-     for(const array_first_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ != (*(_arr_ptr_)) + P_ARRAY_SIZE((_arr_ptr_)); (_ref_ptr_name_)++  )
+     for(const make_array_first_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ != (*(_arr_ptr_)) + P_ARRAY_SIZE((_arr_ptr_)); (_ref_ptr_name_)++  )
 
 /*
  * Iterate backwards over an array. Same as foreach_array_ref(), but backwards.
@@ -228,11 +228,11 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
         print(*val);  //prints: 4321
  */
 #define foreach_array_ref_bw(_arr_ptr_, _ref_ptr_name_) \
-    for(array_last_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ >= (*(_arr_ptr_)); (_ref_ptr_name_)--  )
+    for(make_array_last_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ >= (*(_arr_ptr_)); (_ref_ptr_name_)--  )
 
 /* same as foreach_array_ref_bw(), but _ref_ptr_name_ is always const */
 #define foreach_array_const_ref_bw(_arr_ptr_, _ref_ptr_name_) \
-    for(const array_last_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ >= (*(_arr_ptr_)); (_ref_ptr_name_)--  )
+    for(const make_array_last_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ >= (*(_arr_ptr_)); (_ref_ptr_name_)--  )
 
 
 /* Get index of an array element where _ref_ is pointing.
@@ -252,21 +252,21 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define array_ref_index(_array_ptr_, _ref_) ((_ref_) - &(( *(_array_ptr_) ))[0])
 
 /* Declares pointer to first array element */
-#define array_first_ref(_array_ptr_, _ref_ptr_name_) P_ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = get_array_first_ref(_array_ptr_)
+#define make_array_first_ref(_array_ptr_, _ref_ptr_name_) P_ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_first_ref(_array_ptr_)
 
 /* Declares pointer to last array element */
-#define array_last_ref(_array_ptr_, _ref_ptr_name_) P_ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = get_array_last_ref(_array_ptr_)
+#define make_array_last_ref(_array_ptr_, _ref_ptr_name_) P_ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_last_ref(_array_ptr_)
 
 /* get pointer to first array element */
-#define get_array_first_ref(_array_ptr_) (&(*(_array_ptr_))[0])
+#define array_first_ref(_array_ptr_) (&(*(_array_ptr_))[0])
 
 /* get pointer to last array element */
-#define get_array_last_ref(_array_ptr_) (&(*(_array_ptr_))[ P_ARRAY_SIZE(_array_ptr_) - 1 ])
+#define array_last_ref(_array_ptr_) (&(*(_array_ptr_))[ P_ARRAY_SIZE(_array_ptr_) - 1 ])
 
 /* returns true if ref points to last array element */
-#define is_last_array_ref(_arr_ptr_, _ref_) ((_ref_) == get_array_last_ref( (_arr_ptr_) ))
+#define is_last_array_ref(_arr_ptr_, _ref_) ((_ref_) == array_last_ref( (_arr_ptr_) ))
 /* returns true if ref points to first array element */
-#define is_first_array_ref(_arr_ptr_, _ref_) ((_ref_) == get_array_first_ref( (_arr_ptr_) ))
+#define is_first_array_ref(_arr_ptr_, _ref_) ((_ref_) == array_first_ref( (_arr_ptr_) ))
 /* returns true if ref point to first or last array element */
 #define is_first_or_last_array_ref(_arr_ptr_, _ref_) ( is_first_array_ref((_arr_ptr_), (_ref_)) || is_last_array_ref((_arr_ptr_), (_ref_))  )
 
@@ -292,7 +292,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
                 *ref = (_val_);                                                 \
         } else {                                                                \
                 memmove((_ref_), (_ref_) + 1, P_ARRAY_SIZE_BYTES(_arr_ptr_) - ((array_ref_index( (_arr_ptr_) , (_ref_)) + 1)  * P_ARRAY_ELEMENT_SIZE(_arr_ptr_) ) ); \
-                *(get_array_last_ref(_arr_ptr_)) = (_val_);                     \
+                *(array_last_ref(_arr_ptr_)) = (_val_);                     \
         }                                                                       \
 } while (0)
 
@@ -412,12 +412,12 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 #define copy_array_slow__(dst_ptr, src_ptr) do {                  \
     if(P_ARRAY_SIZE(dst_ptr) >= P_ARRAY_SIZE((src_ptr))) {      \
-        array_first_ref(dst_ptr, dst_ref);                     \
+        make_array_first_ref(dst_ptr, dst_ref);                     \
         foreach_array_const_ref(src_ptr, src_ref) {          \
             *dst_ref++ = *src_ref;                              \
         }                                                       \
     } else {                                                    \
-        const array_first_ref(src_ptr, src_ref);                \
+        const make_array_first_ref(src_ptr, src_ref);                \
         foreach_array_ref(dst_ptr, dst_ref) {                  \
             *dst_ref = *src_ref++;                              \
         }                                                       \
@@ -600,7 +600,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 /* Cuts '\0' from strings */
 #define make_array_slice_string(_name_, ...) \
-    _Static_assert( is_same_type( get_array_first_ref((__VA_ARGS__)), char*, 1, 1) == true, "Not a char array"); \
+    _Static_assert( is_same_type( array_first_ref((__VA_ARGS__)), char*, 1, 1) == true, "Not a char array"); \
     make_array_slice_back(_name_, 1, (__VA_ARGS__))
 
 #define array_slice_string(...) array_slice_back(1, (__VA_ARGS__))
@@ -682,7 +682,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  *
  */
 #define declare_string_literal(_name_, _string_) \
-    const typeof( (_string_)[0] ) (*const (_name_)) [ is_same_type( get_array_first_ref(&(_string_)), char*, 1, 0) ? ARRAY_SIZE(_string_) : -1 ]
+    const typeof( (_string_)[0] ) (*const (_name_)) [ is_same_type( array_first_ref(&(_string_)), char*, 1, 0) ? ARRAY_SIZE(_string_) : -1 ]
 
 
 /* Just prints array.
