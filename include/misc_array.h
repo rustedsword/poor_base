@@ -3,53 +3,80 @@
 
 #include <misc.h>
 
-union __you_should_proivde_array_or_pointer_to_array_here___note__array_of_structs_are_not_supported { int a;};
-#define _gen_array_specifiers(_array_, _type_) \
-        _type_ (*)[]: (_array_), \
-        _type_ (**)[]: *(_array_),
 
-/* This macro used for easy access to arrays
- * if you send array here, it will just return same array
- * if you send pointer to array here, it will return dereferenced pointer to that array
+/***** Experimental *****/
+
+/* returns pointer to int if (expr) is constant integer expression, or returns pointer to void if (expr) is not constant integer expression */
+#define magic_ice_expression(expr) (1 ? ((void *)((intptr_t)( (expr) ) * 0)) : (int *)1)
+
+/* returns true if (expr) is constant integer expression, or false if it is not */
+#define is_const_expr(expr) _Generic( magic_ice_expression(expr), int*: true, void*:false)
+
+/* Evaluates (if_const) expression if (expr) is constant integer expression or evaluates (if_not_const) expression */
+#define if_constexpr(expr, if_const, if_not_const) _Generic( magic_ice_expression(expr), int*: (if_const), void*:(if_not_const))
+
+
+/* This macro returns (var) as is if size of (var) or (*var) is known at compile time.
+ * If sizeof(var) or sizeof(*var) is not compile time constants, then
+ * returns fixed array or pointer to fixed array of _dummy_type_ as a compound literal */
+#define unvla(var) if_constexpr(sizeof(var),                                            \
+                                 if_constexpr(sizeof(*(var)),                           \
+                                                var, (union _dummy_type_ (*)[1]){0} ),  \
+                                 (union _dummy_type_ [1]){0})
+union _dummy_type_ {char a;};
+
+/* This macro returns (var) if (var) is an array or returns (*var) if var is a pointer to something */
+#define get_array_or_deref(var)                         \
+        _Generic( &( (typeof( unvla(var) )){0} ),       \
+        typeof( *(unvla(var)) ) (*)[] : (var),          \
+        default: *(var))
+
+
+/* auto_arr(var)
+ * @var: array or pointer to an array
  *
- * int a[20];
- * arr(a)[5] = 40; same as: a[5] = 40;
+ * This macro returns (var) if (var) is an array, or (*var) if (var) is a pointer to an array
+ * Basically, this macro automatically dereferences pointer to arrays, which can be used for other functions
  *
- * int (*ptr)[20] = &a;
- * arr(ptr)[1] = 10; -> same as: (*ptr)[1] = 10;
+ * example:
+
+    char str[] = "String";
+    char (*str_ptr) [ARRAY_SIZE(str)] = &str;
+
+    //These two operations are the same:
+    auto_arr(str)[1] = 'p';
+    auto_arr(str_ptr)[1] = 'r';
+
+    //Works with multi-dimensional arrays too:
+    char   array [2][5][4] = {0};
+    char (*arptr)[2][5][4] = &array;
+
+    auto_arr(array)[0][0][1] = 'R';
+    auto_arr(arptr)[0][1][0] = 'F';
+
+    println( auto_arr(arptr)[0][0][1] ); //Prints 'R'
+    println( auto_arr(array)[0][1][0] ); //Prints 'F'
+
+NOTE: Only works for multi-dimensional VLA with last dimension being variable, eg:
+        char array [ number ][2][3];        //OK
+        char array [ number ][ number ][3]; //Fail
+        char array [1][ number ][3];        //Fail
  */
-#define arr(_array_) _Generic(&(_array_), \
-        MAP_ARG(_gen_array_specifiers, _array_, \
-                char, signed char, unsigned char, \
-                signed short, unsigned short, \
-                signed int, unsigned int, \
-                signed long, unsigned long, \
-                signed long long, unsigned long long, \
-                float, double, long double, \
-                char *, const char*, \
-                void *, const void*, \
-                bool) \
-        default: (union __you_should_proivde_array_or_pointer_to_array_here___note__array_of_structs_are_not_supported*)(_array_))
+#define auto_arr(var)                                   \
+         _Generic( &( get_array_or_deref(var) ),        \
+        typeof( *(get_array_or_deref(var)) ) (*)[]: get_array_or_deref(var))
 
-/* Returns number of elements in the array, _array_ can be array or pointer to array.
- * this only works for arrays of basic C types */
-#define XARRAY_SIZE(_array_) ARRAY_SIZE( arr(_array_) )
-#define XARRAY_SIZE_BYTES(_array_) ARRAY_SIZE_BYTES( arr(_array_) )
-#define XARRAY_SIZE_ELEMENT(_array_) ARRAY_ELEMENT_SIZE( arr(_array_) )
+/***** end experimental *****/
 
-/* Returns number of elements in the array, if arr is not an array then compilation will fail */
-#define ARRAY_SIZE(arr)       _Generic( &(arr), typeof((arr)[0]) (*)[]: sizeof((arr))/sizeof( (arr)[0] ) )
-/* Returns whole array size in bytes */
-#define ARRAY_SIZE_BYTES(arr) _Generic( &(arr), typeof((arr)[0]) (*)[]: sizeof((arr)) )
+/* Returns number of elements in the array */
+#define ARRAY_SIZE(arr) ( sizeof( auto_arr(arr)) / sizeof (auto_arr(arr)[0]) )
+/* Returns total array size in bytes */
+#define ARRAY_SIZE_BYTES(arr) sizeof( auto_arr(arr) )
 /* Returns size of one element in the array */
-#define ARRAY_ELEMENT_SIZE(arr) _Generic( &(arr), typeof((arr)[0]) (*)[]: sizeof((arr)[0]) )
+#define ARRAY_ELEMENT_SIZE(arr) sizeof( auto_arr(arr)[0] )
+/* Extracts type of array element from array */
+#define ARRAY_ELEMENT_TYPE(arr) typeof( auto_arr(arr)[0])
 
-/* Returns number of elements in the array. arr should be pointer to an array or compilation will fail */
-#define P_ARRAY_SIZE(arr)       _Generic( (arr), typeof((*(arr))[0]) (*)[]: sizeof(*(arr))/sizeof( (*(arr))[0] ) )
-/* Returns array's size in bytes, arr should be pointer to array */
-#define P_ARRAY_SIZE_BYTES(arr) _Generic( (arr), typeof((*(arr))[0]) (*)[]: sizeof(*(arr)) )
-/* Returns size of one element in the array, arr should be pointer to array */
-#define P_ARRAY_ELEMENT_SIZE(arr) _Generic( (arr), typeof((*(arr))[0]) (*)[]: sizeof((*(arr))[0]) )
 
 /* Get sum of array sizes
  * example:
@@ -63,8 +90,6 @@ union __you_should_proivde_array_or_pointer_to_array_here___note__array_of_struc
 
 /* same as ARRAYS_SIZE() but for pointers to arrays */
 
-#define P_ARRAYS_SIZE(...) ( MAP(p_array_size_helper__, __VA_ARGS__) 0 )
-#define p_array_size_helper__(_arr_ptr_) P_ARRAY_SIZE(_arr_ptr_) +
 
 /* Get total size in bytes for all arrays
  * example:
@@ -76,25 +101,16 @@ union __you_should_proivde_array_or_pointer_to_array_here___note__array_of_struc
 #define ARRAYS_SIZE_BYTES(...) ( MAP(array_size_bytes_helper__, __VA_ARGS__) 0 )
 #define array_size_bytes_helper__(arr) ARRAY_SIZE_BYTES(arr) +
 
-/* same as ARRAYS_SIZE_BYTES() but for pointers to arrays */
-#define P_ARRAYS_SIZE_BYTES(...) ( MAP(p_array_size_bytes_helper__, __VA_ARGS__) 0 )
-#define p_array_size_bytes_helper__(_arr_ptr_) P_ARRAY_SIZE_BYTES(_arr_ptr_) +
-
 /* extracts type of array element from pointer to array */
-#define P_ARRAY_ELEMENT_TYPE(_array_ptr_) typeof((*(_array_ptr_))[0])
+//#define P_ARRAY_ELEMENT_TYPE(_array_ptr_) typeof((*(_array_ptr_))[0])
 
 /* is_ptr_to_vla(_arr_ptr_)
  * Returns true if _arr_ptr_ is pointer to VLA. */
 #define is_ptr_to_vla(_arr_ptr_) is_vla(*(_arr_ptr_))
 
 /* is_vla(array)
- * Returns true if array is variable length array(VLA)
- *
- * Well, actually, it returns true if array has size UINT_MAX - 4. But this works for VLA of any size. */
-#define is_vla(_array_) _Generic( &(_array_),                   \
-        typeof( (_array_)[0] ) (*)[ (unsigned)-5 ]: true,	\
-        default: false  	                                \
-        )
+ * Returns true if array is variable length array(VLA) */
+#define is_vla(arr) (!is_const_expr(sizeof(arr)))
 
 /* PRINT_ARRAY_INFO(arr_ptr): Prints information about array
  * @__VA_ARGS__: pointer to an array
@@ -116,7 +132,7 @@ int main(int argc, char **argv) {
 }
 
  */
-#define PRINT_ARRAY_INFO(...) println(is_ptr_to_vla(__VA_ARGS__) ? "VLA" : "Array" , " \"" #__VA_ARGS__ "\" at ", ((const void*)(__VA_ARGS__)) ,	\
+#define PRINT_ARRAY_INFO(...) println(is_vla( auto_arr(__VA_ARGS__)) ? "VLA" : "Array" , " \"" #__VA_ARGS__ "\" at ", ((const void*)(__VA_ARGS__)) ,	\
                                      " has size:", P_ARRAY_SIZE((__VA_ARGS__)),                                                                         \
                                      " uses ", P_ARRAY_SIZE_BYTES((__VA_ARGS__)), " bytes,"                                                             \
                                      " while single element has size:", P_ARRAY_ELEMENT_SIZE((__VA_ARGS__)))
@@ -200,7 +216,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     for(unsigned bit_index = 0; bit_index < (P_ARRAY_ELEMENT_SIZE(_array_) * 8); bit_index++)
 
 /* Iterate over an array.
- * @_arr_ptr_: pointer to array
+ * @_arr_ptr_: array or pointer to array
  * @_ref_ptr_name_: name of pointer which will be used as reference to each array element
  * example:
  *
@@ -211,13 +227,12 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  *
  * NOTE: if _arr_ptr_ contains const data, then _ref_ptr_name_ also will be const
  */
-
 #define foreach_array_ref(_arr_ptr_, _ref_ptr_name_) \
-    for(make_array_first_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ != (*(_arr_ptr_)) + P_ARRAY_SIZE((_arr_ptr_)); (_ref_ptr_name_)++  )
+    for(make_array_first_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ != array_end_ref((_arr_ptr_)); (_ref_ptr_name_)++  )
 
 /* same as foreach_array_ref(), but _ref_ptr_name_ is always const */
 #define foreach_array_const_ref(_arr_ptr_, _ref_ptr_name_) \
-     for(const make_array_first_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ != (*(_arr_ptr_)) + P_ARRAY_SIZE((_arr_ptr_)); (_ref_ptr_name_)++  )
+     for(const make_array_first_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ != array_end_ref((_arr_ptr_)); (_ref_ptr_name_)++  )
 
 /*
  * Iterate backwards over an array. Same as foreach_array_ref(), but backwards.
@@ -228,15 +243,14 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
         print(*val);  //prints: 4321
  */
 #define foreach_array_ref_bw(_arr_ptr_, _ref_ptr_name_) \
-    for(make_array_last_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ >= (*(_arr_ptr_)); (_ref_ptr_name_)--  )
+    for(make_array_last_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ >= array_first_ref((_arr_ptr_)); (_ref_ptr_name_)--  )
 
 /* same as foreach_array_ref_bw(), but _ref_ptr_name_ is always const */
 #define foreach_array_const_ref_bw(_arr_ptr_, _ref_ptr_name_) \
-    for(const make_array_last_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ >= (*(_arr_ptr_)); (_ref_ptr_name_)--  )
-
+    for(const make_array_last_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ >= array_first_ref((_arr_ptr_)); (_ref_ptr_name_)--  )
 
 /* Get index of an array element where _ref_ is pointing.
- * @_array_ptr_: pointer to array
+ * @_array_ptr_: array or pointer to array
  * @_ref_: pointer to an element inside that array
  * example:
 
@@ -249,7 +263,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     }
 
 */
-#define array_ref_index(_array_ptr_, _ref_) ((_ref_) - &(( *(_array_ptr_) ))[0])
+#define array_ref_index(_array_ptr_, _ref_) ((_ref_) - array_first_ref(_array_ptr_))
 
 /* Declares pointer to first array element */
 #define make_array_first_ref(_array_ptr_, _ref_ptr_name_) P_ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_first_ref(_array_ptr_)
@@ -258,10 +272,13 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define make_array_last_ref(_array_ptr_, _ref_ptr_name_) P_ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_last_ref(_array_ptr_)
 
 /* get pointer to first array element */
-#define array_first_ref(_array_ptr_) (&(*(_array_ptr_))[0])
+#define array_first_ref(_array_ptr_) (& auto_arr((_array_ptr_))[0])
 
 /* get pointer to last array element */
-#define array_last_ref(_array_ptr_) (&(*(_array_ptr_))[ P_ARRAY_SIZE(_array_ptr_) - 1 ])
+#define array_last_ref(_array_ptr_) (& auto_arr((_array_ptr_))[ P_ARRAY_SIZE(_array_ptr_) - 1 ])
+
+/* get pointer to the array element after the last one. While this is a valid pointer, IT SHOULD NOT BE DEREFERENCED! */
+#define array_end_ref(_array_ptr_) (& auto_arr((_array_ptr_))[ P_ARRAY_SIZE(_array_ptr_) ])
 
 /* returns true if ref points to last array element */
 #define is_last_array_ref(_arr_ptr_, _ref_) ((_ref_) == array_last_ref( (_arr_ptr_) ))
@@ -367,14 +384,31 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  */
 
 #define copy_array(dst_ptr, ...) do {                               \
-        const typeof(__VA_ARGS__) src_ptr = (__VA_ARGS__);          \
-        if(is_arrays_of_same_types(dst_ptr, src_ptr)) {             \
-            copy_array_fast__(dst_ptr, src_ptr);                      \
+        if(is_arrays_of_same_types(dst_ptr, (__VA_ARGS__))) {       \
+            copy_array_fast__(dst_ptr, (__VA_ARGS__));              \
         } else {                                                    \
-            copy_array_slow__(dst_ptr, src_ptr);                      \
+            copy_array_slow__(dst_ptr, (__VA_ARGS__));              \
         }                                                           \
 } while(0)
 
+#define copy_array_fast__(dst_ptr, src_ptr)                         \
+    (P_ARRAY_SIZE_BYTES(dst_ptr) >= P_ARRAY_SIZE_BYTES(src_ptr))    \
+        ? memcpy(dst_ptr, src_ptr, P_ARRAY_SIZE_BYTES(src_ptr))     \
+        : memcpy(dst_ptr, src_ptr, P_ARRAY_SIZE_BYTES(dst_ptr))     \
+
+#define copy_array_slow__(dst_ptr, src_ptr) do {                  \
+    if(P_ARRAY_SIZE(dst_ptr) >= P_ARRAY_SIZE((src_ptr))) {        \
+        make_array_first_ref(dst_ptr, dst_ref);                   \
+        foreach_array_const_ref(src_ptr, src_ref) {               \
+            *dst_ref++ = *src_ref;                                \
+        }                                                         \
+    } else {                                                      \
+        const make_array_first_ref(src_ptr, src_ref);             \
+        foreach_array_ref(dst_ptr, dst_ref) {                     \
+            *dst_ref = *src_ref++;                                \
+        }                                                         \
+    }                                                             \
+} while(0)
 
 /* is_arrays_of_same_types(dst_ptr, src_ptr)
  * checks if two pointers to arrays contain same type, ignoring type constness
@@ -393,7 +427,9 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  * at second level we return true if dst type is const and src type is non const
  * at third level we return true if dst type is non const and src type is const
  */
-#define is_arrays_of_same_types(dst_ptr, src_ptr)                               \
+#define is_arrays_of_same_types(dst_ptr, src_ptr) is_arrays_of_same_types_raw(& auto_arr(dst_ptr), & auto_arr(src_ptr))
+
+#define is_arrays_of_same_types_raw(dst_ptr, src_ptr)                           \
         _Generic((dst_ptr),                                                     \
                 typeof((*(src_ptr))[0]) (*)[]: true,                            \
                 default: _Generic( (dst_ptr),                                   \
@@ -404,25 +440,6 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
                                 )                                               \
                         )                                                       \
                 )
-
-#define copy_array_fast__(dst_ptr, src_ptr)                           \
-    (P_ARRAY_SIZE_BYTES(dst_ptr) >= P_ARRAY_SIZE_BYTES(src_ptr))    \
-        ? memcpy(dst_ptr, src_ptr, P_ARRAY_SIZE_BYTES(src_ptr))     \
-        : memcpy(dst_ptr, src_ptr, P_ARRAY_SIZE_BYTES(dst_ptr))     \
-
-#define copy_array_slow__(dst_ptr, src_ptr) do {                  \
-    if(P_ARRAY_SIZE(dst_ptr) >= P_ARRAY_SIZE((src_ptr))) {      \
-        make_array_first_ref(dst_ptr, dst_ref);                     \
-        foreach_array_const_ref(src_ptr, src_ref) {          \
-            *dst_ref++ = *src_ref;                              \
-        }                                                       \
-    } else {                                                    \
-        const make_array_first_ref(src_ptr, src_ref);                \
-        foreach_array_ref(dst_ptr, dst_ref) {                  \
-            *dst_ref = *src_ref++;                              \
-        }                                                       \
-    }                                                           \
-} while(0)
 
 
 /* Copies multiple arrays into single array
@@ -442,19 +459,18 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     print_array(&dst); //prints: This Is A string
 
  */
-
 #define copy_arrays(dst_ptr, ...) do {                              \
     MAP_ARG(check_source_arrays, dst_ptr, __VA_ARGS__)              \
-    typeof ((*(dst_ptr))[0]) *tmp_ptr = (typeof(tmp_ptr))dst_ptr;   \
+    make_array_first_ref(dst_ptr, tmp_ptr);                         \
     (                                                               \
         MAP_LIST(copy_arrays_helper, __VA_ARGS__)                   \
     );                                                              \
 } while(0)
+
 #define check_source_arrays(dst_ptr, src_ptr) \
     _Static_assert( is_arrays_of_same_types(dst_ptr, src_ptr) == true, "Source array: " #src_ptr " doesn't have same type as destination array");
 
 #define copy_arrays_helper(src_ptr) (void)(tmp_ptr = ((typeof(tmp_ptr))memcpy(tmp_ptr, src_ptr, P_ARRAY_SIZE_BYTES(src_ptr))) + P_ARRAY_SIZE(src_ptr))
-
 
 /* makes array slice
  * @_name_: name of variable to declare for slice
@@ -546,18 +562,16 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
    { __attribute__((unused)) char end_greater_than_array_size[ (P_ARRAY_SIZE((__VA_ARGS__)) >= end ) ? 1 : -1];} \
    { __attribute__((unused)) char start_index_should_not_be_equal_end_index[ (start == end) ? -1 : 1];} \
    { __attribute__((unused)) char end_index_should_not_be_less_than_start_index[ (end < start) ? -1 : 1];} \
-   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ (end) - (start) ] = array_slice(start, end, (__VA_ARGS__))
+   P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [ (end) - (start) ] = array_slice(start, end, (__VA_ARGS__))
 
-//(typeof( (*(__VA_ARGS__))[0] ) (*)[])( (*(__VA_ARGS__)) + (start) )
-
-#define array_slice(start, end, ...) (typeof( (*(__VA_ARGS__))[0] ) (*)[ (end) - (start) ])( &(*(__VA_ARGS__))[start] )
+#define array_slice(start, end, ...) (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ (end) - (start) ]) &(auto_arr((__VA_ARGS__))[start])
 
 /* make array slice, skipping (start) elements at front */
 #define make_array_slice_front(_name_, start, ...) \
    { __attribute__((unused)) char start_index_is_greater_than_array_size_minus_one [ (P_ARRAY_SIZE((__VA_ARGS__)) > start ) ? 1 : -1];} \
-   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (start) ] = array_slice_front(start, (__VA_ARGS__))
+   P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (start) ] = array_slice_front(start, (__VA_ARGS__))
 
-#define array_slice_front(start, ...) (typeof( (*(__VA_ARGS__))[0] ) (*)[ P_ARRAY_SIZE((__VA_ARGS__)) - start ])( &(*(__VA_ARGS__))[start] )
+#define array_slice_front(start, ...) (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ P_ARRAY_SIZE((__VA_ARGS__)) - start ]) &(auto_arr((__VA_ARGS__))[start])
 
 
 /* make array slice, skipping (end) elements at array end
@@ -570,18 +584,18 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  */
 #define make_array_slice_back(_name_, end, ...) \
    { __attribute__((unused)) char end_index_is_greater_than_array_size_minus_one [ (P_ARRAY_SIZE((__VA_ARGS__)) > end ) ? 1 : -1];} \
-   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (end) ] = array_slice_back(end, (__VA_ARGS__))
+   P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (end) ] = array_slice_back(end, (__VA_ARGS__))
 
-#define array_slice_back(end, ...) (typeof( (*(__VA_ARGS__))[0] ) (*)[ P_ARRAY_SIZE((__VA_ARGS__)) - end ])( &(*(__VA_ARGS__))[0] )
+#define array_slice_back(end, ...) (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ P_ARRAY_SIZE((__VA_ARGS__)) - end ]) &(auto_arr((__VA_ARGS__))[0])
 
 
 /* make array slice with size (size), skipping (start) elements at front */
 #define make_array_slice_size(_name_, start, size, ...) \
    { __attribute__((unused)) char start_and_size_together_greater_than_array_size[ (P_ARRAY_SIZE((__VA_ARGS__)) >= start + size ) ? 1 : -1];} \
    { __attribute__((unused)) char size_should_not_be_zero[ size ? 1 : -1 ];  }                                       \
-   typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ (size) ] = array_slice_size(start, size, (__VA_ARGS__))
+   P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [ (size) ] = array_slice_size(start, size, (__VA_ARGS__))
 
-#define array_slice_size(start, size, ...) (typeof( (*(__VA_ARGS__))[0] ) (*)[size])( &(*(__VA_ARGS__))[start] )
+#define array_slice_size(start, size, ...) (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[size]) &(auto_arr((__VA_ARGS__)) [start])
 
 /* Make array slice while skipping n bytes from start and n bytes from end
  * example:
@@ -592,11 +606,10 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
  */
 #define make_array_slice_shrink(_name_, skip_start, skip_end, ...) \
-        typeof( (*(__VA_ARGS__))[0] ) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = array_slice_shrink(skip_start, skip_end, (__VA_ARGS__))
+        P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = array_slice_shrink(skip_start, skip_end, (__VA_ARGS__))
 
 #define array_slice_shrink(skip_start, skip_end, ...) \
-        (typeof( (*(__VA_ARGS__))[0] ) (*) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ]) (&(*(__VA_ARGS__))[skip_start])
-
+        (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ]) &(auto_arr((__VA_ARGS__))[skip_start])
 
 /* Cuts '\0' from strings */
 #define make_array_slice_string(_name_, ...) \
@@ -686,7 +699,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 
 /* Just prints array.
- * @__VA_ARGS__: pointer to an array
+ * @__VA_ARGS__: array or pointer to an array
  * example:
 
     print_array(&(int[]){1, 2, 3, 4, 5, 6}); //will print: 123456
@@ -697,9 +710,38 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     print_array(&"String is an array too!"); //will print that string. less effective than println(), but works =)
  */
 #define print_array(...) do {                                \
-    const typeof(__VA_ARGS__) array_ptr = (__VA_ARGS__);     \
-    foreach_array_ref(array_ptr, ref)                       \
+    foreach_array_ref((__VA_ARGS__), ref) {                  \
         print(*ref);                                         \
-    } while (0)
+    }                                                        \
+} while (0)
+
+
+/**** Obsolete ****/
+
+#define xARRAY_SIZE(arr)       _Generic( &(arr), typeof((arr)[0]) (*)[]: sizeof((arr))/sizeof( (arr)[0] ) )
+#define xARRAY_SIZE_BYTES(arr) _Generic( &(arr), typeof((arr)[0]) (*)[]: sizeof((arr)) )
+#define xARRAY_ELEMENT_SIZE(arr) _Generic( &(arr), typeof((arr)[0]) (*)[]: sizeof((arr)[0]) )
+
+#define xP_ARRAY_SIZE(arr)       _Generic( (arr), typeof((*(arr))[0]) (*)[]: sizeof(*(arr))/sizeof( (*(arr))[0] ) )
+#define xP_ARRAY_SIZE_BYTES(arr) _Generic( (arr), typeof((*(arr))[0]) (*)[]: sizeof(*(arr)) )
+#define xP_ARRAY_ELEMENT_SIZE(arr) _Generic( (arr), typeof((*(arr))[0]) (*)[]: sizeof((*(arr))[0]) )
+
+#define xP_ARRAYS_SIZE(...) ( MAP(p_array_size_helper__, __VA_ARGS__) 0 )
+#define p_array_size_helper__(_arr_ptr_) P_ARRAY_SIZE(_arr_ptr_) +
+
+#define xP_ARRAYS_SIZE_BYTES(...) ( MAP(p_array_size_bytes_helper__, __VA_ARGS__) 0 )
+#define p_array_size_bytes_helper__(_arr_ptr_) P_ARRAY_SIZE_BYTES(_arr_ptr_) +
+
+/* Backward compatibility */
+
+#define P_ARRAY_SIZE(arr) ARRAY_SIZE(arr)
+#define P_ARRAY_SIZE_BYTES(arr) ARRAY_SIZE_BYTES(arr)
+#define P_ARRAY_ELEMENT_SIZE(arr) ARRAY_ELEMENT_SIZE(arr)
+#define P_ARRAY_ELEMENT_TYPE(arr) ARRAY_ELEMENT_TYPE(arr)
+
+#define P_ARRAYS_SIZE(...) ARRAYS_SIZE((__VA_ARGS__))
+#define P_ARRAYS_SIZE_BYTES(...) ARRAYS_SIZE_BYTES((__VA_ARGS__))
+
+
 
 #endif // MISC_ARRAY_H
