@@ -526,7 +526,7 @@ static const union {                                            \
         }                                                       \
 };                                                              \
 _Static_assert( sizeof(generic_printf_format_string.array) == sizeof(generic_printf_format_string.specifier), \
-"Size of structure for generic format string differs form array"); \
+"Size of structure for generic format string differs from array"); \
 generic_printf_format_string.array;                             \
 })
 
