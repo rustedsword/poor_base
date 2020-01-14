@@ -2,7 +2,7 @@
 #define MISC_ARRAY_H
 
 #include <misc.h>
-
+#include <inttypes.h>
 
 /***** Experimental *****/
 
@@ -18,7 +18,30 @@
 
 /* This macro returns (var) as is if size of (var) or (*var) is known at compile time.
  * If sizeof(var) or sizeof(*var) is not compile time constants, then
- * returns fixed array or pointer to fixed array of _dummy_type_ as a compound literal */
+ * macro returns fixed array or pointer to a fixed array of _dummy_type_ as a compound literal
+ *
+ * This is a helper macro for using together with typeof inside _Generic selectors.
+ *
+ * According to C18 Standard, this code is invalid:
+
+  int size = 0;
+  char (*a)[size];
+  _Generic(&a, char (*)[size]: 1, default: 0)
+
+ * Because char(*)[size] is a pointer to VLA, and no VLA can be used as type selectors inside _Generic()
+ *
+ * If we rewrite _Generic() used above and use typeof() as selector, then this will be:
+
+   _Generic(&a, typeof(*a)(*)[]: 1, default: 0)
+
+ * in this case, because (a) is a pointer to array, then typeof(*a) unflods to char[size], which is VLA
+ * By using unvla() macro we can replace VLA with dummy fixed array.
+ *
+   _Generic(&a, typeof(*unvla(a))(*)[]: 1, default: 0)
+
+ * here, typeof(*unvla(a)) unflods to union _dummy_type_(*)[1], which is not VLA, and default selector succesfully evaluates and returns 0
+ *
+ */
 #define unvla(var) if_constexpr(sizeof(var),                                            \
                                  if_constexpr(sizeof(*(var)),                           \
                                                 var, (union _dummy_type_ (*)[1]){0} ),  \
@@ -66,6 +89,11 @@ NOTE: Only works for multi-dimensional VLA with last dimension being variable, e
          _Generic( &( get_array_or_deref(var) ),        \
         typeof( *(get_array_or_deref(var)) ) (*)[]: get_array_or_deref(var))
 
+
+/* Macro alias for auto_arr() */
+#if !defined(arr)
+#define arr(arr) auto_arr((arr))
+#endif
 /***** end experimental *****/
 
 /* Returns number of elements in the array */
@@ -77,32 +105,27 @@ NOTE: Only works for multi-dimensional VLA with last dimension being variable, e
 /* Extracts type of array element from array */
 #define ARRAY_ELEMENT_TYPE(arr) typeof( auto_arr(arr)[0])
 
-
 /* Get sum of array sizes
+ * @__VA_ARGS__: arrays or pointer to arrays
  * example:
 
     char te[] = {1, 2, 3};
-    long me[] = {5, 6};
+    long (*me)[2] = &(long[]){5, 6};
     println(ARRAYS_SIZE(te, me)); //prints: 5
 */
 #define ARRAYS_SIZE(...) ( MAP(array_size_helper__, __VA_ARGS__) 0 )
 #define array_size_helper__(arr) ARRAY_SIZE(arr) +
 
-/* same as ARRAYS_SIZE() but for pointers to arrays */
-
-
 /* Get total size in bytes for all arrays
+ * @__VA_ARGS__: arrays or pointer to arrays
  * example:
 
     uint8_t te[] = {1, 2, 3};
-    uint16_t me[] = {5, 6};
-    println(ARRAYS_SIZE_BYTES(te, me)); //prints: 7
+    long (*me)[2] = &(long[]){5, 6};
+    println(ARRAYS_SIZE_BYTES(te, me)); //prints: 19  (if sizeof(long) == 8, then (8 * 2) + 3 )
  */
 #define ARRAYS_SIZE_BYTES(...) ( MAP(array_size_bytes_helper__, __VA_ARGS__) 0 )
 #define array_size_bytes_helper__(arr) ARRAY_SIZE_BYTES(arr) +
-
-/* extracts type of array element from pointer to array */
-//#define P_ARRAY_ELEMENT_TYPE(_array_ptr_) typeof((*(_array_ptr_))[0])
 
 /* is_ptr_to_vla(_arr_ptr_)
  * Returns true if _arr_ptr_ is pointer to VLA. */
@@ -294,11 +317,11 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  * example:
 
   uint8_t arr[] = {1, 2, 3, 4, 5};
-  uint8_t *ref = arr + 2; //pointer to value '3'
+  uint8_t *ref = &arr[2]; //pointer to value '3'
   array_remove_ref(&arr, ref, 50);
   //  array now will be: {1, 2, 4, 5, 50}
 
-  ref = arr + 4; //pointer to last element: '50'
+  ref = &(arr[4]); //pointer to last element: '50'
   array_remove_ref(&arr, ref, 0);
   //  array now will be: {1, 2, 4, 5, 0}
 
@@ -306,10 +329,10 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  */
 #define array_ref_remove(_arr_ptr_, _ref_, _val_) do {                          \
         if(is_last_array_ref((_arr_ptr_), (_ref_))) {                           \
-                *ref = (_val_);                                                 \
+                *(_ref_) = (_val_);                                             \
         } else {                                                                \
                 memmove((_ref_), (_ref_) + 1, P_ARRAY_SIZE_BYTES(_arr_ptr_) - ((array_ref_index( (_arr_ptr_) , (_ref_)) + 1)  * P_ARRAY_ELEMENT_SIZE(_arr_ptr_) ) ); \
-                *(array_last_ref(_arr_ptr_)) = (_val_);                     \
+                *(array_last_ref(_arr_ptr_)) = (_val_);                         \
         }                                                                       \
 } while (0)
 
