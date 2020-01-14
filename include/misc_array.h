@@ -468,7 +468,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 } while(0)
 
 #define check_source_arrays(dst_ptr, src_ptr) \
-    _Static_assert( is_arrays_of_same_types(dst_ptr, src_ptr) == true, "Source array: " #src_ptr " doesn't have same type as destination array");
+    static_assert( is_arrays_of_same_types(dst_ptr, src_ptr) == true, "Source array: " #src_ptr " doesn't have same type as destination array");
 
 #define copy_arrays_helper(src_ptr) (void)(tmp_ptr = ((typeof(tmp_ptr))memcpy(tmp_ptr, src_ptr, P_ARRAY_SIZE_BYTES(src_ptr))) + P_ARRAY_SIZE(src_ptr))
 
@@ -613,7 +613,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 /* Cuts '\0' from strings */
 #define make_array_slice_string(_name_, ...) \
-    _Static_assert( is_same_type( array_first_ref((__VA_ARGS__)), char*, 1, 1) == true, "Not a char array"); \
+    static_assert( is_same_type( array_first_ref((__VA_ARGS__)), char*, 1, 1) == true, "Not a char array"); \
     make_array_slice_back(_name_, 1, (__VA_ARGS__))
 
 #define array_slice_string(...) array_slice_back(1, (__VA_ARGS__))

@@ -4,7 +4,7 @@
 #include "map.h"
 #include "stdio.h"
 #include "stdbool.h"
-
+#include "assert.h"
 /* Redefine true and false so they will be really bools, not ints */
 #ifndef __cplusplus
 #ifdef true
@@ -525,7 +525,7 @@ static const union {                                            \
                 0                                               \
         }                                                       \
 };                                                              \
-_Static_assert( sizeof(generic_printf_format_string.array) == sizeof(generic_printf_format_string.specifier), \
+static_assert( sizeof(generic_printf_format_string.array) == sizeof(generic_printf_format_string.specifier), \
 "Size of structure for generic format string differs from array"); \
 generic_printf_format_string.array;                             \
 })
