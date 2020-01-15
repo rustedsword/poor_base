@@ -6,6 +6,115 @@
 
 /***** Experimental *****/
 
+/* Number of maximum dereferences into multi-dimensional arrays */
+#define MAX_ARRAY_DEREF 5
+
+typedef union {char a;} more_than_maximum_supported_array_dimensions_reached;
+
+/* evaluates (t) if var is array, otherwise evaluates (f)
+ * @var: variable to test for array type
+ *
+ * WARNING: This macro will produce false positive on anonymous structs and unions declared inside compound literals
+ * like that:
+ *      if_arr_unsafe((struct {char a;}){.a = 1} , true, false) //returns true
+ *      if_arr_unsafe((struct {char a;}***){0} , true, false) //returns true
+ *      if_arr_unsafe((union {char a;}***){0} , true, false) //returns true
+ * also, it doesn't work with anonymous enums
+ *      if_arr_unsafe((enum {Pp, ppp}){0} , true, false) //fails compilation due to redeclaration of enumerator
+ *
+ * This macro compares pointer to var with pointer to typeof(var). for all of C types that i know, this selection will match, except arrays.
+ * By using (NULL, var) var decays to pointer to first element,
+ * while for other types this expression won't have any effect
+ */
+#define if_arr_unsafe(var, t, f) _Generic(&(typeof(var)){0}, typeof(NULL, var)*:(f), default:(t))
+
+/* this macro is same as if_arr_unsafe(), but it is using statement expression extension
+ * to avoid issues of _unsafe() variant. it is correctly evaluates (t) and (f) so far,
+ * but, since we rely on default _Generic selector, it may break in future C standards, if more types become 'incompatible' with itself
+ */
+#define if_arr(var, t, f) ({ typeof(var) tmp__; if_arr_unsafe(tmp__, t, f);  })
+
+/* evaluates (t), if var is array, or stops compilation
+ * This macro explicitly compares var with pointer to array type
+ * it is not replacement for if_arr() macro, because var is derefenced here,
+ * so any non-pointer and any non-array type will result in a sytax error, making this macro useful only for stopping compilation.
+ *
+ * also, it won't work on arrays of anonymous structs declared inside of compound literals
+ *      if_arr_strict((struct {char a;}[1]){0} , println("Shit")); //fails compilation, while shouldn't
+ */
+#define if_arr_strict_unsafe(var, t) _Generic(&(var), typeof(*(var)) (*)[] : (t))
+
+/* Same as _unsafe variant. always works, but uses statement expression extension */
+#define if_arr_strict(var, t) ({ typeof(var) tmp__; if_arr_strict_unsafe(tmp__, (t)); })
+
+#define deref_array_(var)  (* if_arr((var), var, &var) ) /* if var is array then returns value at index 0 or returns var */
+
+/*Prevents further dereferencing, by failing compilation if MAX_ARRAY_DEREF reached */
+#define deref_array_guard_(var) (* if_arr((var), (more_than_maximum_supported_array_dimensions_reached){0}, &var) )
+
+#define deref_array_1(var) deref_array_(var)
+#define deref_array_2(var) deref_array_(deref_array_(var))
+#define deref_array_3(var) deref_array_(deref_array_(deref_array_(var)))
+#define deref_array_4(var) deref_array_(deref_array_(deref_array_(deref_array_(var))))
+#define deref_array_5(var) deref_array_(deref_array_(deref_array_(deref_array_(deref_array_(var)))))
+
+/* Dereferences multi-dimensional array and returns element at index 0 from last dimension
+ * maximum dereference depth is MAX_ARRAY_DEREF
+ * char a[2][3][4] = {0};
+ * int b[10][3] = {0};
+ *
+ * //These lines are the same:
+ * char val = ARRAY_DEREF(a);
+ *      val = a[0][0][0];
+ *
+ * int v = ARRAY_DEREF(b);
+ *     v = b[0][0];
+ *
+ * typeof(ARRAY_DEREF(a)) tmp = 1; //tmp is char
+ *
+ * due to exponential macro growth, this macro works only on arrays, pointers to arrays should be dereferenced manually
+ * vla not supported by this macro
+ */
+#define ARRAY_DEREF(var) if_arr_strict((var), deref_array_guard_( CAT(deref_array_, MAX_ARRAY_DEREF)(var)  ))
+
+typedef union { char a; } alvl;
+/* if var is not array creates alvl[] array with size equals dimension where first non-array vaule detected */
+#define get_arr_dim1(var) (* if_arr((var), (var), &(alvl [1]){0} ) )
+
+/* checks, if var is array. if it is array, dereferences it,
+ * ignoring arrays with alvl type, otherwise creates alvl array with size equals dim_lvl */
+#define get_arr_dim_(var, dim_lvl) (* if_arr((var), _Generic(&(var), alvl(*)[]: &(var), default: (var) ), &(alvl [dim_lvl]){0} ) )
+
+#define arr_dim_sel1_(var) get_arr_dim1(var)
+#define arr_dim_sel2_(var) get_arr_dim_(var, 2)
+#define arr_dim_sel3_(var) get_arr_dim_(var, 3)
+#define arr_dim_sel4_(var) get_arr_dim_(var, 4)
+#define arr_dim_sel5_(var) get_arr_dim_(var, 5)
+
+#define arr_dim_get1(var) (& (arr_dim_sel1_( deref_array_(var) )))
+#define arr_dim_get2(var) (& (arr_dim_sel2_(arr_dim_sel1_( deref_array_(var) ))))
+#define arr_dim_get3(var) (& (arr_dim_sel3_(arr_dim_sel2_(arr_dim_sel1_( deref_array_(var) )))))
+#define arr_dim_get4(var) (& (arr_dim_sel4_(arr_dim_sel3_(arr_dim_sel2_(arr_dim_sel1_( deref_array_(var) ))))))
+#define arr_dim_get5(var) (& (arr_dim_sel5_(arr_dim_sel4_(arr_dim_sel3_(arr_dim_sel2_(arr_dim_sel1_( deref_array_(var) )))))))
+
+#define get_arr_dim_n(var) \
+        _Generic( CAT(arr_dim_get, MAX_ARRAY_DEREF)(var), \
+                alvl(*)[1]: 1, \
+                alvl(*)[2]: 2, \
+                alvl(*)[3]: 3, \
+                alvl(*)[4]: 4, \
+                alvl(*)[5]: 5, \
+        default: (more_than_maximum_supported_array_dimensions_reached){0})
+
+/* Returns number of array dimensions up to MAX_ARRAY_DEREF,
+ * @var: array
+ * due to exponential macro growth this macro works only on static arrays.
+ * i.e pointers to arrays are not supported, you have to dereference them manually.
+ * vla not supported at all for this macro */
+#define ARRAY_DIMENSIONS(var) if_arr_strict((var), get_arr_dim_n(var) )
+
+/***** end experimental *****/
+
 /* returns pointer to int if (expr) is constant integer expression, or returns pointer to void if (expr) is not constant integer expression */
 #define magic_ice_expression(expr) (1 ? ((void *)((intptr_t)( (expr) ) * 0)) : (int *)1)
 
@@ -80,7 +189,7 @@ union _dummy_type_ {char a;};
     println( auto_arr(arptr)[0][0][1] ); //Prints 'R'
     println( auto_arr(array)[0][1][0] ); //Prints 'F'
 
-NOTE: Only works for multi-dimensional VLA with last dimension being variable, eg:
+NOTE: Only works for multi-dimensional VLA with first dimension being variable, eg:
         char array [ number ][2][3];        //OK
         char array [ number ][ number ][3]; //Fail
         char array [1][ number ][3];        //Fail
@@ -94,7 +203,6 @@ NOTE: Only works for multi-dimensional VLA with last dimension being variable, e
 #if !defined(arr)
 #define arr(arr) auto_arr((arr))
 #endif
-/***** end experimental *****/
 
 /* Returns number of elements in the array */
 #define ARRAY_SIZE(arr) ( sizeof( auto_arr(arr)) / sizeof (auto_arr(arr)[0]) )
