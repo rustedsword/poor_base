@@ -7,9 +7,14 @@
 /***** Experimental *****/
 
 /* Number of maximum dereferences into multi-dimensional arrays */
-#define MAX_ARRAY_DEREF 5
+#define MAX_ARRAY_DEREF 4
 
 typedef union {char a;} more_than_maximum_supported_array_dimensions_reached;
+union _dummy_type_ {char a;};
+union _not_an_array_type_ {char a;};
+
+/* if size of var is known at compile time, just returns var, otherwise returns _dummy_type_ */
+#define drop_vla(var) if_constexpr(sizeof(var), var, (union _dummy_type_){0})
 
 /* evaluates (t) if var is array, otherwise evaluates (f)
  * @var: variable to test for array type
@@ -22,11 +27,14 @@ typedef union {char a;} more_than_maximum_supported_array_dimensions_reached;
  * also, it doesn't work with anonymous enums
  *      if_arr_unsafe((enum {Pp, ppp}){0} , true, false) //fails compilation due to redeclaration of enumerator
  *
- * This macro compares pointer to var with pointer to typeof(var). for all of C types that i know, this selection will match, except arrays.
- * By using (NULL, var) var decays to pointer to first element,
- * while for other types this expression won't have any effect
+ * This macro compares var with typeof(var).
+ * for all of C types that i know, this selection will match, except arrays.
+ * If var is an array it will decay in _Generic controlling expression to pointer to it's first element,
+ * while any other types won't change
+ *
+ * Additionally, drop_vla macro will return _dummy_type_, if var is VLA, which forces default selector
  */
-#define if_arr_unsafe(var, t, f) _Generic(&(typeof(var)){0}, typeof(NULL, var)*:(f), default:(t))
+#define if_arr_unsafe(var, t, f) _Generic((var), typeof(drop_vla(var)):(f), default:(t))
 
 /* this macro is same as if_arr_unsafe(), but it is using statement expression extension
  * to avoid issues of _unsafe() variant. it is correctly evaluates (t) and (f) so far,
@@ -41,6 +49,8 @@ typedef union {char a;} more_than_maximum_supported_array_dimensions_reached;
  *
  * also, it won't work on arrays of anonymous structs declared inside of compound literals
  *      if_arr_strict((struct {char a;}[1]){0} , println("Shit")); //fails compilation, while shouldn't
+ *
+ * NOTE: Doesn't work on vla
  */
 #define if_arr_strict_unsafe(var, t) _Generic(&(var), typeof(*(var)) (*)[] : (t))
 
@@ -73,9 +83,8 @@ typedef union {char a;} more_than_maximum_supported_array_dimensions_reached;
  * typeof(ARRAY_DEREF(a)) tmp = 1; //tmp is char
  *
  * due to exponential macro growth, this macro works only on arrays, pointers to arrays should be dereferenced manually
- * vla not supported by this macro
  */
-#define ARRAY_DEREF(var) if_arr_strict((var), deref_array_guard_( CAT(deref_array_, MAX_ARRAY_DEREF)(var)  ))
+#define ARRAY_DEREF(var) if_arr((var), deref_array_guard_( CAT(deref_array_, MAX_ARRAY_DEREF)(var)  ), (union _not_an_array_type_){0})
 
 typedef union { char a; } alvl;
 /* if var is not array creates alvl[] array with size equals dimension where first non-array vaule detected */
@@ -108,10 +117,9 @@ typedef union { char a; } alvl;
 
 /* Returns number of array dimensions up to MAX_ARRAY_DEREF,
  * @var: array
- * due to exponential macro growth this macro works only on static arrays.
- * i.e pointers to arrays are not supported, you have to dereference them manually.
- * vla not supported at all for this macro */
-#define ARRAY_DIMENSIONS(var) if_arr_strict((var), get_arr_dim_n(var) )
+ * due to exponential macro growth this macro works only on arrays.
+ * i.e pointers to arrays are not supported, you have to dereference them manually. */
+#define ARRAY_DIMENSIONS(var) if_arr((var), get_arr_dim_n(var), (union _not_an_array_type_){0})
 
 /***** end experimental *****/
 
@@ -155,7 +163,6 @@ typedef union { char a; } alvl;
                                  if_constexpr(sizeof(*(var)),                           \
                                                 var, (union _dummy_type_ (*)[1]){0} ),  \
                                  (union _dummy_type_ [1]){0})
-union _dummy_type_ {char a;};
 
 /* This macro returns (var) if (var) is an array or returns (*var) if var is a pointer to something */
 #define get_array_or_deref(var)                         \
