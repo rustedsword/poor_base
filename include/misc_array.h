@@ -7,7 +7,7 @@
 /***** Experimental *****/
 
 /* Number of maximum dereferences into multi-dimensional arrays */
-#define MAX_ARRAY_DEREF 4
+#define MAX_ARRAY_DEREF 5
 
 typedef union {char a;} more_than_maximum_supported_array_dimensions_reached;
 union _dummy_type_ {char a;};
