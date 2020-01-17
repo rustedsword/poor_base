@@ -34,7 +34,27 @@ union _not_an_array_type_ {char a;};
  *
  * Additionally, drop_vla macro will return _dummy_type_, if var is VLA, which forces default selector
  */
-#define if_arr_unsafe(var, t, f) _Generic((var), typeof(drop_vla(var)):(f), default:(t))
+//#define if_arr_unsafe(var, t, f) _Generic(&(var), typeof(NULL, drop_vla(var))*:(f), default:(t))
+//#define if_arr_unsafe(var, t, f) _Generic(&(var), typeof(NULL, drop_vla(var))*:(f), default:(t))
+#ifdef __clang__
+#define if_arr_unsafe(var, t, f) _Generic(&(var), \
+        typeof(NULL, drop_vla(var))* :(f),\
+        typeof(NULL, drop_vla(var))const* :(f),\
+        typeof(NULL, drop_vla(var))const volatile*:(f),\
+        typeof(NULL, drop_vla(var))const _Atomic volatile*:(f),\
+        typeof(NULL, drop_vla(var))const _Atomic *:(f),\
+        typeof(NULL, drop_vla(var))_Atomic volatile*:(f),\
+        typeof(NULL, drop_vla(var))_Atomic*:(f),\
+         default:(t))
+#else
+//#define if_arr_unsafe(var, t, f) _Generic(&(var), \
+//        typeof(NULL, drop_vla(var))* :(f),\
+//         default:(t))
+#define if_arr_unsafe(var, t, f) _Generic((NULL, var), \
+        typeof(drop_vla(var)) :(f),\
+         default:(t))
+#endif
+
 
 /* this macro is same as if_arr_unsafe(), but it is using statement expression extension
  * to avoid issues of _unsafe() variant. it is correctly evaluates (t) and (f) so far,
@@ -121,7 +141,91 @@ typedef union { char a; } alvl;
  * i.e pointers to arrays are not supported, you have to dereference them manually. */
 #define ARRAY_DIMENSIONS(var) if_arr((var), get_arr_dim_n(var), (union _not_an_array_type_){0})
 
+/* checks if var and dereferenced var is VLA. returns _dummy_type_ in this case to prevent passing real array or pointer inside typeof */
+#define drop_vla_p(var) if_constexpr(sizeof(var) + sizeof(*var), var, (union _dummy_type_){0})
+
+/* var can be a pointer to array, or array itself, as usual we must not let VLA type pass to typeof()
+ * however, pointer to vla cannot be specified inside _Generic selection. so we must check twice for VLA here ... */
+#define if_arr_unsafe_p(var, t, f)                              \
+        _Generic((NULL, var),                                         \
+        typeof(drop_vla_p(var)):(f),                            \
+        default:                                                \
+                if_constexpr(sizeof(var),                       \
+                         if_constexpr(sizeof(*var), (t), (f) )  \
+                ,(t) )                                          \
+        )
+
+/* Dereferences var if it is not an array */
+#define deref_if_not_array(var) if_arr_unsafe_p((var), (var), *(var))
+/* Checks if var is array or pointer to array */
+#define ____auto_arr(var) if_arr_unsafe(deref_if_not_array(var), deref_if_not_array(var), (union _not_an_array_type_){0})
+
 /***** end experimental *****/
+
+/* returns dummy array if var is VLA. returns dummy pointer if var is pointer to VLA */
+#define vla_ptr_check(var) \
+                if_constexpr(sizeof(var),	 	 	 	 	\
+                        if_constexpr(sizeof *(var),	 	 	 	\
+                                        var,     	 	 	 	\
+                                        (union _not_an_array_type_ ***){0} ),   \
+                        (union _dummy_type_ [1]){0} )                           \
+
+/* evaluates t, if var is array or (f) if it is not. additionally checks if var is not pointer to VLA */
+#define if_arr__vla_guard(var, t, f)  	 	 	 	\
+        _Generic( &(typeof( vla_ptr_check(var) )){0},           \
+                typeof(* vla_ptr_check(var) )(*)[]: (t),        \
+                default: (f)                                    \
+        )
+
+/* This macro returns (var) if (var) is an array or returns (*var) if var is a pointer to something */
+#define deref_or_arr__vla(var)  if_arr__vla_guard(var, var, *var)
+
+/* replaces var with dummy array if var is VLA */
+#define vla_check(var) if_constexpr(sizeof(var), var, (union _dummy_type_ [1]){0} )
+
+/* evaluates t, if var is array, do not use directly */
+#define if_arr__no_vla_ptr(var, t)	 	 	\
+        _Generic( & vla_check(var),                     \
+                typeof(* vla_check(var) )(*)[]: (t)     \
+        )
+
+/* auto_arr(var)
+ * @var: array or pointer to an array
+ *
+ * This macro returns (var) if (var) is an array, or (*var) if (var) is a pointer to an array
+ * Basically, this macro automatically dereferences pointers to arrays.
+ * Stops compilation if var is not an array or a pointer to array.
+ *
+ * Provides base for checking arrays and hides complexity when
+ * working with fixed or variable arrays and pointers to them.
+ *
+ * for direct usage it is reccomended to use arr() macro alias to type less.
+ *
+ * example:
+
+    char str[] = "String";
+    char (*str_ptr) [ARRAY_SIZE(str)] = &str;
+
+    //These two operations are the same:
+    arr(str)[1] = 'p';
+    arr(str_ptr)[1] = 'r';
+
+    //Works with multi-dimensional arrays too:
+    char   array [2][5][4] = {0};
+    char (*arptr)[2][5][4] = &array;
+
+    arr(array)[0][0][1] = 'R';
+    arr(arptr)[0][1][0] = 'F';
+
+    println( arr(arptr)[0][0][1] ); //Prints 'R'
+    println( arr(array)[0][1][0] ); //Prints 'F'
+ */
+#define auto_arr(var)  if_arr__no_vla_ptr(deref_or_arr__vla(var), deref_or_arr__vla(var))
+
+/* Macro alias for auto_arr() */
+#if !defined(arr)
+#define arr(arr) auto_arr((arr))
+#endif
 
 /* returns pointer to int if (expr) is constant integer expression, or returns pointer to void if (expr) is not constant integer expression */
 #define magic_ice_expression(expr) (1 ? ((void *)((intptr_t)( (expr) ) * 0)) : (int *)1)
@@ -131,85 +235,6 @@ typedef union { char a; } alvl;
 
 /* Evaluates (if_const) expression if (expr) is constant integer expression or evaluates (if_not_const) expression */
 #define if_constexpr(expr, if_const, if_not_const) _Generic( magic_ice_expression(expr), int*: (if_const), void*:(if_not_const))
-
-
-/* This macro returns (var) as is if size of (var) or (*var) is known at compile time.
- * If sizeof(var) or sizeof(*var) is not compile time constants, then
- * macro returns fixed array or pointer to a fixed array of _dummy_type_ as a compound literal
- *
- * This is a helper macro for using together with typeof inside _Generic selectors.
- *
- * According to C18 Standard, this code is invalid:
-
-  int size = 0;
-  char (*a)[size];
-  _Generic(&a, char (*)[size]: 1, default: 0)
-
- * Because char(*)[size] is a pointer to VLA, and no VLA can be used as type selectors inside _Generic()
- *
- * If we rewrite _Generic() used above and use typeof() as selector, then this will be:
-
-   _Generic(&a, typeof(*a)(*)[]: 1, default: 0)
-
- * in this case, because (a) is a pointer to array, then typeof(*a) unflods to char[size], which is VLA
- * By using unvla() macro we can replace VLA with dummy fixed array.
- *
-   _Generic(&a, typeof(*unvla(a))(*)[]: 1, default: 0)
-
- * here, typeof(*unvla(a)) unflods to union _dummy_type_(*)[1], which is not VLA, and default selector succesfully evaluates and returns 0
- *
- */
-#define unvla(var) if_constexpr(sizeof(var),                                            \
-                                 if_constexpr(sizeof(*(var)),                           \
-                                                var, (union _dummy_type_ (*)[1]){0} ),  \
-                                 (union _dummy_type_ [1]){0})
-
-/* This macro returns (var) if (var) is an array or returns (*var) if var is a pointer to something */
-#define get_array_or_deref(var)                         \
-        _Generic( &( (typeof( unvla(var) )){0} ),       \
-        typeof( *(unvla(var)) ) (*)[] : (var),          \
-        default: *(var))
-
-
-/* auto_arr(var)
- * @var: array or pointer to an array
- *
- * This macro returns (var) if (var) is an array, or (*var) if (var) is a pointer to an array
- * Basically, this macro automatically dereferences pointer to arrays, which can be used for other functions
- *
- * example:
-
-    char str[] = "String";
-    char (*str_ptr) [ARRAY_SIZE(str)] = &str;
-
-    //These two operations are the same:
-    auto_arr(str)[1] = 'p';
-    auto_arr(str_ptr)[1] = 'r';
-
-    //Works with multi-dimensional arrays too:
-    char   array [2][5][4] = {0};
-    char (*arptr)[2][5][4] = &array;
-
-    auto_arr(array)[0][0][1] = 'R';
-    auto_arr(arptr)[0][1][0] = 'F';
-
-    println( auto_arr(arptr)[0][0][1] ); //Prints 'R'
-    println( auto_arr(array)[0][1][0] ); //Prints 'F'
-
-NOTE: Only works for multi-dimensional VLA with first dimension being variable, eg:
-        char array [ number ][2][3];        //OK
-        char array [ number ][ number ][3]; //Fail
-        char array [1][ number ][3];        //Fail
- */
-#define auto_arr(var)                                   \
-         _Generic( &( get_array_or_deref(var) ),        \
-        typeof( *(get_array_or_deref(var)) ) (*)[]: get_array_or_deref(var))
-
-
-/* Macro alias for auto_arr() */
-#if !defined(arr)
-#define arr(arr) auto_arr((arr))
-#endif
 
 /* Returns number of elements in the array */
 #define ARRAY_SIZE(arr) ( sizeof( auto_arr(arr)) / sizeof (auto_arr(arr)[0]) )
@@ -748,6 +773,14 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 #define array_slice_shrink(skip_start, skip_end, ...) \
         (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ]) &(auto_arr((__VA_ARGS__))[skip_start])
+
+/* make full slice
+ * size of array slice will be equal original array
+ * basically, this is just a pointer to source array */
+#define make_array_slice_full(_name_, ...) \
+        P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [P_ARRAY_SIZE((__VA_ARGS__))] = array_slice_full((__VA_ARGS__))
+
+#define array_slice_full(...) &(auto_arr((__VA_ARGS__)))
 
 /* Cuts '\0' from strings */
 #define make_array_slice_string(_name_, ...) \
