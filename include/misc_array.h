@@ -163,10 +163,10 @@ typedef union { char a; } alvl;
 /***** end experimental *****/
 
 /* returns dummy array if var is VLA. returns dummy pointer if var is pointer to VLA */
-#define vla_ptr_check(var) \
-                if_constexpr(sizeof(var),	 	 	 	 	\
-                        if_constexpr(sizeof *(var),	 	 	 	\
-                                        var,     	 	 	 	\
+#define vla_ptr_check(var)                                                      \
+                if_constexpr(sizeof(var),                                       \
+                        if_constexpr(sizeof *(var),                             \
+                                        var,                                    \
                                         (union _not_an_array_type_ ***){0} ),   \
                         (union _dummy_type_ [1]){0} )                           \
 
@@ -224,7 +224,7 @@ typedef union { char a; } alvl;
 
 /* Macro alias for auto_arr() */
 #if !defined(arr)
-#define arr(arr) auto_arr((arr))
+#define arr(...) auto_arr((__VA_ARGS__))
 #endif
 
 /* returns pointer to int if (expr) is constant integer expression, or returns pointer to void if (expr) is not constant integer expression */
@@ -243,7 +243,12 @@ typedef union { char a; } alvl;
 /* Returns size of one element in the array */
 #define ARRAY_ELEMENT_SIZE(arr) sizeof( auto_arr(arr)[0] )
 /* Extracts type of array element from array */
-#define ARRAY_ELEMENT_TYPE(arr) typeof( auto_arr(arr)[0])
+#define ARRAY_ELEMENT_TYPE(arr) typeof( auto_arr(arr)[0] )
+
+/* ONLY FOR INTERNAL USE! arr is not validated for arrayness. arr should be an array. */
+#define UNSAFE_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) )
+#define UNSAFE_ARRAY_SIZE_BYTES(arr) (sizeof(arr))
+#define UNSAFE_ARRAY_ELEMENT_TYPE(arr) typeof( (arr)[0] )
 
 /* Get sum of array sizes
  * @__VA_ARGS__: arrays or pointer to arrays
@@ -379,7 +384,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     for(unsigned bit_index = 0; bit_index < (P_ARRAY_ELEMENT_SIZE(_array_) * 8); bit_index++)
 
 /* Iterate over an array.
- * @_arr_ptr_: array or pointer to array
+ * @_arr_ptr_: array or pta
  * @_ref_ptr_name_: name of pointer which will be used as reference to each array element
  * example:
  *
@@ -390,12 +395,31 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  *
  * NOTE: if _arr_ptr_ contains const data, then _ref_ptr_name_ also will be const
  */
-#define foreach_array_ref(_arr_ptr_, _ref_ptr_name_) \
-    for(make_array_first_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ != array_end_ref((_arr_ptr_)); (_ref_ptr_name_)++  )
+#define foreach_array_ref(_arr_, _ref_ptr_name_) foreach_array_ref_base(,(_arr_), _ref_ptr_name_)
 
 /* same as foreach_array_ref(), but _ref_ptr_name_ is always const */
-#define foreach_array_const_ref(_arr_ptr_, _ref_ptr_name_) \
-     for(const make_array_first_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ != array_end_ref((_arr_ptr_)); (_ref_ptr_name_)++  )
+#define foreach_array_const_ref(_arr_, _ref_ptr_name_) foreach_array_ref_base(const, (_arr_), _ref_ptr_name_)
+
+#define foreach_array_ref_base(prefix, _arr_, _ref_ptr_name_)                           \
+        for(prefix ARRAY_ELEMENT_TYPE(_arr_)                                            \
+                (*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),          \
+                *_ref_ptr_name_ = &(*_tmp_arr_ptr_)[0];                                 \
+                                                                                        \
+                _ref_ptr_name_ != &(*_tmp_arr_ptr_)[UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_)]; \
+                                                                                        \
+                (_ref_ptr_name_)++)
+
+/* unsafe_foreach_array_ref(), unsafe_foreach_array_const_ref():
+ *   unsafe iteration over pta. pta is not checked for being pointer to array. not safe for compound literals. only for internal usage.
+ * @_array_ptr: pta
+ * @_ref_ptr_name_: name of new pointer for iteration
+ */
+#define unsafe_foreach_array_ref(_array_ptr_, _ref_ptr_name_) \
+    for(unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != &(*(_array_ptr_))[UNSAFE_ARRAY_SIZE(*(_array_ptr_))]; _ref_ptr_name_++)
+
+#define unsafe_foreach_array_const_ref(_array_ptr_, _ref_ptr_name_) \
+    for(const unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != &(*(_array_ptr_))[UNSAFE_ARRAY_SIZE(*(_array_ptr_))]; _ref_ptr_name_++)
+
 
 /*
  * Iterate backwards over an array. Same as foreach_array_ref(), but backwards.
@@ -405,12 +429,19 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     foreach_array_ref_bw(&test, val)
         print(*val);  //prints: 4321
  */
-#define foreach_array_ref_bw(_arr_ptr_, _ref_ptr_name_) \
-    for(make_array_last_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ >= array_first_ref((_arr_ptr_)); (_ref_ptr_name_)--  )
+#define foreach_array_ref_bw(_arr_, _ref_ptr_name_) foreach_array_ref_bw_base(,(_arr_), _ref_ptr_name_)
 
 /* same as foreach_array_ref_bw(), but _ref_ptr_name_ is always const */
-#define foreach_array_const_ref_bw(_arr_ptr_, _ref_ptr_name_) \
-    for(const make_array_last_ref(_arr_ptr_, _ref_ptr_name_); _ref_ptr_name_ >= array_first_ref((_arr_ptr_)); (_ref_ptr_name_)--  )
+#define foreach_array_const_ref_bw(_arr_, _ref_ptr_name_) foreach_array_ref_bw_base(const, (_arr_), _ref_ptr_name_)
+
+#define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)                            \
+        for(prefix ARRAY_ELEMENT_TYPE(_arr_)                                                \
+                (*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),              \
+                *_ref_ptr_name_ = &(*_tmp_arr_ptr_)[UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_) - 1]; \
+                                                                                            \
+                _ref_ptr_name_ >= &(*_tmp_arr_ptr_)[0];                                     \
+                                                                                            \
+                (_ref_ptr_name_)--)
 
 /* Get index of an array element where _ref_ is pointing.
  * @_array_ptr_: array or pointer to array
@@ -429,19 +460,24 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define array_ref_index(_array_ptr_, _ref_) ((_ref_) - array_first_ref(_array_ptr_))
 
 /* Declares pointer to first array element */
-#define make_array_first_ref(_array_ptr_, _ref_ptr_name_) P_ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_first_ref(_array_ptr_)
+#define make_array_first_ref(_array_ptr_, _ref_ptr_name_) ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_first_ref(_array_ptr_)
+
+/* unsafe_make_array_first_ref(): creates a pointer to first array element. pta is not checked for arrayness. only for internal usage.
+ * @_array_ptr_: pta
+ * @_ref_ptr_name: name of new pointer */
+#define unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_) UNSAFE_ARRAY_ELEMENT_TYPE(*(_array_ptr_)) *(_ref_ptr_name_) = &(*(_array_ptr_))[0]
 
 /* Declares pointer to last array element */
-#define make_array_last_ref(_array_ptr_, _ref_ptr_name_) P_ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_last_ref(_array_ptr_)
+#define make_array_last_ref(_array_ptr_, _ref_ptr_name_) ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_last_ref(_array_ptr_)
 
 /* get pointer to first array element */
 #define array_first_ref(_array_ptr_) (& auto_arr((_array_ptr_))[0])
 
 /* get pointer to last array element */
-#define array_last_ref(_array_ptr_) (& auto_arr((_array_ptr_))[ P_ARRAY_SIZE(_array_ptr_) - 1 ])
+#define array_last_ref(_array_ptr_) (& auto_arr((_array_ptr_))[ ARRAY_SIZE(_array_ptr_) - 1 ])
 
 /* get pointer to the array element after the last one. While this is a valid pointer, IT SHOULD NOT BE DEREFERENCED! */
-#define array_end_ref(_array_ptr_) (& auto_arr((_array_ptr_))[ P_ARRAY_SIZE(_array_ptr_) ])
+#define array_end_ref(_array_ptr_) (& auto_arr((_array_ptr_))[ ARRAY_SIZE(_array_ptr_) ])
 
 /* returns true if ref points to last array element */
 #define is_last_array_ref(_arr_ptr_, _ref_) ((_ref_) == array_last_ref( (_arr_ptr_) ))
@@ -456,13 +492,13 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  *
  * example:
 
-  uint8_t arr[] = {1, 2, 3, 4, 5};
-  uint8_t *ref = &arr[2]; //pointer to value '3'
-  array_remove_ref(&arr, ref, 50);
+  uint8_t a[] = {1, 2, 3, 4, 5};
+  uint8_t *ref = &a[2]; //pointer to value '3'
+  array_remove_ref(&a, ref, 50);
   //  array now will be: {1, 2, 4, 5, 50}
 
-  ref = &(arr[4]); //pointer to last element: '50'
-  array_remove_ref(&arr, ref, 0);
+  ref = &(a[4]); //pointer to last element: '50'
+  array_remove_ref(&a, ref, 0);
   //  array now will be: {1, 2, 4, 5, 0}
 
  * BE CAREFUL WHILE ITERATING!
@@ -476,16 +512,16 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
         }                                                                       \
 } while (0)
 
-/* Copies data from src array pointer to dst array pointer per element
+/* Copies data from src array or pta to dst array or pta per element
  * if dst array is larger or equal than source array, then entire source array will be copied to dst.
- *  excess bytes in dst won't be touched.
+ * excess bytes in dst won't be touched.
  *
  * if dst array is smaller than src array, then only part of source will be copied from src with size equals dst array.
  *
- * dst and src arrays can be of different type. i.e. it is valid to copy data from array of ints to array of longs. But compiler may complain if loosing precision.
+ * dst and src arrays can be of different type. i.e. it is valid to copy data from array of ints to array of longs. But compiler may complain if losing precision.
  *
- * @dst_ptr: pointer to destination array
- * @__VA_ARGS__: pointer to source array (we have to use __VA_ARGS__ here, because of commas in compound initializer. see below)
+ * @dst_ptr: destination array or pta
+ * @__VA_ARGS__: source array or pta
  *
  * examples:
 
@@ -545,32 +581,41 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
     free(data);
  */
-
-#define copy_array(dst_ptr, ...) do {                               \
-        if(is_arrays_of_same_types(dst_ptr, (__VA_ARGS__))) {       \
-            copy_array_fast__(dst_ptr, (__VA_ARGS__));              \
-        } else {                                                    \
-            copy_array_slow__(dst_ptr, (__VA_ARGS__));              \
-        }                                                           \
+#define copy_array(dst_arr, ...) do {                   \
+        make_array_slice_full(dst, dst_arr);            \
+        make_array_slice_full(src, (__VA_ARGS__));      \
+        if(unsafe_is_ptas_of_same_types(dst, src)) {    \
+            unsafe_copy_array_fast(dst, src);           \
+        } else {                                        \
+            unsafe_copy_array_slow(dst, src);           \
+        }                                               \
 } while(0)
 
-#define copy_array_fast__(dst_ptr, src_ptr)                         \
-    (P_ARRAY_SIZE_BYTES(dst_ptr) >= P_ARRAY_SIZE_BYTES(src_ptr))    \
-        ? memcpy(dst_ptr, src_ptr, P_ARRAY_SIZE_BYTES(src_ptr))     \
-        : memcpy(dst_ptr, src_ptr, P_ARRAY_SIZE_BYTES(dst_ptr))     \
+/* unsafe_copy_array_fast(): copies data from src_ptr pta to dst_ptr pta. types of pta are not checked for arrayness.
+ * Use only if you guarantee that dst_ptr and src_ptr are ptas and have same underlying type.
+ * @dst_ptr: destination pta
+ * @src_ptr: source pta to copy from */
+#define unsafe_copy_array_fast(dst_ptr, src_ptr)                                \
+    (UNSAFE_ARRAY_SIZE_BYTES(*dst_ptr) >= UNSAFE_ARRAY_SIZE_BYTES(*src_ptr))    \
+        ? memcpy(dst_ptr, src_ptr, UNSAFE_ARRAY_SIZE_BYTES(*src_ptr))           \
+        : memcpy(dst_ptr, src_ptr, UNSAFE_ARRAY_SIZE_BYTES(*dst_ptr))           \
 
-#define copy_array_slow__(dst_ptr, src_ptr) do {                  \
-    if(P_ARRAY_SIZE(dst_ptr) >= P_ARRAY_SIZE((src_ptr))) {        \
-        make_array_first_ref(dst_ptr, dst_ref);                   \
-        foreach_array_const_ref(src_ptr, src_ref) {               \
-            *dst_ref++ = *src_ref;                                \
-        }                                                         \
-    } else {                                                      \
-        const make_array_first_ref(src_ptr, src_ref);             \
-        foreach_array_ref(dst_ptr, dst_ref) {                     \
-            *dst_ref = *src_ref++;                                \
-        }                                                         \
-    }                                                             \
+/* unsafe_copy_array_slow(): copies data from src_ptr pta to dst_ptr pta. types of pta are not checked for arrayness.
+ * Use only if you guarantee that dst_ptr and src_ptr are ptas and have compatible underlying type.
+ * @dst_ptr: destination pta
+ * @src_ptr: source pta to copy from */
+#define unsafe_copy_array_slow(dst_ptr, src_ptr) do {                   \
+    if(UNSAFE_ARRAY_SIZE(*dst_ptr) >= UNSAFE_ARRAY_SIZE((*src_ptr))) {  \
+        unsafe_make_array_first_ref(dst_ptr, dst_ref);                  \
+        unsafe_foreach_array_const_ref(src_ptr, src_ref) {              \
+            *dst_ref++ = *src_ref;                                      \
+        }                                                               \
+    } else {                                                            \
+        const make_array_first_ref(src_ptr, src_ref);                   \
+        foreach_array_ref(dst_ptr, dst_ref) {                           \
+            *dst_ref = *src_ref++;                                      \
+        }                                                               \
+    }                                                                   \
 } while(0)
 
 /* is_arrays_of_same_types(dst_ptr, src_ptr)
@@ -590,9 +635,9 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  * at second level we return true if dst type is const and src type is non const
  * at third level we return true if dst type is non const and src type is const
  */
-#define is_arrays_of_same_types(dst_ptr, src_ptr) is_arrays_of_same_types_raw(& auto_arr(dst_ptr), & auto_arr(src_ptr))
+#define is_arrays_of_same_types(dst_ptr, src_ptr) unsafe_is_ptas_of_same_types(& auto_arr(dst_ptr), & auto_arr(src_ptr))
 
-#define is_arrays_of_same_types_raw(dst_ptr, src_ptr)                           \
+#define unsafe_is_ptas_of_same_types(dst_ptr, src_ptr)                           \
         _Generic((dst_ptr),                                                     \
                 typeof((*(src_ptr))[0]) (*)[]: true,                            \
                 default: _Generic( (dst_ptr),                                   \
@@ -769,16 +814,16 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
  */
 #define make_array_slice_shrink(_name_, skip_start, skip_end, ...) \
-        P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = array_slice_shrink(skip_start, skip_end, (__VA_ARGS__))
+        P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = array_slice_shrink(skip_start, skip_end, (__VA_ARGS__))
 
 #define array_slice_shrink(skip_start, skip_end, ...) \
         (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ]) &(auto_arr((__VA_ARGS__))[skip_start])
 
 /* make full slice
  * size of array slice will be equal original array
- * basically, this is just a pointer to source array */
+ * basically, this is just a copy of pointer to source array */
 #define make_array_slice_full(_name_, ...) \
-        P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [P_ARRAY_SIZE((__VA_ARGS__))] = array_slice_full((__VA_ARGS__))
+        ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ARRAY_SIZE((__VA_ARGS__))] = array_slice_full((__VA_ARGS__))
 
 #define array_slice_full(...) &(auto_arr((__VA_ARGS__)))
 
