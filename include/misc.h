@@ -244,146 +244,298 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
     memcpy(var_name, src + _var_name##start, _var_name##count); \
     var_name[_var_name##count] = '\0'
 
+/*** unpack basic 1-to-1 */
 
-/***** Hexademical print support *****/
+static inline char               _p_char(char c)            { return c; }
+static inline signed char        _p_schar(signed char c)    { return c; }
+static inline unsigned char      _p_uchar(unsigned char c)  { return c; }
 
-/* to_hex(integer_variable, precision):
- *
- * Println modifier for integers. allows to print integers as hexademical value.
- * optional second argument is for number of padding zeros from 0 to 16 (called precision in docs, for some reason)
- * precision must be static number, not a variable.
- * if precision argument is not provided, then it is implicitly equals 1
- *
- * NOTE: if precision is 0 and value of integer_variable is also 0, then nothing will be printed
- *
- * examples:
+static inline short              _p_sshort(short c)         { return c; }
+static inline unsigned short     _p_ushort(unsigned short c){ return c; }
 
-    //basically same as printf(hex value of 345: 0x%x\n, 345);
-    println("hex value of 345: 0x", to_hex(345)); //prints: hex value of 345: 0x159
+static inline int                _p_sint(int c)             { return c; }
+static inline unsigned           _p_uint(unsigned c)        { return c; }
 
-    //basically same as printf(hex value of 10000: 0x%.6x\n", 6);
-    println("hex value of 10000: 0x", to_hex(10000, 6)); //prints: hex value of 10000: 0x002710
+static inline long               _p_slong(long c)           { return c; }
+static inline unsigned long      _p_ulong(unsigned long c)  { return c; }
 
-    uint64_t a = 100500;
-    uint8_t b = 50;
-    concat_vla(string_vla, "a is: 0x", to_hex(a, 10), " b is: 0x", to_hex(b));
-    println(string_vla); //prints: a is: 0x0000018894 b is: 0x32
+static inline signed long long   _p_sllong(signed long long c)  { return c; }
+static inline unsigned long long _p_ullong(unsigned long long c){ return c; }
 
- */
-#define to_hex(x, ...) IF(PP_NARG(__VA_ARGS__))(to_hexp, _to_hex_single)(x, __VA_ARGS__)
-#define _to_hex_single(x, ...) to_hexp(x, 1)
+static inline float              _p_float(float c)          { return c; }
+static inline double             _p_double(double c)        { return c; }
+static inline long double        _p_ldouble(long double c)  { return c; }
 
-#define hex_gens 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+static inline const char *       _p_cchar_ptr(const char *c){ return c; }
+static inline const char *       _p_cchar_arr_ptr(const char (*c)[]){ return *c; }
 
-/* helper. generates hexademical union types */
-#define _gen_hex_padding_type(union_type, basic_type, num) typedef union CAT(union_type, num) { basic_type v; } CAT(union_type, num);
+static inline const void *       _p_cvoid_ptr(const void *c){ return c; }
 
-MAP_TWOARG(_gen_hex_padding_type, __hex_unsigned_char,      unsigned char,      hex_gens)
-MAP_TWOARG(_gen_hex_padding_type, __hex_unsigned_short,     unsigned short,     hex_gens)
-MAP_TWOARG(_gen_hex_padding_type, __hex_unsigned_int,       unsigned int,       hex_gens)
-MAP_TWOARG(_gen_hex_padding_type, __hex_unsigned_long,      unsigned long,      hex_gens)
-MAP_TWOARG(_gen_hex_padding_type, __hex_unsigned_long_long, unsigned long long, hex_gens)
+static inline const char *       _p_bool(bool c) { return c ? "true" : "false"; }
 
-/* helper. generates function which maps provided integer to specified union type */
-#define _gen_hex_padding_to(union_type, basic_type, num) \
-    static inline union_type ## num CAT(__to ## union_type, num) ( basic_type a ) { return ( union_type ## num )a; }
+/* simple hex 1-1*/
 
-MAP_TWOARG(_gen_hex_padding_to, __hex_unsigned_char,      unsigned char,      hex_gens)
-MAP_TWOARG(_gen_hex_padding_to, __hex_unsigned_short,     unsigned short,     hex_gens)
-MAP_TWOARG(_gen_hex_padding_to, __hex_unsigned_int,       unsigned int,       hex_gens)
-MAP_TWOARG(_gen_hex_padding_to, __hex_unsigned_long,      unsigned long,      hex_gens)
-MAP_TWOARG(_gen_hex_padding_to, __hex_unsigned_long_long, unsigned long long, hex_gens)
+typedef union { unsigned char v; }      _hex_uchar;
+typedef union { unsigned short v; }     _hex_ushort;
+typedef union { unsigned v; }           _hex_uint;
+typedef union { unsigned long v; }      _hex_ulong;
+typedef union { unsigned long long v; } _hex_ullong;
 
-/* Main to_hex() macro */
-#define to_hexp(x, w) _Generic( (x),                                  \
-        char:                   CAT(__to__hex_unsigned_char,      w), \
-        signed char:            CAT(__to__hex_unsigned_char,      w), \
-        unsigned char:          CAT(__to__hex_unsigned_char,      w), \
-        signed short:           CAT(__to__hex_unsigned_short,     w), \
-        unsigned short:         CAT(__to__hex_unsigned_short,     w), \
-        signed int:             CAT(__to__hex_unsigned_int,       w), \
-        unsigned int:           CAT(__to__hex_unsigned_int,       w), \
-        signed long:            CAT(__to__hex_unsigned_long,      w), \
-        unsigned long:          CAT(__to__hex_unsigned_long,      w), \
-        signed long long:       CAT(__to__hex_unsigned_long_long, w), \
-        unsigned long long:     CAT(__to__hex_unsigned_long_long, w)  \
-)(x)
+static inline _hex_uchar  _to_hex_uchar(unsigned char c)       { return (_hex_uchar){c}; }
+static inline _hex_ushort _to_hex_ushort(unsigned short c)     { return (_hex_ushort){c}; }
+static inline _hex_uint   _to_hex_uint(unsigned c)             { return (_hex_uint){c}; }
+static inline _hex_ulong  _to_hex_ulong(unsigned long c)       { return (_hex_ulong){c}; }
+static inline _hex_ullong _to_hex_ullong(unsigned long long c) { return (_hex_ullong){c}; }
 
-/* helper. part of _Generic selection for printf_dec_format().
- * maps hexademical union type to printf specifier */
-#define _printf_hex_format(union_type, spec) \
-        union_type ## 0:     "%.0"  spec,  \
-        union_type ## 1:     "%"    spec,  \
-        union_type ## 2:     "%.2"  spec,  \
-        union_type ## 3:     "%.3"  spec,  \
-        union_type ## 4:     "%.4"  spec,  \
-        union_type ## 5:     "%.5"  spec,  \
-        union_type ## 6:     "%.6"  spec,  \
-        union_type ## 7:     "%.7"  spec,  \
-        union_type ## 8:     "%.8"  spec,  \
-        union_type ## 9:     "%.9"  spec,  \
-        union_type ## 10:    "%.10" spec,  \
-        union_type ## 11:    "%.11" spec,  \
-        union_type ## 12:    "%.12" spec,  \
-        union_type ## 13:    "%.13" spec,  \
-        union_type ## 14:    "%.14" spec,  \
-        union_type ## 15:    "%.15" spec,  \
-        union_type ## 16:    "%.16" spec   \
+static inline unsigned char       _p_hex_uchar(_hex_uchar c){ return c.v; }
+static inline unsigned short      _p_hex_ushort(_hex_ushort c){ return c.v; }
+static inline unsigned            _p_hex_uint(_hex_uint c){ return c.v; }
+static inline unsigned long       _p_hex_ulong(_hex_ulong c){ return c.v; }
+static inline unsigned long long  _p_hex_ullong(_hex_ullong c){ return c.v; }
 
-#define _printf_hex_format_all(after)                   \
-    _printf_hex_format(__hex_unsigned_char,     "hhx" after), \
-    _printf_hex_format(__hex_unsigned_short,    "hx"  after), \
-    _printf_hex_format(__hex_unsigned_int,      "x"   after), \
-    _printf_hex_format(__hex_unsigned_long,     "lx"  after), \
-    _printf_hex_format(__hex_unsigned_long_long,"llx" after)  \
+/* Wrap number to unsigned hex type: println(fmt_hex(1)); -> printf("%x\n", 1);  */
+#define fmt_hex(var) _Generic((var),                    \
+    signed char:        _to_hex_uchar ,                 \
+    unsigned char:      _to_hex_uchar ,                 \
+    short:              _to_hex_ushort,                 \
+    unsigned short:     _to_hex_ushort,                 \
+    int:                _to_hex_uint  ,                 \
+    unsigned:           _to_hex_uint  ,                 \
+    long:               _to_hex_ulong ,                 \
+    unsigned long:      _to_hex_ulong ,                 \
+    long long:          _to_hex_ullong,                 \
+    unsigned long long: _to_hex_ullong                  \
+)(var)
 
-/* helper. generates functions for hex unions which returns original integer value from that union */
-#define _from_hex_fmt(union_type, basic_type, num) \
-    static inline basic_type CAT( _p ## union_type, num) ( union_type ## num c ) { return c.v; }
+/* printf modifiers */
+typedef union { int p; } format_precision;
+typedef union { int p; } format_width;
+typedef union { int p; } format_width_zero;
+typedef union { int p; } format_and_precision;
+typedef union { int p; } format_hash;
 
-MAP_TWOARG(_from_hex_fmt, __hex_unsigned_char, unsigned char, hex_gens)
-MAP_TWOARG(_from_hex_fmt, __hex_unsigned_short, unsigned short, hex_gens)
-MAP_TWOARG(_from_hex_fmt, __hex_unsigned_int, unsigned int, hex_gens)
-MAP_TWOARG(_from_hex_fmt, __hex_unsigned_long, unsigned long, hex_gens)
-MAP_TWOARG(_from_hex_fmt, __hex_unsigned_long_long, unsigned long long, hex_gens)
+static inline int _unpack_precision(format_precision p) { return p.p; }
+static inline int _unpack_width(format_width p) { return p.p; }
+static inline int _unpack_width_zero(format_width_zero p) { return p.p; }
+static inline int _unpack_and_precision(format_and_precision p) { return p.p; }
 
-/* helper. part of _Generic selection for _each_printf_args macro.
- * maps each hexademical union type to functions which extract original integer from that union */
-#define _hex_pre_process(union_type)             \
-    union_type ## 0:  CAT( _p ## union_type, 0), \
-    union_type ## 1:  CAT( _p ## union_type, 1), \
-    union_type ## 2:  CAT( _p ## union_type, 2), \
-    union_type ## 3:  CAT( _p ## union_type, 3), \
-    union_type ## 4:  CAT( _p ## union_type, 4), \
-    union_type ## 5:  CAT( _p ## union_type, 5), \
-    union_type ## 6:  CAT( _p ## union_type, 6), \
-    union_type ## 7:  CAT( _p ## union_type, 7), \
-    union_type ## 8:  CAT( _p ## union_type, 8), \
-    union_type ## 9:  CAT( _p ## union_type, 9), \
-    union_type ## 10: CAT( _p ## union_type,10), \
-    union_type ## 11: CAT( _p ## union_type,11), \
-    union_type ## 12: CAT( _p ## union_type,12), \
-    union_type ## 13: CAT( _p ## union_type,13), \
-    union_type ## 14: CAT( _p ## union_type,14), \
-    union_type ## 15: CAT( _p ## union_type,15), \
-    union_type ## 16: CAT( _p ## union_type,16)
+/* Basic raw types to use with format modifiers */
 
-#define _hex_pre_process_all                   \
-    _hex_pre_process(__hex_unsigned_char),     \
-    _hex_pre_process(__hex_unsigned_short),    \
-    _hex_pre_process(__hex_unsigned_int),      \
-    _hex_pre_process(__hex_unsigned_long),     \
-    _hex_pre_process(__hex_unsigned_long_long)
+typedef union {signed char v;}          schar_raw;
+typedef union {unsigned char v;}        uchar_raw;
 
+typedef union {short v;}                sshort_raw;
+typedef union {unsigned short v;}       ushort_raw;
+
+typedef union {int v;}                  sint_raw;
+typedef union {unsigned v;}             uint_raw;
+
+typedef union {long v;}                 slong_raw;
+typedef union {unsigned long v;}        ulong_raw;
+
+typedef union {long long v;}            sllong_raw;
+typedef union {unsigned long long v;}   ullong_raw;
+
+typedef union {float v;}                float_raw;
+typedef union {double v;}               double_raw;
+typedef union {long double v;}          ldouble_raw;
+
+typedef union { const char *v; }        const_char_ptr_raw;
+
+/* hex types to use with format modifiers */
+
+typedef union { unsigned char v; }      _hex_uchar_raw;
+typedef union { unsigned short v; }     _hex_ushort_raw;
+typedef union { unsigned v; }           _hex_uint_raw;
+typedef union { unsigned long v; }      _hex_ulong_raw;
+typedef union { unsigned long long v; } _hex_ullong_raw;
+
+/* pack functions */
+
+static inline schar_raw   _to_psn_schar(signed char c)        { return (schar_raw){c}; }
+static inline uchar_raw   _to_psn_uchar(unsigned char c)      { return (uchar_raw){c}; }
+
+static inline sshort_raw  _to_psn_sshort(short c)             { return (sshort_raw){c}; }
+static inline ushort_raw  _to_psn_ushort(unsigned short c)    { return (ushort_raw){c}; }
+
+static inline sint_raw    _to_psn_sint(int c)                 { return (sint_raw){c}; }
+static inline uint_raw    _to_psn_uint(unsigned c)            { return (uint_raw){c}; }
+
+static inline slong_raw   _to_psn_slong(long c)               { return (slong_raw){c}; }
+static inline ulong_raw   _to_psn_ulong(unsigned long c)      { return (ulong_raw){c}; }
+
+static inline sllong_raw  _to_psn_sllong(long long c)         { return (sllong_raw){c}; }
+static inline ullong_raw  _to_psn_ullong(unsigned long long c){ return (ullong_raw){c}; }
+
+static inline float_raw   _to_psn_float(float c)              { return (float_raw){c}; }
+static inline double_raw  _to_psn_double(float c)             { return (double_raw){c}; }
+static inline ldouble_raw _to_psn_ldouble(float c)            { return (ldouble_raw){c}; }
+
+static inline const_char_ptr_raw _to_psn_const_char_ptr(const char *c) { return (const_char_ptr_raw){c}; }
+static inline const_char_ptr_raw _to_psn_const_char_arr_ptr(const char (*c)[]) { return (const_char_ptr_raw){*c}; }
+static inline const_char_ptr_raw _to_psn_const_char_ptr_bool(bool c) { return (const_char_ptr_raw){ _p_bool(c) }; }
+
+/*** hex pack */
+
+static inline _hex_uchar_raw  _to_psn_hex_uchar(_hex_uchar c)   { return (_hex_uchar_raw){c.v}; }
+static inline _hex_ushort_raw _to_psn_hex_ushort(_hex_ushort c) { return (_hex_ushort_raw){c.v}; }
+static inline _hex_uint_raw   _to_psn_hex_uint(_hex_uint c)     { return (_hex_uint_raw){c.v}; }
+static inline _hex_ulong_raw  _to_psn_hex_ulong(_hex_ulong c)   { return (_hex_ulong_raw){c.v}; }
+static inline _hex_ullong_raw _to_psn_hex_ullong(_hex_ullong c) { return (_hex_ullong_raw){c.v}; }
+
+/* Unpack functions */
+
+static inline signed char        _psn_schar(schar_raw c)   { return c.v; }
+static inline unsigned char      _psn_uchar(uchar_raw c)   { return c.v; }
+
+static inline short              _psn_sshort(sshort_raw c) { return c.v; }
+static inline unsigned short     _psn_ushort(ushort_raw c) { return c.v; }
+
+static inline int                _psn_sint(sint_raw c)     { return c.v; }
+static inline unsigned           _psn_uint(uint_raw c)     { return c.v; }
+
+static inline long               _psn_slong(slong_raw c)   { return c.v; }
+static inline unsigned long      _psn_ulong(ulong_raw c)   { return c.v; }
+
+static inline long long          _psn_sllong(sllong_raw c) { return c.v; }
+static inline unsigned long long _psn_ullong(ullong_raw c) { return c.v; }
+
+static inline float              _psn_float(float_raw c)     { return c.v; }
+static inline double             _psn_double(double_raw c)   { return c.v; }
+static inline long double        _psn_ldouble(ldouble_raw c) { return c.v; }
+
+static inline const char*        _psn_const_char_ptr(const_char_ptr_raw c){ return c.v; }
+
+/*** unpack hex */
+
+static inline unsigned char       _psn_hex_uchar(_hex_uchar_raw c)  { return c.v; }
+static inline unsigned short      _psn_hex_ushort(_hex_ushort_raw c){ return c.v; }
+static inline unsigned            _psn_hex_uint(_hex_uint_raw c)    { return c.v; }
+static inline unsigned long       _psn_hex_ulong(_hex_ulong_raw c)  { return c.v; }
+static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v; }
+
+/* convert number to hex with specified precision:
+ * println( fmt_hex_p(1, 4) ); -> println( fmt_p(fmt_hex(1), 4) ); -> printf("%.*x\n", 4, 1); */
+#define fmt_hex_p(var, prcsn) fmt_p(fmt_hex(var), prcsn)
+
+/* convert number to hex with specified width:
+ * println( fmt_hex_w(1, 4) ); -> println( fmt_w(fmt_hex(1), 4) ); -> printf("%*x\n", 4, 1); */
+#define fmt_hex_w(var, prcsn) fmt_w(fmt_hex(var), prcsn)
+
+/* convert number to hex with specified width, filled with zeros:
+ * println( fmt_hex_zw(1, 4) ); -> println( fmt_zw(fmt_hex(1), 4) ); -> printf("%0*x\n", 4, 1); */
+#define fmt_hex_zw(var, prcsn) fmt_zw(fmt_hex(var), prcsn)
+
+
+#define generic_format_selector_int_fmt(var)    \
+    _hex_uchar:         _to_psn_hex_uchar,      \
+    _hex_ushort:        _to_psn_hex_ushort,     \
+    _hex_uint:          _to_psn_hex_uint,       \
+    _hex_ulong:         _to_psn_hex_ulong,      \
+    _hex_ullong:        _to_psn_hex_ullong,     \
+    \
+    signed char:        _to_psn_schar  ,                \
+    unsigned char:      _to_psn_uchar  ,                \
+    short:              _to_psn_sshort ,                \
+    unsigned short:     _to_psn_ushort ,                \
+    int:                _to_psn_sint   ,                \
+    unsigned:           _to_psn_uint   ,                \
+    long:               _to_psn_slong  ,                \
+    unsigned long:      _to_psn_ulong  ,                \
+    long long:          _to_psn_sllong ,                \
+    unsigned long long: _to_psn_ullong                  \
+
+#define generic_format_selector_real_fmt(var) \
+    float:              _to_psn_float  ,                \
+    double:             _to_psn_double ,                \
+    long double:        _to_psn_ldouble                 \
+
+#define generic_format_selector_string_fmt(var) \
+    char *:             _to_psn_const_char_ptr,         \
+    const char *:       _to_psn_const_char_ptr,         \
+    char (*)[]:         _to_psn_const_char_arr_ptr,     \
+    const char (*)[]:   _to_psn_const_char_arr_ptr,      \
+    bool:               _to_psn_const_char_ptr_bool
+
+#define generic_precision_width_fmt(var) _Generic((var),\
+    generic_format_selector_int_fmt(var),               \
+    generic_format_selector_real_fmt(var),              \
+    generic_format_selector_string_fmt(var)             \
+)(var)
+
+#define generic_precision_width_numbers_fmt(var) _Generic((var),\
+    generic_format_selector_int_fmt(var),        \
+    generic_format_selector_real_fmt(var)        \
+)(var)
+
+#define generic_precision_width_real_fmt(var) _Generic((var),\
+    generic_format_selector_real_fmt(var)                    \
+)(var)
+
+
+/* WARNING: Do not wrap fmt_x() macros in parentheses!! Use them only inside print*() functions! */
+
+/* precision modifier: printf("%.*d", 4, 10); */
+#define fmt_p(var, precision) \
+    (const format_precision){precision}, generic_precision_width_fmt(var)
+
+/* width modifier: printf("%*d", 4, 10); width can be negative */
+#define fmt_w(var, width) \
+    (const format_width){width}, generic_precision_width_fmt(var)
+
+/* width and precision modifiers: printf("%*.*d", 4, 8, 10); width can be negative */
+#define fmt_wp(var, width, precision) \
+    (const format_width){width}, (const format_and_precision){precision}, generic_precision_width_fmt(var)
+
+/* width with zero flag modifier: printf("%0*d", 4, 10); can only be used with numbers */
+#define fmt_zw(var, width) \
+    (const format_width_zero){width}, generic_precision_width_numbers_fmt(var)
+
+/* width with zero flag modifier and precision: printf("%0*.*f", 4, 8, 10f); can be used only with real types */
+#define fmt_zwp(var, width, precision) \
+    (const format_width_zero){width}, (const format_and_precision){precision}, generic_precision_width_real_fmt(var)
 
 /* printf_dec_format(variable)
  *
  * Turns standard types into printf's format specifier
  */
-#define EXTRA 0
+
+#define printf_dec_format(x) printf_dec_format_base(x,)
+#define printf_dec_format_newline(x) printf_dec_format_base(x, "\n")
 
 #define printf_dec_format_base(x, after) _Generic((x), \
-    _printf_hex_format_all(after),               \
+    _hex_uchar_raw:     "hhx"  ,  \
+    _hex_ushort_raw:    "hx"   ,  \
+    _hex_uint_raw:      "x"    ,  \
+    _hex_ulong_raw:     "lx"   ,  \
+    _hex_ullong_raw:    "llx"  ,  \
+    \
+    schar_raw:          "hhd"  ,  \
+    uchar_raw:          "hhu"  ,  \
+    sshort_raw:         "hd"   ,  \
+    ushort_raw:         "hu"   ,  \
+    sint_raw:           "d"    ,  \
+    uint_raw:           "u"    ,  \
+    slong_raw:          "ld"   ,  \
+    ulong_raw:          "lu"   ,  \
+    sllong_raw:         "lld"  ,  \
+    ullong_raw:         "llu"  ,  \
+    float_raw:          "f"    ,  \
+    double_raw:         "lf"   ,  \
+    ldouble_raw:        "Lf"   ,  \
+    const_char_ptr_raw: "s"    ,  \
+    \
+    format_precision:     "%.*",  \
+    format_width:         "%*" ,  \
+    format_width_zero:    "%0*",  \
+    format_and_precision: ".*" ,  \
+    \
+    _hex_uchar:         "%hhx" after,            \
+    _hex_ushort:        "%hx"  after,            \
+    _hex_uint:          "%x"   after,            \
+    _hex_ulong:         "%lx"  after,            \
+    _hex_ullong:        "%llx" after,            \
+    \
     char:               "%c"   after,            \
     signed char:        "%hhd" after,            \
     unsigned char:      "%hhu" after,            \
@@ -400,45 +552,46 @@ MAP_TWOARG(_from_hex_fmt, __hex_unsigned_long_long, unsigned long long, hex_gens
     long double:        "%Lf"  after,            \
     char *:             "%s"   after,            \
     const char *:       "%s"   after,            \
+    char (*)[]:         "%s"   after,            \
+    const char (*)[]:   "%s"   after,            \
     void *:             "%p"   after,            \
     const void *:       "%p"   after,            \
-    IF(EXTRA)(EXTRA_SPECIFIER, EAT)()            \
     bool:               "%s"   after             \
 )
 
-#define printf_dec_format(x) printf_dec_format_base(x,)
-#define printf_dec_format_newline(x) printf_dec_format_base(x, "\n")
-
-static inline char               _p_char(char c)          { return c; }
-static inline signed char        _p_schar(signed char c)  { return c; }
-static inline unsigned char      _p_uchar(unsigned char c){ return c; }
-
-static inline short              _p_sshort(short c)         { return c; }
-static inline unsigned short     _p_ushort(unsigned short c){ return c; }
-
-static inline int                _p_sint(int c)     { return c; }
-static inline unsigned           _p_uint(unsigned c){ return c; }
-
-static inline long               _p_slong(long c)         { return c; }
-static inline unsigned long      _p_ulong(unsigned long c){ return c; }
-
-static inline signed long long   _p_sllong(signed long long c)  { return c; }
-static inline unsigned long long _p_ullong(unsigned long long c){ return c; }
-
-static inline float              _p_float(float c)        { return c; }
-static inline double             _p_double(double c)      { return c; }
-static inline long double        _p_ldouble(long double c){ return c; }
-
-static inline char *             _p_char_ptr(char *c)       { return c; }
-static inline const char *       _p_cchar_ptr(const char *c){ return c; }
-
-static inline void *             _p_void_ptr(void *c)       { return c; }
-static inline const void *       _p_cvoid_ptr(const void *c){ return c; }
-
-static inline const char *       _p_bool(bool c) { return c ? "true" : "false"; }
-
-#define _each_printf_args(arg) _Generic((arg),  \
-        _hex_pre_process_all,                   \
+#define _each_printf_args(arg) _Generic((arg),   \
+        _hex_uchar_raw:         _psn_hex_uchar,      \
+        _hex_ushort_raw:        _psn_hex_ushort,     \
+        _hex_uint_raw:          _psn_hex_uint,       \
+        _hex_ulong_raw:         _psn_hex_ulong,      \
+        _hex_ullong_raw:        _psn_hex_ullong,     \
+        \
+        schar_raw:          _psn_schar,   \
+        uchar_raw:          _psn_uchar,   \
+        sshort_raw:         _psn_sshort,  \
+        ushort_raw:         _psn_ushort,  \
+        sint_raw:           _psn_sint,    \
+        uint_raw:           _psn_uint,    \
+        slong_raw:          _psn_slong,   \
+        ulong_raw:          _psn_ulong,   \
+        sllong_raw:         _psn_sllong,  \
+        ullong_raw:         _psn_ullong,  \
+        float_raw:          _psn_float,   \
+        double_raw:         _psn_double,  \
+        ldouble_raw:        _psn_ldouble, \
+        const_char_ptr_raw: _psn_const_char_ptr,    \
+        \
+        format_precision:    _unpack_precision,     \
+        format_width:        _unpack_width,         \
+        format_width_zero:   _unpack_width_zero,    \
+        format_and_precision:_unpack_and_precision, \
+        \
+        _hex_uchar:         _p_hex_uchar,       \
+        _hex_ushort:        _p_hex_ushort,      \
+        _hex_uint:          _p_hex_uint,        \
+        _hex_ulong:         _p_hex_ulong,       \
+        _hex_ullong:        _p_hex_ullong,      \
+        \
         char:               _p_char,            \
         signed char:        _p_schar,           \
         unsigned char:      _p_uchar,           \
@@ -453,16 +606,16 @@ static inline const char *       _p_bool(bool c) { return c ? "true" : "false"; 
         float:              _p_float,           \
         double:             _p_double,          \
         long double:        _p_ldouble,         \
-        char *:             _p_char_ptr,        \
+        char *:             _p_cchar_ptr,       \
         const char *:       _p_cchar_ptr,       \
-        void *:             _p_void_ptr,        \
+        char (*)[]:         _p_cchar_arr_ptr,   \
+        const char (*)[]:   _p_cchar_arr_ptr,   \
+        void *:             _p_cvoid_ptr,       \
         const void *:       _p_cvoid_ptr,       \
-        IF(EXTRA)(EXTRA_SPECIFIER_PRINT, EAT)() \
         bool:               _p_bool             \
 )((arg))
 
-/* This macro is used to convert values for printing
- * currently only bool converted to strings "true" or "false". other values are printed as is */
+/* This macro is used to convert values for printing */
 #define printf_args_pre_process(...) \
     MAP_LIST(_each_printf_args, __VA_ARGS__)
 
@@ -485,7 +638,7 @@ static inline const char *       _p_bool(bool c) { return c ? "true" : "false"; 
 #define _check_endline_size(...) 1 +
 
 #define printf_spec_size(endl, ...) \
-        ( MAP(_check_specifier_size, __VA_ARGS__) IF(endl)(_check_endline_size, EAT)()  1 )
+        ( MAP(_check_specifier_size, __VA_ARGS__) IF(endl)(_check_endline_size, EAT)() 1 )
 
 #define printf_specifier_string_multi(endl, ...) printf_specifier_string_multi_es(endl, __VA_ARGS__)
 
@@ -634,16 +787,25 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
  */
 
 /* Print to stdout */
-#define print(first_arg, ...)   IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_print, print_main)(first_arg, __VA_ARGS__)
-#define println(first_arg, ...) IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_println, println_main)(first_arg, __VA_ARGS__)
+#define print_(first_arg, ...)   IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_print, print_main)(first_arg, __VA_ARGS__)
+#define print(...) print_(__VA_ARGS__)
+
+#define println_(first_arg, ...) IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_println, println_main)(first_arg, __VA_ARGS__)
+#define println(...) println_(__VA_ARGS__)
 
 /* Print to FILE* */
-#define fprint(stream, first_arg, ...) IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_fprint, fprint_main)(stream, first_arg, __VA_ARGS__)
-#define fprintln(stream, ...) fprintf(stream, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+#define fprint_(stream, first_arg, ...) IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_fprint, fprint_main)(stream, first_arg, __VA_ARGS__)
+#define fprint(stream, ...) fprint_(stream, __VA_ARGS__)
+
+#define fprintln_(stream, ...) fprintf(stream, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+#define fprintln(stream, ...) fprintln_(stream, __VA_ARGS__)
 
 /* Print to stderr */
-#define printerr(...)   fprint(stderr, __VA_ARGS__)
-#define printerrln(...) fprintln(stderr, __VA_ARGS__)
+#define printerr_(...)   fprint(stderr, __VA_ARGS__)
+#define printerr(...)   printerr_(__VA_ARGS__)
+
+#define printerrln_(...) fprintln(stderr, __VA_ARGS__)
+#define printerrln(...)   printerrln_(__VA_ARGS__)
 
 /* Print to fd */
 #define dprint(fd, ...)   dprintf(fd, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
@@ -714,7 +876,12 @@ static inline void printf_bool(const char *fmt, bool val) {
 
 #define print_var_nl(x) print_var(x); printf("\n")
 
-/* Compat */
+/* Compatibility */
 #define COUNT_PARMS(...)     PP_NARG(__VA_ARGS__)
+
+#define to_hex(var, ...) fmt_hex_p(var, __VA_ARGS__)
+#define to_hex_p(var, ...) IF(PP_NARG(__VA_ARGS__))(to_hex_p_multi, to_hex_p_single)(var, __VA_ARGS__)
+#define to_hex_p_single(var, ...) fmt_p(fmt_hex(var), 1)
+#define to_hex_p_multi(var, prcsn) fmt_p(fmt_hex(var), prcsn)
 
 #endif // MISC_H
