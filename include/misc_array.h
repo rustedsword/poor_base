@@ -2,7 +2,21 @@
 #define MISC_ARRAY_H
 
 #include <misc.h>
+#include <traits.h>
 #include <inttypes.h>
+
+/* Some colors */
+#define CRED "\033[0;31m"
+#define CGREEN "\033[0;32m"
+#define CRESET "\033[0m"
+
+/* Define ARRAY_RUNTIME_CHECKS to activate runtime array checks, use only for debugging! */
+//#define ARRAY_RUNTIME_CHECKS
+
+#define arr_errmsg(...) ((void)printerrln(__VA_ARGS__), (void)abort(), 0)
+
+union _dummy_type_ {char a;};
+union _not_an_array_type_ {char a;};
 
 /***** Experimental *****/
 
@@ -10,8 +24,6 @@
 #define MAX_ARRAY_DEREF 5
 
 typedef union {char a;} more_than_maximum_supported_array_dimensions_reached;
-union _dummy_type_ {char a;};
-union _not_an_array_type_ {char a;};
 
 /* if size of var is known at compile time, just returns var, otherwise returns _dummy_type_ */
 #define drop_vla(var) if_constexpr(sizeof(var), var, (union _dummy_type_){0})
@@ -47,8 +59,8 @@ union _not_an_array_type_ {char a;};
         typeof(NULL, drop_vla(var))_Atomic*:(f),\
          default:(t))
 #else
-//#define if_arr_unsafe(var, t, f) _Generic(&(var), \
-//        typeof(NULL, drop_vla(var))* :(f),\
+//#define if_arr_unsafe(var, t, f) _Generic(&(var),
+//        typeof(NULL, drop_vla(var))* :(f),
 //         default:(t))
 #define if_arr_unsafe(var, t, f) _Generic((NULL, var), \
         typeof(drop_vla(var)) :(f),\
@@ -162,13 +174,15 @@ typedef union { char a; } alvl;
 
 /***** end experimental *****/
 
-/* returns dummy array if var is VLA. returns dummy pointer if var is pointer to VLA */
-#define vla_ptr_check(var)                                                      \
-                if_constexpr(sizeof(var),                                       \
-                        if_constexpr(sizeof *(var),                             \
-                                        var,                                    \
-                                        (union _not_an_array_type_ ***){0} ),   \
-                        (union _dummy_type_ [1]){0} )                           \
+/* returns dummy array if var is VLA. returns dummy pointer if var is pointer to VLA otherwise returns var */
+#define vla_ptr_check(var)                                           \
+                    if_vla(var,                                      \
+                        (union _dummy_type_ [1]){0},                 \
+                        if_vla(*(var),                               \
+                                (union _not_an_array_type_ ***){0},  \
+                                var)                                 \
+                        )
+
 
 /* evaluates t, if var is array or (f) if it is not. additionally checks if var is not pointer to VLA */
 #define if_arr__vla_guard(var, t, f)  	 	 	 	\
@@ -181,7 +195,7 @@ typedef union { char a; } alvl;
 #define deref_or_arr__vla(var)  if_arr__vla_guard(var, var, *var)
 
 /* replaces var with dummy array if var is VLA */
-#define vla_check(var) if_constexpr(sizeof(var), var, (union _dummy_type_ [1]){0} )
+#define vla_check(var) if_vla(var, (union _dummy_type_ [1]){0}, var )
 
 /* evaluates t, if var is array, do not use directly */
 #define if_arr__no_vla_ptr(var, t)	 	 	\
@@ -227,15 +241,6 @@ typedef union { char a; } alvl;
 #define arr(...) auto_arr((__VA_ARGS__))
 #endif
 
-/* returns pointer to int if (expr) is constant integer expression, or returns pointer to void if (expr) is not constant integer expression */
-#define magic_ice_expression(expr) (1 ? ((void *)((intptr_t)( (expr) ) * 0)) : (int *)1)
-
-/* returns true if (expr) is constant integer expression, or false if it is not */
-#define is_const_expr(expr) _Generic( magic_ice_expression(expr), int*: true, void*:false)
-
-/* Evaluates (if_const) expression if (expr) is constant integer expression or evaluates (if_not_const) expression */
-#define if_constexpr(expr, if_const, if_not_const) _Generic( magic_ice_expression(expr), int*: (if_const), void*:(if_not_const))
-
 /* Returns number of elements in the array */
 #define ARRAY_SIZE(arr) ( sizeof( auto_arr(arr)) / sizeof (auto_arr(arr)[0]) )
 /* Returns total array size in bytes */
@@ -275,10 +280,6 @@ typedef union { char a; } alvl;
 /* is_ptr_to_vla(_arr_ptr_)
  * Returns true if _arr_ptr_ is pointer to VLA. */
 #define is_ptr_to_vla(_arr_ptr_) is_vla(*(_arr_ptr_))
-
-/* is_vla(array)
- * Returns true if array is variable length array(VLA) */
-#define is_vla(arr) (!is_const_expr(sizeof(arr)))
 
 /* PRINT_ARRAY_INFO(arr_ptr): Prints information about array
  * @__VA_ARGS__: pointer to an array
@@ -527,13 +528,13 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
     int dst[5] = {1,2,3,4,5};
     int src[3] = {9,8,7};
-    copy_array(&dst, &src);
-    print_array(&dst); //prints: 98745
+    copy_array(dst, src);
+    print_array(dst); //prints: 98745
 ...
     int dst[] = {1,2};
     int src[] = {9,8,7};
-    copy_array(&dst, &src);
-    print_array(&dst); //prints: 98
+    copy_array(dst, src);
+    print_array(dst); //prints: 98
 ...
     //Copy string into dynamic memory
     char (*data)[ sizeof ("String lol !") ];
@@ -659,12 +660,12 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  *
  * example:
 
-    make_array_slice_string(src1, &"This ");
-    make_array_slice_string(src2, &"Is ");
-    make_array_slice_string(src3, &"A string");
-    char dst[P_ARRAYS_SIZE(src1, src2, src3)];
-    copy_arrays(&dst, src1, src2, src3);
-    print_array(&dst); //prints: This Is A string
+    make_array_slice_string(src1, "This ");
+    make_array_slice_string(src2, "Is ");
+    make_array_slice_string(src3, "A string");
+    char dst[ARRAYS_SIZE(src1, src2, src3)];
+    copy_arrays(dst, src1, src2, src3);
+    print_array(dst); //prints: This Is A string
 
  */
 #define copy_arrays(dst_ptr, ...) do {                              \
@@ -798,12 +799,39 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 
 /* make array slice with size (size), skipping (start) elements at front */
-#define make_array_slice_size(_name_, start, size, ...) \
-   { __attribute__((unused)) char start_and_size_together_greater_than_array_size[ (P_ARRAY_SIZE((__VA_ARGS__)) >= start + size ) ? 1 : -1];} \
-   { __attribute__((unused)) char size_should_not_be_zero[ size ? 1 : -1 ];  }                                       \
-   P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [ (size) ] = array_slice_size(start, size, (__VA_ARGS__))
+#define make_array_slice_size(_name_, start, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = array_slice_size(start, size, __VA_ARGS__)
 
-#define array_slice_size(start, size, ...) (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[size]) &(auto_arr((__VA_ARGS__)) [start])
+#define array_slice_size(start, size, ...) array_slice_size_(start, size, __VA_ARGS__)
+
+/* (make_)array_slice_size() runtime and static error checking */
+#if defined (ARRAY_RUNTIME_CHECKS)
+#define array_slice_size_(start, size, ...) arrslc_size_dyncheck(start, size, __VA_ARGS__)
+#else
+#define array_slice_size_(start, size, ...) arrslc_size_static(start, size, __VA_ARGS__)
+#endif
+
+#define arrslc_size_static(start, size, ...) \
+    (ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*) [  chk_arrslc_size_static((__VA_ARGS__), start, size)  ]) &(auto_arr((__VA_ARGS__)) [start])
+
+#define chk_arrslc_size_static(arr, start, size) _Generic(1,                       \
+                int*:   sizeof(char [start + size > ARRAY_SIZE(arr) ? -1 : 1]),    \
+                int**:  sizeof(char [start < 0 ? -1 : 1]),                         \
+                int***: sizeof(char [size  < 1 ? -1 : 1]),                         \
+                default: size )
+
+#define arrslc_size_dyncheck(start, size, ...) \
+    ((void)chk_arrslc_size_dyn((__VA_ARGS__), start, size), (ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*) [size]) &(auto_arr((__VA_ARGS__)) [start]))
+
+#define chk_arrslc_size_dyn(arr, start, size) (                                                                                         \
+        (void)(sizeof(char [start < 0 ? -1 : 1]) != 1 ?													                                \
+        arr_errmsg(CRED "Start index less than 0 when creating slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),			    \
+        (void)(sizeof(char [size < 1 ? -1 : 1]) != 1 ? 													                                \
+        arr_errmsg(CRED "Size is less than 1 when creating array slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),			    \
+        (void)(sizeof(char [start + size > ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?										                    \
+        arr_errmsg(CRED "Sum of start position and size is larger than source array size when creating slice at " __FILE__ ":" STRINGIFY2(__LINE__) \
+        " start:", start, " size:", size, " array size:", ARRAY_SIZE(arr), CRESET) : 0)					                	            \
+    )
+
 
 /* Make array slice while skipping n bytes from start and n bytes from end
  * example:

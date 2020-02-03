@@ -28,6 +28,9 @@
 #define CAT(a, ...) PRIMITIVE_CAT(a, __VA_ARGS__)
 #define PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
 
+#define STRINGIFY_(var) #var
+#define STRINGIFY2(var) STRINGIFY_(var)
+
 #define COMPL(b) PRIMITIVE_CAT(COMPL_, b)
 #define COMPL_0 1
 #define COMPL_1 0
