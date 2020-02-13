@@ -798,7 +798,13 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define array_slice_back(end, ...) (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ P_ARRAY_SIZE((__VA_ARGS__)) - end ]) &(auto_arr((__VA_ARGS__))[0])
 
 
-/* make array slice with size (size), skipping (start) elements at front */
+/* make array slice with size (size), skipping (start) elements at front
+ * example:
+
+    uint8_t data[] = {0,1,2,3,4,5};
+    make_array_slice_size(data_slc, 2, 3, &data); //Start index: 2 and size: 3
+    print_array(data_slc); //prints: 234
+*/
 #define make_array_slice_size(_name_, start, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = array_slice_size(start, size, __VA_ARGS__)
 
 #define array_slice_size(start, size, ...) array_slice_size_(start, size, __VA_ARGS__)
@@ -832,7 +838,6 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
         " start:", start, " size:", size, " array size:", ARRAY_SIZE(arr), CRESET) : 0)					                	            \
     )
 
-
 /* Make array slice while skipping n bytes from start and n bytes from end
  * example:
 
@@ -842,10 +847,48 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
  */
 #define make_array_slice_shrink(_name_, skip_start, skip_end, ...) \
-        P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = array_slice_shrink(skip_start, skip_end, (__VA_ARGS__))
+        ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = array_slice_shrink(skip_start, skip_end, (__VA_ARGS__))
 
-#define array_slice_shrink(skip_start, skip_end, ...) \
-        (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*) [ P_ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ]) &(auto_arr((__VA_ARGS__))[skip_start])
+#define array_slice_shrink(skip_start, skip_end, ...) array_slice_shrink_(skip_start, skip_end, __VA_ARGS__)
+
+/* (make_)array_slice_shrink() runtime and static error checking */
+#if defined (ARRAY_RUNTIME_CHECKS)
+#define array_slice_shrink_(skip_start, skip_end, ...) arrslc_shrink_dyncheck(skip_start, skip_end, __VA_ARGS__)
+#else
+#define array_slice_shrink_(skip_start, skip_end, ...) arrslc_shrink_static(skip_start, skip_end, __VA_ARGS__)
+#endif
+
+#define arrslc_shrink_static(skip_start, skip_end, ...) \
+        (ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*) [ chk_arrslc_shrink_static((__VA_ARGS__), (skip_start), (skip_end)) ]) &(auto_arr((__VA_ARGS__))[skip_start])
+
+#define chk_arrslc_shrink_static(arr, skip_start, skip_end) _Generic(1,                 \
+    int*:   sizeof(char [skip_start < 0 ? -1 : 1]),                                     \
+    int**:  sizeof(char [skip_end < 0 ? -1 : 1]),                                       \
+    int***: sizeof(char [skip_start >= ARRAY_SIZE(arr) ? -1 : 1 ] ),                    \
+    char*:  sizeof(char [skip_end >= ARRAY_SIZE(arr) ? -1 : 1 ] ),                      \
+    char**: sizeof(char [skip_start + skip_end >= ARRAY_SIZE(arr) ? -1 : 1 ] ),         \
+    default: ARRAY_SIZE(arr) - (skip_start) - (skip_end)                                \
+    )
+
+#define arrslc_shrink_dyncheck(skip_start, skip_end, ...) \
+         ((void)chk_arrslc_shrink_dyn((__VA_ARGS__), skip_start, skip_end) ,(ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*) [ ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ]) &(auto_arr((__VA_ARGS__))[skip_start]))
+
+#define chk_arrslc_shrink_dyn(arr, skip_start, skip_end) (                                                                                                      \
+        (void)(sizeof(char [skip_start < 0 ? -1 : 1]) != 1 ?                                                                                                    \
+            arr_errmsg(CRED "Start index less than 0 when creating slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                                       \
+        (void)(sizeof(char [skip_end < 0 ? -1 : 1]) != 1 ?                                                                                                      \
+            arr_errmsg(CRED "End index is less than 0 when creating array slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                                \
+        (void)(sizeof(char [skip_start >= ARRAY_SIZE(arr) ? -1 : 1]) != 1 ? 											\
+            arr_errmsg(CRED "Start index is equals or greater than array size when creating array slice at " __FILE__ ":" STRINGIFY2(__LINE__),	                \
+            " skip_start:", skip_start, " array size:", ARRAY_SIZE(arr), CRESET) : 0),                                                                              \
+        (void)(sizeof(char [skip_end >= ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?                                                                                       \
+            arr_errmsg(CRED "End index is equals or greater than array size when creating array slice at " __FILE__ ":" STRINGIFY2(__LINE__),                	\
+            " skip_end:", skip_end, " array size:", ARRAY_SIZE(arr), CRESET) : 0),                                                                                  \
+        (void)(sizeof(char [skip_start + skip_end >= ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?                                                                          \
+            arr_errmsg(CRED "Sum of start position and end position is equals or greater than source array size when creating slice at " __FILE__ ":" STRINGIFY2(__LINE__) \
+            " skip_start:", skip_start, " skip_end:", skip_end, " array size:", ARRAY_SIZE(arr), CRESET) : 0)                                                       \
+    )
+
 
 /* make full slice
  * size of array slice will be equal original array
