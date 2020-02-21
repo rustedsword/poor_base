@@ -301,10 +301,11 @@ int main(int argc, char **argv) {
 }
 
  */
-#define PRINT_ARRAY_INFO(...) println(is_vla( auto_arr(__VA_ARGS__)) ? "VLA" : "Array" , " \"" #__VA_ARGS__ "\" at ", ((const void*)(__VA_ARGS__)) ,	\
-                                     " has size:", P_ARRAY_SIZE((__VA_ARGS__)),                                                                         \
-                                     " uses ", P_ARRAY_SIZE_BYTES((__VA_ARGS__)), " bytes,"                                                             \
-                                     " while single element has size:", P_ARRAY_ELEMENT_SIZE((__VA_ARGS__)))
+#define ___print_array_helper(arr, append) (is_vla( auto_arr(arr)) ? "VLA" append : "Array" append)
+#define PRINT_ARRAY_INFO(...) println(___print_array_helper(__VA_ARGS__, " \"" #__VA_ARGS__ "\" at "), ((const void*)(__VA_ARGS__)) ,	\
+                                     " has size:", ARRAY_SIZE((__VA_ARGS__)),                                                                         \
+                                     " uses ", ARRAY_SIZE_BYTES((__VA_ARGS__)), " bytes,"                                                             \
+                                     " while single element has size:", ARRAY_ELEMENT_SIZE((__VA_ARGS__)))
 
 
 /* make_array_ptr()
