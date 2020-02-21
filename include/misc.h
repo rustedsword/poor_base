@@ -5,6 +5,13 @@
 #include "stdio.h"
 #include "stdbool.h"
 #include "assert.h"
+
+/* assert.h on windows have no static_assert define =\ */
+#if defined WIN32 && !defined static_assert && !defined __cplusplus && defined _MSC_VER
+# undef static_assert
+# define static_assert _Static_assert
+#endif
+
 /* Redefine true and false so they will be really bools, not ints */
 #ifndef __cplusplus
 #ifdef true
