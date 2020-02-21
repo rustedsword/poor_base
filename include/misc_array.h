@@ -778,10 +778,9 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 /* make array slice, skipping (start) elements at front */
 #define make_array_slice_front(_name_, start, ...) \
-   { __attribute__((unused)) char start_index_is_greater_than_array_size_minus_one [ (P_ARRAY_SIZE((__VA_ARGS__)) > start ) ? 1 : -1];} \
-   P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (start) ] = array_slice_front(start, (__VA_ARGS__))
+   ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_ ) [ ARRAY_SIZE((__VA_ARGS__)) - (start) ] = array_slice_front(start, (__VA_ARGS__))
 
-#define array_slice_front(start, ...) (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ P_ARRAY_SIZE((__VA_ARGS__)) - start ]) &(auto_arr((__VA_ARGS__))[start])
+#define array_slice_front(start, ...) (ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ ARRAY_SIZE((__VA_ARGS__)) - start ]) &(auto_arr((__VA_ARGS__))[start])
 
 
 /* make array slice, skipping (end) elements at array end
@@ -793,10 +792,9 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
  */
 #define make_array_slice_back(_name_, end, ...) \
-   { __attribute__((unused)) char end_index_is_greater_than_array_size_minus_one [ (P_ARRAY_SIZE((__VA_ARGS__)) > end ) ? 1 : -1];} \
-   P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [ P_ARRAY_SIZE((__VA_ARGS__)) - (end) ] = array_slice_back(end, (__VA_ARGS__))
+   ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_ ) [ ARRAY_SIZE((__VA_ARGS__)) - (end) ] = array_slice_back(end, (__VA_ARGS__))
 
-#define array_slice_back(end, ...) (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ P_ARRAY_SIZE((__VA_ARGS__)) - end ]) &(auto_arr((__VA_ARGS__))[0])
+#define array_slice_back(end, ...) (ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ ARRAY_SIZE((__VA_ARGS__)) - end ]) &(auto_arr((__VA_ARGS__))[0])
 
 
 /* make array slice with size (size), skipping (start) elements at front
