@@ -6,9 +6,13 @@
 #include <inttypes.h>
 
 /* Some colors */
-#define CRED "\033[0;31m"
-#define CGREEN "\033[0;32m"
-#define CRESET "\033[0m"
+#define CRED    "\033[0;31m"
+#define CGREEN  "\033[0;32m"
+#define CYELLOW "\033[0;33m"
+#define CBLUE   "\033[0;34m"
+#define CMAGNETA "\033[0;35m"
+#define CCYAN   "\033[0;36m"
+#define CRESET  "\033[0m"
 
 /* Define ARRAY_RUNTIME_CHECKS to activate runtime array checks, use only for debugging! */
 //#define ARRAY_RUNTIME_CHECKS
