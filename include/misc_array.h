@@ -841,6 +841,46 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
         " start:", start, " size:", size, " array size:", ARRAY_SIZE(arr), CRESET) : 0)					                	            \
     )
 
+/* make array slice of first (size) elements */
+#define make_array_slice_first(_name_, size, ...) make_array_slice_size(_name_, 0, size, __VA_ARGS__)
+#define array_slice_first(size, ...) array_slice_size(0, size, __VA_ARGS__)
+
+/* make array slice of last (size) elements,
+ * example:
+
+    uint8_t data[] = {0,1,2,3,4,5};
+    make_array_slice_last(data_slc, 2, &data);
+    print_array(data_slc); //prints: 45
+*/
+#define make_array_slice_last(_name_, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = array_slice_last(size, __VA_ARGS__)
+#define array_slice_last(size, ...) array_slice_last_(size, (__VA_ARGS__))
+
+/* (make_)array_slice_last() error check */
+#if defined (ARRAY_RUNTIME_CHECKS)
+#define array_slice_last_(size, src_arr) arrslc_last_dyncheck(size, src_arr)
+#else
+#define array_slice_last_(size, src_arr) arrslc_last_static(size, src_arr)
+#endif
+
+#define arrslc_last_static(size, src_arr) \
+    (ARRAY_ELEMENT_TYPE(src_arr) (*) [ chk_arrslc_last_static(src_arr, size) ]) (array_end_ref(src_arr) - size)
+
+#define chk_arrslc_last_static(arr, size) _Generic(1,                           \
+                int*:  sizeof(char [size > ARRAY_SIZE(arr) ? -1 : 1]),          \
+                int**: sizeof(char [size < 1 ? -1 : 1]),                        \
+                default: size )
+
+#define arrslc_last_dyncheck(size, src_arr) \
+    ((void)chk_arrslc_last_dyn(src_arr, size), (ARRAY_ELEMENT_TYPE(src_arr) (*) [size])(array_end_ref(src_arr) - size) )
+
+#define chk_arrslc_last_dyn(arr, size) (                                                                                                \
+        (void)(sizeof(char [size < 1 ? -1 : 1]) != 1 ? 													                                \
+        arr_errmsg(CRED "Size is less than 1 when creating array slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),             \
+        (void)(sizeof(char [size > ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?                                                                    \
+        arr_errmsg(CRED "Size is larger than source array size when creating slice at " __FILE__ ":" STRINGIFY2(__LINE__)               \
+        " size:", size, " array size:", ARRAY_SIZE(arr), CRESET) : 0)                                                                   \
+    )
+
 /* Make array slice while skipping n bytes from start and n bytes from end
  * example:
 
