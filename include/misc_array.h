@@ -22,162 +22,6 @@
 union _dummy_type_ {char a;};
 union _not_an_array_type_ {char a;};
 
-/***** Experimental *****/
-
-/* Number of maximum dereferences into multi-dimensional arrays */
-#define MAX_ARRAY_DEREF 5
-
-typedef union {char a;} more_than_maximum_supported_array_dimensions_reached;
-
-/* if size of var is known at compile time, just returns var, otherwise returns _dummy_type_ */
-#define drop_vla(var) if_constexpr(sizeof(var), var, (union _dummy_type_){0})
-
-/* evaluates (t) if var is array, otherwise evaluates (f)
- * @var: variable to test for array type
- *
- * WARNING: This macro will produce false positive on anonymous structs and unions declared inside compound literals
- * like that:
- *      if_arr_unsafe((struct {char a;}){.a = 1} , true, false) //returns true
- *      if_arr_unsafe((struct {char a;}***){0} , true, false) //returns true
- *      if_arr_unsafe((union {char a;}***){0} , true, false) //returns true
- * also, it doesn't work with anonymous enums
- *      if_arr_unsafe((enum {Pp, ppp}){0} , true, false) //fails compilation due to redeclaration of enumerator
- *
- * This macro compares var with typeof(var).
- * for all of C types that i know, this selection will match, except arrays.
- * If var is an array it will decay in _Generic controlling expression to pointer to it's first element,
- * while any other types won't change
- *
- * Additionally, drop_vla macro will return _dummy_type_, if var is VLA, which forces default selector
- */
-//#define if_arr_unsafe(var, t, f) _Generic(&(var), typeof(NULL, drop_vla(var))*:(f), default:(t))
-//#define if_arr_unsafe(var, t, f) _Generic(&(var), typeof(NULL, drop_vla(var))*:(f), default:(t))
-#ifdef __clang__
-#define if_arr_unsafe(var, t, f) _Generic(&(var), \
-        typeof(NULL, drop_vla(var))* :(f),\
-        typeof(NULL, drop_vla(var))const* :(f),\
-        typeof(NULL, drop_vla(var))const volatile*:(f),\
-        typeof(NULL, drop_vla(var))const _Atomic volatile*:(f),\
-        typeof(NULL, drop_vla(var))const _Atomic *:(f),\
-        typeof(NULL, drop_vla(var))_Atomic volatile*:(f),\
-        typeof(NULL, drop_vla(var))_Atomic*:(f),\
-         default:(t))
-#else
-//#define if_arr_unsafe(var, t, f) _Generic(&(var),
-//        typeof(NULL, drop_vla(var))* :(f),
-//         default:(t))
-#define if_arr_unsafe(var, t, f) _Generic((NULL, var), \
-        typeof(drop_vla(var)) :(f),\
-         default:(t))
-#endif
-
-
-/* this macro is same as if_arr_unsafe(), but it is using statement expression extension
- * to avoid issues of _unsafe() variant. it is correctly evaluates (t) and (f) so far,
- * but, since we rely on default _Generic selector, it may break in future C standards, if more types become 'incompatible' with itself
- */
-#define if_arr(var, t, f) ({ typeof(var) tmp__; if_arr_unsafe(tmp__, t, f);  })
-
-/* evaluates (t), if var is array, or stops compilation
- * This macro explicitly compares var with pointer to array type
- * it is not replacement for if_arr() macro, because var is derefenced here,
- * so any non-pointer and any non-array type will result in a sytax error, making this macro useful only for stopping compilation.
- *
- * also, it won't work on arrays of anonymous structs declared inside of compound literals
- *      if_arr_strict((struct {char a;}[1]){0} , println("Shit")); //fails compilation, while shouldn't
- *
- * NOTE: Doesn't work on vla
- */
-#define if_arr_strict_unsafe(var, t) _Generic(&(var), typeof(*(var)) (*)[] : (t))
-
-/* Same as _unsafe variant. always works, but uses statement expression extension */
-#define if_arr_strict(var, t) ({ typeof(var) tmp__; if_arr_strict_unsafe(tmp__, (t)); })
-
-#define deref_array_(var)  (* if_arr((var), var, &var) ) /* if var is array then returns value at index 0 or returns var */
-
-/*Prevents further dereferencing, by failing compilation if MAX_ARRAY_DEREF reached */
-#define deref_array_guard_(var) (* if_arr((var), (more_than_maximum_supported_array_dimensions_reached){0}, &var) )
-
-#define deref_array_1(var) deref_array_(var)
-#define deref_array_2(var) deref_array_(deref_array_(var))
-#define deref_array_3(var) deref_array_(deref_array_(deref_array_(var)))
-#define deref_array_4(var) deref_array_(deref_array_(deref_array_(deref_array_(var))))
-#define deref_array_5(var) deref_array_(deref_array_(deref_array_(deref_array_(deref_array_(var)))))
-
-/* Dereferences multi-dimensional array and returns element at index 0 from last dimension
- * maximum dereference depth is MAX_ARRAY_DEREF
- * char a[2][3][4] = {0};
- * int b[10][3] = {0};
- *
- * //These lines are the same:
- * char val = ARRAY_DEREF(a);
- *      val = a[0][0][0];
- *
- * int v = ARRAY_DEREF(b);
- *     v = b[0][0];
- *
- * typeof(ARRAY_DEREF(a)) tmp = 1; //tmp is char
- *
- * due to exponential macro growth, this macro works only on arrays, pointers to arrays should be dereferenced manually
- */
-#define ARRAY_DEREF(var) if_arr((var), deref_array_guard_( CAT(deref_array_, MAX_ARRAY_DEREF)(var)  ), (union _not_an_array_type_){0})
-
-typedef union { char a; } alvl;
-/* if var is not array creates alvl[] array with size equals dimension where first non-array vaule detected */
-#define get_arr_dim1(var) (* if_arr((var), (var), &(alvl [1]){0} ) )
-
-/* checks, if var is array. if it is array, dereferences it,
- * ignoring arrays with alvl type, otherwise creates alvl array with size equals dim_lvl */
-#define get_arr_dim_(var, dim_lvl) (* if_arr((var), _Generic(&(var), alvl(*)[]: &(var), default: (var) ), &(alvl [dim_lvl]){0} ) )
-
-#define arr_dim_sel1_(var) get_arr_dim1(var)
-#define arr_dim_sel2_(var) get_arr_dim_(var, 2)
-#define arr_dim_sel3_(var) get_arr_dim_(var, 3)
-#define arr_dim_sel4_(var) get_arr_dim_(var, 4)
-#define arr_dim_sel5_(var) get_arr_dim_(var, 5)
-
-#define arr_dim_get1(var) (& (arr_dim_sel1_( deref_array_(var) )))
-#define arr_dim_get2(var) (& (arr_dim_sel2_(arr_dim_sel1_( deref_array_(var) ))))
-#define arr_dim_get3(var) (& (arr_dim_sel3_(arr_dim_sel2_(arr_dim_sel1_( deref_array_(var) )))))
-#define arr_dim_get4(var) (& (arr_dim_sel4_(arr_dim_sel3_(arr_dim_sel2_(arr_dim_sel1_( deref_array_(var) ))))))
-#define arr_dim_get5(var) (& (arr_dim_sel5_(arr_dim_sel4_(arr_dim_sel3_(arr_dim_sel2_(arr_dim_sel1_( deref_array_(var) )))))))
-
-#define get_arr_dim_n(var) \
-        _Generic( CAT(arr_dim_get, MAX_ARRAY_DEREF)(var), \
-                alvl(*)[1]: 1, \
-                alvl(*)[2]: 2, \
-                alvl(*)[3]: 3, \
-                alvl(*)[4]: 4, \
-                alvl(*)[5]: 5, \
-        default: (more_than_maximum_supported_array_dimensions_reached){0})
-
-/* Returns number of array dimensions up to MAX_ARRAY_DEREF,
- * @var: array
- * due to exponential macro growth this macro works only on arrays.
- * i.e pointers to arrays are not supported, you have to dereference them manually. */
-#define ARRAY_DIMENSIONS(var) if_arr((var), get_arr_dim_n(var), (union _not_an_array_type_){0})
-
-/* checks if var and dereferenced var is VLA. returns _dummy_type_ in this case to prevent passing real array or pointer inside typeof */
-#define drop_vla_p(var) if_constexpr(sizeof(var) + sizeof(*var), var, (union _dummy_type_){0})
-
-/* var can be a pointer to array, or array itself, as usual we must not let VLA type pass to typeof()
- * however, pointer to vla cannot be specified inside _Generic selection. so we must check twice for VLA here ... */
-#define if_arr_unsafe_p(var, t, f)                              \
-        _Generic((NULL, var),                                         \
-        typeof(drop_vla_p(var)):(f),                            \
-        default:                                                \
-                if_constexpr(sizeof(var),                       \
-                         if_constexpr(sizeof(*var), (t), (f) )  \
-                ,(t) )                                          \
-        )
-
-/* Dereferences var if it is not an array */
-#define deref_if_not_array(var) if_arr_unsafe_p((var), (var), *(var))
-/* Checks if var is array or pointer to array */
-#define ____auto_arr(var) if_arr_unsafe(deref_if_not_array(var), deref_if_not_array(var), (union _not_an_array_type_){0})
-
-/***** end experimental *****/
-
 /* returns dummy array if var is VLA. returns dummy pointer if var is pointer to VLA otherwise returns var */
 #define vla_ptr_check(var)                                           \
                     if_vla(var,                                      \
@@ -686,131 +530,18 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 #define copy_arrays_helper(src_ptr) (void)(tmp_ptr = ((typeof(tmp_ptr))memcpy(tmp_ptr, src_ptr, P_ARRAY_SIZE_BYTES(src_ptr))) + P_ARRAY_SIZE(src_ptr))
 
-/* makes array slice
- * @_name_: name of variable to declare for slice
- * @_start_: start index
- * @_end_: end index
- * @__VA_ARGS__: pointer to an array from which array slice will be made
- *
- * @start should not be less or equal @end
- * both @start and @end should not be equal or greater than source array size
- *
- * an array slice is just a pointer to array to some position inside another array.
- * basically you can write that manually:
- *
- * char arr[6] = {'a','b','c','d','e','f'};
- * char (*slice)[3] = (char (*)[3])(arr + 2); // Same as make_array_slice(slice, 2, 5, &arr),
- *                                            // or make_array_slice_size(slice, 2, 3, &arr);
- *
- * slice pointer here points to arr's element at index 2, and has size 3.
- * so, if we dereference the slice, we can access arr's values at indexes 2, 3, 4
- *
- * print_array(slice); //prints: cde
- *
- * and we can modify arr's values through the slice:
- *
- * (*slice)[0] = 'x';
- * (*slice)[1] = 'y';
- * (*slice)[2] = 'z';
- *
- * print_array(&arr); //prints: abxyzf
- *
- * we can, of course try to do that: access element above slice bounds.
- *
- * (*slice)[3] = 'f'; //NO !
- *
- * While in the example above it is fine to do that,
- * since (*slice)[3] is the same as arr[5] (value 'f'), but doing that is a bad practice
- * and also compiler may send a warning, that you trying to write to an array above it's bounds
- *
- * if you need to access slice above it's bounds, then create larger slice in the first place!
- *
- * examples:
-
-    //make string literal slice
-    make_array_slice(slice, 4, 9, &"--> HELLO <--!");
-    print_array(slice); //prints: HELLO
-...
-    //Cut char array
-    make_array_slice(slice, 1, 3, &(char[]){'>', 'H', 'I', '<'});
-    print_array(slice); //prints: HI
-...
-    //Create concatenated VLA and cut it
-    concat_vla(vla, "Int:", 1, " float:", 5.f, "\n");
-    make_array_slice(slice, 6, ARRAY_SIZE(vla) - 1, &vla);
-    print_array(slice); //prints: float:5.000000
-...
-    //Copy three string into one
-
-    //Declare string literals
-    string_literal(pre_string, "This ");
-    string_literal(mid_string, "is ");
-    string_literal(post_string, "text");
-
-    // Make slices for first two strings without null terminator
-    make_array_slice_string(pre, pre_string);
-    make_array_slice_string(mid, mid_string);
-
-    // Create array
-    char (*string)[P_ARRAYS_SIZE(pre, mid, post_string)];
-    malloc_array(string);
-
-    //Make a slice from string with size of array pre
-    make_array_slice_size(string_slice0, 0, P_ARRAY_SIZE(pre), string);
-    copy_array(string_slice0, pre);
-
-    //Make a slice from string with size of array mid and with start position after pre string
-    make_array_slice_size(string_slice1, P_ARRAY_SIZE(pre), P_ARRAY_SIZE(mid), string);
-    copy_array(string_slice1, mid);
-
-    //Make a slice from string at position after pre and mid.
-    make_array_slice_front(string_slice2, P_ARRAYS_SIZE(pre, mid), string);
-    copy_array(string_slice2, post_string);
-
-    println(*string);
-    free(string);
-
-    NOTE: slice array pointer will be VLA pointer if start or end computed at runtime. otherwise it will be a simple pointer.
- */
-#define make_array_slice(_name_, start, end, ...) \
-   { __attribute__((unused)) char end_greater_than_array_size[ (P_ARRAY_SIZE((__VA_ARGS__)) >= end ) ? 1 : -1];} \
-   { __attribute__((unused)) char start_index_should_not_be_equal_end_index[ (start == end) ? -1 : 1];} \
-   { __attribute__((unused)) char end_index_should_not_be_less_than_start_index[ (end < start) ? -1 : 1];} \
-   P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*(_name_)) [ (end) - (start) ] = array_slice(start, end, (__VA_ARGS__))
-
-#define array_slice(start, end, ...) (P_ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ (end) - (start) ]) &(auto_arr((__VA_ARGS__))[start])
-
-/* make array slice, skipping (start) elements at front */
-#define make_array_slice_front(_name_, start, ...) \
-   ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_ ) [ ARRAY_SIZE((__VA_ARGS__)) - (start) ] = array_slice_front(start, (__VA_ARGS__))
-
-#define array_slice_front(start, ...) (ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ ARRAY_SIZE((__VA_ARGS__)) - start ]) &(auto_arr((__VA_ARGS__))[start])
+/***** Arrview *****/
 
 
-/* make array slice, skipping (end) elements at array end
+/* make_arrview(name, start, size, src): make an array view of the array src with size (size) starting from (start) position.
  * example:
 
-    //Cut '\0' from string and print it as array
-    make_array_slice_back(string_view, 1, &"String is an array too!");
-    print_array(string_view);
-
- */
-#define make_array_slice_back(_name_, end, ...) \
-   ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_ ) [ ARRAY_SIZE((__VA_ARGS__)) - (end) ] = array_slice_back(end, (__VA_ARGS__))
-
-#define array_slice_back(end, ...) (ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*)[ ARRAY_SIZE((__VA_ARGS__)) - end ]) &(auto_arr((__VA_ARGS__))[0])
-
-
-/* make array slice with size (size), skipping (start) elements at front
- * example:
-
-    uint8_t data[] = {0,1,2,3,4,5};
-    make_array_slice_size(data_slc, 2, 3, &data); //Start index: 2 and size: 3
-    print_array(data_slc); //prints: 234
+  uint8_t data[] = {0,1,2,3,4,5};
+  make_arrview(data_slc, 2, 3, &data); //Start index: 2 and size: 3
+  print_array(data_slc); //prints: 234
 */
-#define make_array_slice_size(_name_, start, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = array_slice_size(start, size, __VA_ARGS__)
-
-#define array_slice_size(start, size, ...) array_slice_size_(start, size, __VA_ARGS__)
+#define make_arrview(_name_, start, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = arrview(start, size, __VA_ARGS__)
+#define arrview(start, size, ...) array_slice_size_(start, size, __VA_ARGS__)
 
 /* (make_)array_slice_size() runtime and static error checking */
 #if defined (ARRAY_RUNTIME_CHECKS)
@@ -833,27 +564,27 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 #define chk_arrslc_size_dyn(arr, start, size) (                                                                                         \
         (void)(sizeof(char [start < 0 ? -1 : 1]) != 1 ?													                                \
-        arr_errmsg(CRED "Start index less than 0 when creating slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),			    \
+        arr_errmsg(CRED "Start index less than 0 when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),			    \
         (void)(sizeof(char [size < 1 ? -1 : 1]) != 1 ? 													                                \
-        arr_errmsg(CRED "Size is less than 1 when creating array slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),			    \
+        arr_errmsg(CRED "Size is less than 1 when creating arrview slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),			    \
         (void)(sizeof(char [start + size > ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?										                    \
-        arr_errmsg(CRED "Sum of start position and size is larger than source array size when creating slice at " __FILE__ ":" STRINGIFY2(__LINE__) \
+        arr_errmsg(CRED "Sum of start position and size is larger than source array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) \
         " start:", start, " size:", size, " array size:", ARRAY_SIZE(arr), CRESET) : 0)					                	            \
     )
 
-/* make array slice of first (size) elements */
-#define make_array_slice_first(_name_, size, ...) make_array_slice_size(_name_, 0, size, __VA_ARGS__)
-#define array_slice_first(size, ...) array_slice_size(0, size, __VA_ARGS__)
+/* make_arrview_first(name, size, src): create arrview of the first (size) elements of the array src */
+#define make_arrview_first(_name_, size, ...) make_arrview(_name_, 0, size, __VA_ARGS__)
+#define arrview_first(size, ...) arrview(0, size, __VA_ARGS__)
 
-/* make array slice of last (size) elements,
+/* make_arrview_last(name, size, src): create arrview of the last (size) elements of the array src
  * example:
 
-    uint8_t data[] = {0,1,2,3,4,5};
-    make_array_slice_last(data_slc, 2, &data);
-    print_array(data_slc); //prints: 45
-*/
-#define make_array_slice_last(_name_, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = array_slice_last(size, __VA_ARGS__)
-#define array_slice_last(size, ...) array_slice_last_(size, (__VA_ARGS__))
+  uint8_t data[] = {0,1,2,3,4,5};
+  make_arrview_last(data_slc, 2, &data);
+  print_array(data_slc); //prints: 45
+ */
+#define make_arrview_last(_name_, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = arrview_last(size, __VA_ARGS__)
+#define arrview_last(size, ...) array_slice_last_(size, (__VA_ARGS__))
 
 /* (make_)array_slice_last() error check */
 #if defined (ARRAY_RUNTIME_CHECKS)
@@ -875,24 +606,23 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 #define chk_arrslc_last_dyn(arr, size) (                                                                                                \
         (void)(sizeof(char [size < 1 ? -1 : 1]) != 1 ? 													                                \
-        arr_errmsg(CRED "Size is less than 1 when creating array slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),             \
+        arr_errmsg(CRED "Size is less than 1 when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),             \
         (void)(sizeof(char [size > ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?                                                                    \
-        arr_errmsg(CRED "Size is larger than source array size when creating slice at " __FILE__ ":" STRINGIFY2(__LINE__)               \
+        arr_errmsg(CRED "Size is larger than source array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__)               \
         " size:", size, " array size:", ARRAY_SIZE(arr), CRESET) : 0)                                                                   \
     )
 
-/* Make array slice while skipping n bytes from start and n bytes from end
+/* make_arrview_shrink(name, skip_start, skip_end, src): Make an array view by skipping (skip_start) elements from the beginning and (skip_end) elements from the end of the array src
  * example:
 
-   char data[] = {0, 0, 'H','I', 0, 0, 0};
-   make_array_slice_shrink(data_slc, 2, 3, &data);
-   print_array(data_slc); //prints: HI
+  char data[] = {0, 0, 'H','I', 0, 0, 0};
+  make_arrview_shrink(data_slc, 2, 3, &data);
+  print_array(data_slc); //prints: HI
+*/
+#define make_arrview_shrink(_name_, skip_start, skip_end, ...) \
+    ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = arrview_shrink(skip_start, skip_end, __VA_ARGS__)
 
- */
-#define make_array_slice_shrink(_name_, skip_start, skip_end, ...) \
-        ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = array_slice_shrink(skip_start, skip_end, (__VA_ARGS__))
-
-#define array_slice_shrink(skip_start, skip_end, ...) array_slice_shrink_(skip_start, skip_end, __VA_ARGS__)
+#define arrview_shrink(skip_start, skip_end, ...) array_slice_shrink_(skip_start, skip_end, (__VA_ARGS__))
 
 /* (make_)array_slice_shrink() runtime and static error checking */
 #if defined (ARRAY_RUNTIME_CHECKS)
@@ -918,35 +648,36 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 #define chk_arrslc_shrink_dyn(arr, skip_start, skip_end) (                                                                                                      \
         (void)(sizeof(char [skip_start < 0 ? -1 : 1]) != 1 ?                                                                                                    \
-            arr_errmsg(CRED "Start index less than 0 when creating slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                                       \
+            arr_errmsg(CRED "Start index less than 0 when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                                       \
         (void)(sizeof(char [skip_end < 0 ? -1 : 1]) != 1 ?                                                                                                      \
-            arr_errmsg(CRED "End index is less than 0 when creating array slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                                \
+            arr_errmsg(CRED "End index is less than 0 when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                                \
         (void)(sizeof(char [skip_start >= ARRAY_SIZE(arr) ? -1 : 1]) != 1 ? 											\
-            arr_errmsg(CRED "Start index is equals or greater than array size when creating array slice at " __FILE__ ":" STRINGIFY2(__LINE__),	                \
+            arr_errmsg(CRED "Start index is equals or greater than array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__),	                \
             " skip_start:", skip_start, " array size:", ARRAY_SIZE(arr), CRESET) : 0),                                                                              \
         (void)(sizeof(char [skip_end >= ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?                                                                                       \
-            arr_errmsg(CRED "End index is equals or greater than array size when creating array slice at " __FILE__ ":" STRINGIFY2(__LINE__),                	\
+            arr_errmsg(CRED "End index is equals or greater than array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__),                	\
             " skip_end:", skip_end, " array size:", ARRAY_SIZE(arr), CRESET) : 0),                                                                                  \
         (void)(sizeof(char [skip_start + skip_end >= ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?                                                                          \
-            arr_errmsg(CRED "Sum of start position and end position is equals or greater than source array size when creating slice at " __FILE__ ":" STRINGIFY2(__LINE__) \
+            arr_errmsg(CRED "Sum of start position and end position is equals or greater than source array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) \
             " skip_start:", skip_start, " skip_end:", skip_end, " array size:", ARRAY_SIZE(arr), CRESET) : 0)                                                       \
     )
 
 
-/* make full slice
- * size of array slice will be equal original array
- * basically, this is just a copy of pointer to source array */
-#define make_array_slice_full(_name_, ...) \
-        ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ARRAY_SIZE((__VA_ARGS__))] = array_slice_full((__VA_ARGS__))
+/* make_arrview_cfront(name, start, src): make arrview by skipping (skip_start) elements from the beginning of the array src */
+#define make_arrview_cfront(_name_, skip_start, ...) make_arrview_shrink(_name_, skip_start, 0, __VA_ARGS__)
+#define arrview_cfront(skip_start, ...) arrview_shrink(skip_start, 0, __VA_ARGS__)
 
-#define array_slice_full(...) &(auto_arr((__VA_ARGS__)))
+/* make_arrview_cback(name, skip_end, src): make arrview by skipping (skip_end) elements from the end of the array src */
+#define make_arrview_cback(_name_, skip_end, ...) make_arrview_shrink(_name_, 0, skip_end, __VA_ARGS__)
+#define arrview_cback(skip_end, ...) arrview_shrink(0, skip_end, __VA_ARGS__)
 
-/* Cuts '\0' from strings */
-#define make_array_slice_string(_name_, ...) \
-    static_assert( is_same_type( array_first_ref((__VA_ARGS__)), char*, 1, 1) == true, "Not a char array"); \
-    make_array_slice_back(_name_, 1, (__VA_ARGS__))
+/* make_arrview_full(name, src): make full arrview of the array src */
+#define make_arrview_full(_name_, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ARRAY_SIZE((__VA_ARGS__))] = arrview_full((__VA_ARGS__))
+#define arrview_full(...) &(auto_arr((__VA_ARGS__)))
 
-#define array_slice_string(...) array_slice_back(1, (__VA_ARGS__))
+/* make_arrview_str(name, src): makr arrview without last element, useful for cutting '\0' from C strings */
+#define make_arrview_str(_name_, ...) make_arrview_cback(_name_, 1, __VA_ARGS__)
+#define arrview_str(...) arrview_cback(1, __VA_ARGS__)s
 
 /* string_literal(_name_, string_literal)
  * @_name_: variable name for new array pointer
@@ -1072,6 +803,29 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define P_ARRAYS_SIZE(...) ARRAYS_SIZE((__VA_ARGS__))
 #define P_ARRAYS_SIZE_BYTES(...) ARRAYS_SIZE_BYTES((__VA_ARGS__))
 
+/* Obsolete arrslice */
+#define make_array_slice_size(_name_, start, size, ...) make_arrview(_name_, start, size, __VA_ARGS__)
+#define array_slice_size(start, size, ...) arrview(start, size, __VA_ARGS__)
 
+#define make_array_slice_first(_name_, size, ...) make_arrview_first(_name_, size, __VA_ARGS__)
+#define array_slice_first(size, ...) arrview_first(size, __VA_ARGS__)
+
+#define make_array_slice_last(_name_, size, ...) make_arrview_last(_name_, size, __VA_ARGS__)
+#define array_slice_last(size, ...) arrview_last(size, __VA_ARGS__)
+
+#define make_array_slice_shrink(_name_, skip_start, skip_end, ...) make_arrview_shrink(_name_, skip_start, skip_end, __VA_ARGS__)
+#define array_slice_shrink(skip_start, skip_end, ...) arrview_shrink(skip_start, skip_end, __VA_ARGS__)
+
+#define make_array_slice_front(_name_, start, ...) make_arrview_cfront(_name_, start, __VA_ARGS__)
+#define array_slice_front(start, ...) arrview_cfront(start, __VA_ARGS__)
+
+#define make_array_slice_back(_name_, end, ...) make_arrview_cback(_name_, end, __VA_ARGS__)
+#define array_slice_back(end, ...) arrview_cback(end, __VA_ARGS__)
+
+#define make_array_slice_full(_name_, ...) make_arrview_full(_name_, __VA_ARGS__)
+#define array_slice_full(...) arrview_full(__VA_ARGS__)
+
+#define make_array_slice_string(_name_, ...) make_arrview_str(_name_, __VA_ARGS__)
+#define array_slice_string(...) arrview_str(__VA_ARGS__)
 
 #endif // MISC_ARRAY_H
