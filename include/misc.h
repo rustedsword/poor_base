@@ -147,9 +147,29 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
 
 
 /*
- * Real classic of true Macro!
+ * container_of(ptr, type, member): get pointer to a struct by using pointer to some member of that struct 
+ *
+ * @ptr: pointer to some member of struct
+ * @type: type of struct where ptr points to
+ * @member: name of struct's member
+ *
+ * usage:
+  struct s {
+	char c;
+	int a;
+  };
+
+  struct s s1 = {0};
+  int *a_ptr = &s1.a; // a_ptr points to member 'a' of the struct s1
+
+  struct s *s1_ptr = container_of(a_ptr, struct s, a);
+
+  //now s1_ptr will point to s1, so (s1_ptr == &s1) will be true
+
  */
-#define container_of(ptr, type, member) ( (type *)( (uintptr_t)(ptr) - offsetof(type, member) ))
+#define container_of(ptr, type, member) _Generic(1, int*: (void)(&(type){0}.member - (ptr)), \
+                                         default: helper_container_of(ptr, type, member) )
+#define helper_container_of(ptr, type, member) (type *)( (uintptr_t)(ptr) - offsetof(type, member) )
 
 #define memcpy_and_null(dst, src, len) \
     memcpy(dst, src, len );            \
