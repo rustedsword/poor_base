@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.5)
 
+if(TARGET misc)
+    message("Project already exist")
+    return()
+endif()
+
 project(misc LANGUAGES C)
 include(GNUInstallDirs)
 
