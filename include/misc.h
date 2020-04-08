@@ -344,6 +344,11 @@ typedef union { int p; } format_width_zero;
 typedef union { int p; } format_and_precision;
 typedef union { int p; } format_hash;
 
+static inline format_precision     _pack_precision(int p)     { return (format_precision){p}; }
+static inline format_width         _pack_width(int p)         { return (format_width){p}; }
+static inline format_width_zero    _pack_width_zero(int p)    { return (format_width_zero){p}; }
+static inline format_and_precision _pack_and_precision(int p) { return (format_and_precision){p}; }
+
 static inline int _unpack_precision(format_precision p) { return p.p; }
 static inline int _unpack_width(format_width p) { return p.p; }
 static inline int _unpack_width_zero(format_width_zero p) { return p.p; }
@@ -507,23 +512,23 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 
 /* precision modifier: printf("%.*d", 4, 10); */
 #define fmt_p(var, precision) \
-    (const format_precision){precision}, generic_precision_width_fmt(var)
+    _pack_precision(precision), generic_precision_width_fmt(var)
 
 /* width modifier: printf("%*d", 4, 10); width can be negative */
 #define fmt_w(var, width) \
-    (const format_width){width}, generic_precision_width_fmt(var)
+    _pack_width(width), generic_precision_width_fmt(var)
 
 /* width and precision modifiers: printf("%*.*d", 4, 8, 10); width can be negative */
 #define fmt_wp(var, width, precision) \
-    (const format_width){width}, (const format_and_precision){precision}, generic_precision_width_fmt(var)
+    _pack_width(width), _pack_and_precision(precision), generic_precision_width_fmt(var)
 
 /* width with zero flag modifier: printf("%0*d", 4, 10); can only be used with numbers */
 #define fmt_zw(var, width) \
-    (const format_width_zero){width}, generic_precision_width_numbers_fmt(var)
+    _pack_width_zero(width), generic_precision_width_numbers_fmt(var)
 
 /* width with zero flag modifier and precision: printf("%0*.*f", 4, 8, 10f); can be used only with real types */
 #define fmt_zwp(var, width, precision) \
-    (const format_width_zero){width}, (const format_and_precision){precision}, generic_precision_width_real_fmt(var)
+    _pack_width_zero(width), _pack_and_precision(precision), generic_precision_width_real_fmt(var)
 
 /* printf_dec_format(variable)
  *
@@ -865,26 +870,26 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 
 #define concat_vla(var_name, ...) \
     const char * const fmt___ ## var_name = printf_specifier_string(0, __VA_ARGS__); \
-    char var_name[snprintf(NULL, 0, fmt___ ## var_name, __VA_ARGS__) + 1];        \
-    sprintf(var_name, fmt___ ## var_name, __VA_ARGS__);                           \
+    char var_name[snprintf(NULL, 0, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__)) + 1];        \
+    sprintf(var_name, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__));                           \
     var_name[ sizeof(var_name) - 1  ] = '\0'
 
 #define concat_alloca(...) ({ \
     const char * const fmt = printf_specifier_string(0, __VA_ARGS__); \
-    size_t size = snprintf(NULL, 0, fmt, __VA_ARGS__);             \
+    size_t size = snprintf(NULL, 0, fmt, printf_args_pre_process(__VA_ARGS__));             \
     char * string = alloca(size + 1);                              \
-    sprintf(string, fmt, __VA_ARGS__);                             \
+    sprintf(string, fmt, printf_args_pre_process(__VA_ARGS__));                             \
     string[size] = '\0';                                           \
     string;                                                        \
 })
 
 #define concat(...) ({ \
     const char * const fmt = printf_specifier_string(0, __VA_ARGS__); \
-    size_t size = snprintf(NULL, 0, fmt, __VA_ARGS__);             \
+    size_t size = snprintf(NULL, 0, fmt, printf_args_pre_process(__VA_ARGS__));             \
     char * string = malloc(size + 1);                              \
     if(!string)                                                    \
         NULL;                                                      \
-    sprintf(string, fmt, __VA_ARGS__);                             \
+    sprintf(string, fmt, printf_args_pre_process(__VA_ARGS__));                             \
     string[size] = '\0';                                           \
     string;                                                        \
 })
