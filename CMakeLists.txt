@@ -1,27 +1,27 @@
 cmake_minimum_required(VERSION 3.5)
 
-if(TARGET misc)
+if(TARGET poor_base)
     message("Project already exist")
     return()
 endif()
 
-project(misc LANGUAGES C)
+project(poor_base LANGUAGES C)
 include(GNUInstallDirs)
 
-add_library(misc INTERFACE)
+add_library(poor_base INTERFACE)
 
-target_include_directories(misc INTERFACE
+target_include_directories(poor_base INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
-install(TARGETS misc EXPORT misc-config)
+install(TARGETS poor_base EXPORT poor_base-config)
 
-export(TARGETS misc
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/misc-config.cmake"
+export(TARGETS poor_base
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/poor_base-config.cmake"
     )
 
-install(EXPORT misc-config
+install(EXPORT poor_base-config
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}"
     )
 
