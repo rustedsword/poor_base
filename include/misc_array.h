@@ -255,7 +255,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
                 (*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),          \
                 *_ref_ptr_name_ = &(*_tmp_arr_ptr_)[0];                                 \
                                                                                         \
-                _ref_ptr_name_ != &(*_tmp_arr_ptr_)[UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_)]; \
+                _ref_ptr_name_ < unsafe_array_end_ref(_tmp_arr_ptr_);                   \
                                                                                         \
                 (_ref_ptr_name_)++)
 
@@ -328,6 +328,9 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 /* get pointer to the array element after the last one. While this is a valid pointer, IT SHOULD NOT BE DEREFERENCED! */
 #define array_end_ref(_array_ptr_) (& auto_arr((_array_ptr_))[ ARRAY_SIZE(_array_ptr_) ])
+
+/* unsafe get pointer to the end of the array. _array_ptr_ should be a pointer to array. only for internal usage */
+#define unsafe_array_end_ref(_array_ptr_) (& (*(_array_ptr_))[UNSAFE_ARRAY_SIZE(*(_array_ptr_))])
 
 /* returns true if ref points to last array element */
 #define is_last_array_ref(_arr_ptr_, _ref_) ((_ref_) == array_last_ref( (_arr_ptr_) ))
