@@ -780,6 +780,56 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 } while (0)
 
 
+/* Array bit operations */
+
+#define ARRAY_SIZE_BITS(arr) (ARRAYS_SIZE_BYTES(arr) * 8)
+
+#define array_bit_idx_to_byte_idx(arr, idx) ((idx) / (ARRAY_ELEMENT_SIZE(arr) * 8))
+
+#define _array_bit_chk_index(arr, idx, ...) _Generic(1,             \
+    int*:  sizeof(char [idx < 0 ? -1 : 1]),                         \
+    int**:  sizeof(char [idx >= ARRAY_SIZE_BITS(arr) ? -1 : 1]),    \
+    default: __VA_ARGS__                                            \
+    )
+
+#define array_set_bit(arr, idx) \
+    _array_bit_chk_index(arr, idx,  \
+        auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8) ] |= (1 << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8))) \
+    )
+
+#define array_unset_bit(arr, idx)   \
+    _array_bit_chk_index(arr, idx,  \
+        auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8) ] &= ~(1 << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8))) \
+    )
+
+#define array_get_bit(arr, idx) \
+    _array_bit_chk_index(arr, idx,  \
+        ((bool)(!!(auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8) ] & (1 << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8)))))) \
+    )
+
+#define foreach_array_bit(arr, _bit_idx_name_) \
+    for(size_t _bit_idx_name_ = 0;             \
+        _bit_idx_name_ < ARRAY_SIZE_BITS(arr); \
+        _bit_idx_name_ ++)
+
+#define foreach_array_bit_bw(arr, _bit_idx_name_)           \
+    for(size_t _bit_idx_name_ = ARRAY_SIZE_BITS(arr) - 1;   \
+        _bit_idx_name_ < ARRAY_SIZE_BITS(arr); \
+        _bit_idx_name_ --)
+
+#define print_array_bits(arr) do {                                   \
+    print("|");                                                      \
+    foreach_array_bit_bw(arr, bit_idx) {                             \
+        print( array_get_bit(arr, bit_idx) ? CGREEN "X" : CRED "O"); \
+                                                                     \
+        if(!(bit_idx % (ARRAY_ELEMENT_SIZE(arr) * 8)))               \
+            print(CRESET "|");                                       \
+        else if( !(bit_idx % 8) )                                    \
+            print(CBLUE "|");                                        \
+    }                                                                \
+    println(CRESET "\n");                                            \
+} while(0)
+
 /**** Obsolete ****/
 
 #define xARRAY_SIZE(arr)       _Generic( &(arr), typeof((arr)[0]) (*)[]: sizeof((arr))/sizeof( (arr)[0] ) )
