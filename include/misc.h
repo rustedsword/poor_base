@@ -874,6 +874,12 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
     sprintf(var_name, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__));                           \
     var_name[ sizeof(var_name) - 1  ] = '\0'
 
+/* Same as concat_vla(), but without '\0' byte */
+#define concat_vla_nonull(var_name, ...)                                                               \
+    const char * const fmt___ ## var_name = printf_specifier_string(0, __VA_ARGS__);                   \
+    char var_name[snprintf(NULL, 0, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__))];        \
+    sprintf(var_name, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__))                        \
+
 #define concat_alloca(...) ({ \
     const char * const fmt = printf_specifier_string(0, __VA_ARGS__); \
     size_t size = snprintf(NULL, 0, fmt, printf_args_pre_process(__VA_ARGS__));             \
