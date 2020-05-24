@@ -215,7 +215,8 @@ int main(int argc, char**argv) {
 /* Same as malloc_array, but with calloc */
 #define calloc_array(_arr_ptr_) (( _arr_ptr_ = calloc( 1, P_ARRAY_SIZE_BYTES(_arr_ptr_) ) ))
 
-/* Fills array with specified symbol using memset
+/* Fills array with specified byte by using memset
+ * WARNING: It is better and safer to use fill_array() instead!
  * example:
 
     char (*data)[5];
@@ -227,6 +228,22 @@ int main(int argc, char**argv) {
 
 */
 #define memset_array(_arr_ptr_, symbol) memset((_arr_ptr_), symbol, P_ARRAY_SIZE_BYTES(_arr_ptr_))
+
+/* Fills array with specified value
+ * example:
+
+    int (*ty)[5];
+    malloc_array(ty);
+
+    fill_array(ty, 50);
+    print_array(ty); //Will print 5050505050
+
+    free(ty);
+
+ */
+#define fill_array(_arr_, _value_)  \
+    foreach_array_ref(_arr_, _ref_) \
+        *(_ref_) = _value_
 
 /* This needs more work, don't use */
 #define for_each_bit_in_array(_array_) \
