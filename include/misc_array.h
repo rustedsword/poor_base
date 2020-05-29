@@ -519,26 +519,26 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  *
  * example:
 
-    make_array_slice_string(src1, "This ");
-    make_array_slice_string(src2, "Is ");
-    make_array_slice_string(src3, "A string");
+    make_arrview_str(src1, "This ");
+    make_arrview_str(src2, "Is ");
+    make_arrview_str(src3, "A string");
+
     char dst[ARRAYS_SIZE(src1, src2, src3)];
     copy_arrays(dst, src1, src2, src3);
+
     print_array(dst); //prints: This Is A string
 
  */
-#define copy_arrays(dst_ptr, ...) do {                              \
-    MAP_ARG(check_source_arrays, dst_ptr, __VA_ARGS__)              \
-    make_array_first_ref(dst_ptr, tmp_ptr);                         \
-    (                                                               \
-        MAP_LIST(copy_arrays_helper, __VA_ARGS__)                   \
-    );                                                              \
+#define copy_arrays(_dst_arr_, ...) do {                                        \
+    make_array_first_ref(_dst_arr_, _tmp_ptr_);                                 \
+    (                                                                           \
+        MAP_LIST_TWOARG(helper_copy_arrays, _tmp_ptr_, _dst_arr_, __VA_ARGS__)  \
+    );                                                                          \
 } while(0)
 
-#define check_source_arrays(dst_ptr, src_ptr) \
-    static_assert( is_arrays_of_same_types(dst_ptr, src_ptr) == true, "Source array: " #src_ptr " doesn't have same type as destination array");
-
-#define copy_arrays_helper(src_ptr) (void)(tmp_ptr = ((typeof(tmp_ptr))memcpy(tmp_ptr, src_ptr, P_ARRAY_SIZE_BYTES(src_ptr))) + P_ARRAY_SIZE(src_ptr))
+#define helper_copy_arrays(_tmp_ptr_, _dst_array_, _src_array_) \
+    static_assert_expr(is_arrays_of_same_types( _dst_array_ , _src_array_), "Source array: " #_src_array_ " doesn't have same type as destination array"), \
+    (void)(_tmp_ptr_ = ((typeof(_tmp_ptr_))memcpy(_tmp_ptr_, _src_array_, ARRAY_SIZE_BYTES(_src_array_))) + ARRAY_SIZE(_src_array_))
 
 /***** Arrview *****/
 
