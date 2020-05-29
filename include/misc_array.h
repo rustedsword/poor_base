@@ -787,6 +787,60 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 } while (0)
 
 
+/*** Beta features ****/
+
+#define TAKE_FIRST_ARG(var, ...) var
+
+/* Typeof with stripped qualifiers */
+#define TYPEOF_NO_QUAL(var) typeof( (typeof(var) (*)(void) ){0}() )
+
+/* Returns type of array element without qualifiers, works only on single-dimensional arrays */
+#define ARRAY_ELEMENT_TYPE_NO_QUAL(var) TYPEOF_NO_QUAL(ARRAY_ELEMENT_TYPE(var))
+
+/* make_merged_array(_name_, arr1, arr2, ..., arrn)
+ * @_name_: name of new array to create
+ * @__VA_ARGS__: source arrays to copy data from
+ *
+ * This macro creates an array with name _name_ with size
+ * of all provided arrays and copies all these arrays' data into it.
+ *
+ * All provided arrays should be of same type(excluding qualifiers)
+ *
+ * If at least one of provided source arrays is VLA, then resulting array will be variable length too.
+ *
+ * Doesn't work with multi-dimensional arrays for now =\
+ *
+ * examples:
+
+    make_merged_array(data,
+                      ((int[]){0,1,2,3}),
+                      ((int[]){4,5,6}),
+                      ((int[]){7,8,9,10,11}));
+
+    print_array(data); //prints: 01234567891011
+
+...
+
+    make_arrview_str(str_this,   "This");
+    make_arrview_str(str_are,    "are");
+    make_arrview_str(str_arrays, "ARRAYS");
+    make_arrview_str(str_space,  " ");
+    make_arrview_str(str_dot,    ".");
+    make_arrview_str(str_null,   "\0");
+
+    make_merged_array(data,
+                      str_this, str_space,
+                      str_are, str_space,
+                      str_arrays, str_dot,
+                      str_null);
+    println(data);
+
+ */
+#define make_merged_array(_name_, ...) \
+        ARRAY_ELEMENT_TYPE_NO_QUAL(TAKE_FIRST_ARG(__VA_ARGS__)) _name_ [ ARRAYS_SIZE(__VA_ARGS__) ]; \
+        copy_arrays(_name_, __VA_ARGS__)
+
+
 /* Array bit operations */
 
 #define ARRAY_SIZE_BITS(arr) (ARRAYS_SIZE_BYTES(arr) * 8)
