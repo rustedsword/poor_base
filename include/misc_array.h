@@ -241,9 +241,9 @@ int main(int argc, char**argv) {
     free(ty);
 
  */
-#define fill_array(_arr_, _value_)  \
+#define fill_array(_arr_, ...)  \
     foreach_array_ref(_arr_, _ref_) \
-        *(_ref_) = _value_
+        *(_ref_) = (__VA_ARGS__)
 
 /* This needs more work, don't use */
 #define for_each_bit_in_array(_array_) \
@@ -395,97 +395,87 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  *
  * examples:
 
+    //Destination is larger than source:
+
     int dst[5] = {1,2,3,4,5};
     int src[3] = {9,8,7};
     copy_array(dst, src);
     print_array(dst); //prints: 98745
 ...
-    int dst[] = {1,2};
-    int src[] = {9,8,7};
+    //Source and Destination have different, but compatible types
+    //Source is larger than Destination
+
+    long dst[]  = {1,2};
+    short src[] = {9,8,7};
     copy_array(dst, src);
     print_array(dst); //prints: 98
 ...
-    //Copy string into dynamic memory
-    char (*data)[ sizeof ("String lol !") ];
-    malloc_array(data);
-    copy_array(data, &"String lol !");
-    print_array(data); //prints: String lol !
-    free(data);
+    //Dynamic array initialization:
+
+    char (*string)[40];
+    malloc_array(string);
+    copy_array(string, "Hello!");
+    println(*string);
+    free(string);
 ...
-    //Just madness:
+    //VLA Initialization and array of structs
 
-    size_t size1 = argc;
-    size_t size2 = 3 * argc;
+    struct toto {
+        int val;
+        char *string;
+    };
 
-    //Create two VLAs
-    int arr1[size1];
-    unsigned arr2[size2];
+    size_t len = 10;
+    struct toto values[len];
+    fill_array(values, (const struct toto){0});
+    copy_array(values, (const struct toto[]){
+                   {.val = 1,  .string = "First"},
+                   {.val = 10, .string = "Second"},
+                   {.val = 30, .string = "Third"},
+               });
 
-    // 'E' - initialize them
-    memset_array(&arr1, 'E');
-    memset_array(&arr2, 'E');
+    foreach_array_const_ref(values, ref)
+            println(ref->val, " ", ref->string);
 
-    //Copy data from static arrays to VLAs. if VLAs will be larger than these arrays then there will be 'E'
-    copy_array(&arr1, &(unsigned short[]){'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'});
-    copy_array(&arr2, &(uint8_t[]){'Z', 'Y', 'X', 'W', 'V', 'U'});
-
-    //Create new array pointer with array size (arr1 + arr2)
-    char (*data)[ARRAY_SIZE(arr1) + ARRAY_SIZE(arr2)];
-
-    //Allocate memory for it
-    malloc_array(data);
-
-    //Copy data from first VLA
-    copy_array(data, &arr1);
-
-    //Create new slice array pointer from data
-    make_array_slice(data_slice, ARRAY_SIZE(arr1), P_ARRAY_SIZE(data), data);
-
-    //Copy data from second VLA to this data_slice
-    copy_array(data_slice, &arr2);
-
-    print_array(data);
-         //if argc was 1. then it will print: AZYX
-         //if argc was 2. then it will print: ABZYXWVU
-         //if argc was 3. then it will print: ABCZYXWVUEEE
-
-    free(data);
  */
-#define copy_array(dst_arr, ...) do {                   \
-        make_array_slice_full(dst, dst_arr);            \
-        make_array_slice_full(src, (__VA_ARGS__));      \
-        if(unsafe_is_ptas_of_same_types(dst, src)) {    \
-            unsafe_copy_array_fast(dst, src);           \
-        } else {                                        \
-            unsafe_copy_array_slow(dst, src);           \
-        }                                               \
+#define copy_array(dst_arr, ...) do {                                    \
+        make_arrview_full(_tmp_dst_ptr_, dst_arr);                       \
+        const make_arrview_full(_tmp_src_ptr_, (__VA_ARGS__));           \
+                                                                         \
+        if(unsafe_is_ptas_of_same_types(_tmp_dst_ptr_, _tmp_src_ptr_)) { \
+            unsafe_copy_array_fast(_tmp_dst_ptr_, _tmp_src_ptr_);        \
+        } else {                                                         \
+            unsafe_copy_array_slow(_tmp_dst_ptr_, _tmp_src_ptr_);        \
+        }                                                                \
 } while(0)
 
 /* unsafe_copy_array_fast(): copies data from src_ptr pta to dst_ptr pta. types of pta are not checked for arrayness.
  * Use only if you guarantee that dst_ptr and src_ptr are ptas and have same underlying type.
  * @dst_ptr: destination pta
  * @src_ptr: source pta to copy from */
-#define unsafe_copy_array_fast(dst_ptr, src_ptr)                                \
-    (UNSAFE_ARRAY_SIZE_BYTES(*dst_ptr) >= UNSAFE_ARRAY_SIZE_BYTES(*src_ptr))    \
-        ? memcpy(dst_ptr, src_ptr, UNSAFE_ARRAY_SIZE_BYTES(*src_ptr))           \
-        : memcpy(dst_ptr, src_ptr, UNSAFE_ARRAY_SIZE_BYTES(*dst_ptr))           \
+#define unsafe_copy_array_fast(_dst_ptr_, _src_ptr_)                                    \
+    memcpy(_dst_ptr_, _src_ptr_,                                                        \
+           UNSAFE_ARRAY_SIZE_BYTES(*_dst_ptr_) >= UNSAFE_ARRAY_SIZE_BYTES(*_src_ptr_) ? \
+            UNSAFE_ARRAY_SIZE_BYTES(*_src_ptr_) :                                       \
+            UNSAFE_ARRAY_SIZE_BYTES(*_dst_ptr_)                                         \
+    )
 
 /* unsafe_copy_array_slow(): copies data from src_ptr pta to dst_ptr pta. types of pta are not checked for arrayness.
  * Use only if you guarantee that dst_ptr and src_ptr are ptas and have compatible underlying type.
  * @dst_ptr: destination pta
  * @src_ptr: source pta to copy from */
-#define unsafe_copy_array_slow(dst_ptr, src_ptr) do {                   \
-    if(UNSAFE_ARRAY_SIZE(*dst_ptr) >= UNSAFE_ARRAY_SIZE((*src_ptr))) {  \
-        unsafe_make_array_first_ref(dst_ptr, dst_ref);                  \
-        unsafe_foreach_array_const_ref(src_ptr, src_ref) {              \
-            *dst_ref++ = *src_ref;                                      \
-        }                                                               \
-    } else {                                                            \
-        const make_array_first_ref(src_ptr, src_ref);                   \
-        foreach_array_ref(dst_ptr, dst_ref) {                           \
-            *dst_ref = *src_ref++;                                      \
-        }                                                               \
-    }                                                                   \
+#define unsafe_copy_array_slow(_dst_ptr_, _src_ptr_) do {                    \
+    if(UNSAFE_ARRAY_SIZE((*_dst_ptr_)) >= UNSAFE_ARRAY_SIZE((*_src_ptr_))) { \
+        unsafe_make_array_first_ref(_dst_ptr_, _dst_ref_);                   \
+        unsafe_foreach_array_const_ref(_src_ptr_, _src_ref_) {               \
+            *_dst_ref_++ = *_src_ref_;                                       \
+        }                                                                    \
+    } else {                                                                 \
+        const unsafe_make_array_first_ref(_src_ptr_, _src_ref_);             \
+        unsafe_foreach_array_ref(_dst_ptr_, _dst_ref_) {                     \
+            *_dst_ref_ = *_src_ref_++;                                       \
+        }                                                                    \
+    }                                                                        \
 } while(0)
 
 /* is_arrays_of_same_types(dst_ptr, src_ptr)
