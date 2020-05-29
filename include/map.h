@@ -51,49 +51,64 @@
 #define MAP_NEXT1(test, next) MAP_NEXT0(test, next, 0)
 #define MAP_NEXT(test, next)  MAP_NEXT1(MAP_GET_END test, next)
 
-#define MAP0(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP1)(f, peek, __VA_ARGS__)
-#define MAP1(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP0)(f, peek, __VA_ARGS__)
-
-#define MAP_LIST_NEXT1(test, next) MAP_NEXT0(test, MAP_COMMA next, 0)
-#define MAP_LIST_NEXT(test, next)  MAP_LIST_NEXT1(MAP_GET_END test, next)
-
-#define MAP_LIST0(f, x, peek, ...) f(x) MAP_LIST_NEXT(peek, MAP_LIST1)(f, peek, __VA_ARGS__)
-#define MAP_LIST1(f, x, peek, ...) f(x) MAP_LIST_NEXT(peek, MAP_LIST0)(f, peek, __VA_ARGS__)
-
 /*
  * Applies the function macro `f` to each of the remaining parameters.
  */
 #define MAP(f, ...) EVAL(MAP1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
-
-/*
- * Applies the function macro `f` to each pair of the remaining parameters.
- */
-
-#define MAP_TWO0(f, x, y, peek1, peek2, ...) f(x, y) MAP_NEXT(peek2, MAP_TWO1)(f, peek1, peek2, __VA_ARGS__)
-#define MAP_TWO1(f, x, y, peek1, peek2, ...) f(x, y) MAP_NEXT(peek2, MAP_TWO0)(f, peek1, peek2, __VA_ARGS__)
-
-#define MAP_TWO(f, ...) EVAL(MAP_TWO1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP0(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP1)(f, peek, __VA_ARGS__)
+#define MAP1(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP0)(f, peek, __VA_ARGS__)
 
 /*
  * Applies the function macro `f` to first argument and each of the remaining parameters.
  */
+#define MAP_ARG(f, ...) EVAL(MAP_ARG1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 #define MAP_ARG0(f, p, x, peek, ...) f(p, x) MAP_NEXT(peek, MAP_ARG1)(f, p, peek, __VA_ARGS__)
 #define MAP_ARG1(f, p, x, peek, ...) f(p, x) MAP_NEXT(peek, MAP_ARG0)(f, p, peek, __VA_ARGS__)
-
-#define MAP_ARG(f, ...) EVAL(MAP_ARG1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /*
  * Applies the function macro `f` to first two arguments and each of the remaining parameters.
  */
+#define MAP_TWOARG(f, ...) EVAL(MAP_TWOARG1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 #define MAP_TWOARG0(f, p1, p2, x, peek, ...) f(p1, p2, x) MAP_NEXT(peek, MAP_TWOARG1)(f, p1, p2, peek, __VA_ARGS__)
 #define MAP_TWOARG1(f, p1, p2, x, peek, ...) f(p1, p2, x) MAP_NEXT(peek, MAP_TWOARG0)(f, p1, p2, peek, __VA_ARGS__)
 
-#define MAP_TWOARG(f, ...) EVAL(MAP_TWOARG1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+/*
+ * Applies the function macro `f` to each pair of the remaining parameters.
+ */
+#define MAP_TWO(f, ...) EVAL(MAP_TWO1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP_TWO0(f, x, y, peek1, peek2, ...) f(x, y) MAP_NEXT(peek2, MAP_TWO1)(f, peek1, peek2, __VA_ARGS__)
+#define MAP_TWO1(f, x, y, peek1, peek2, ...) f(x, y) MAP_NEXT(peek2, MAP_TWO0)(f, peek1, peek2, __VA_ARGS__)
+
+
+/* Map list */
+
+#define MAP_LIST_NEXT1(test, next) MAP_NEXT0(test, MAP_COMMA next, 0)
+#define MAP_LIST_NEXT(test, next)  MAP_LIST_NEXT1(MAP_GET_END test, next)
+
 
 /*
  * Applies the function macro `f` to each of the remaining parameters and
  * inserts commas between the results.
  */
 #define MAP_LIST(f, ...) EVAL(MAP_LIST1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP_LIST0(f, x, peek, ...) f(x) MAP_LIST_NEXT(peek, MAP_LIST1)(f, peek, __VA_ARGS__)
+#define MAP_LIST1(f, x, peek, ...) f(x) MAP_LIST_NEXT(peek, MAP_LIST0)(f, peek, __VA_ARGS__)
+
+/*
+ * Applies the function macro `f` to first argument and each of the remaining parameters and
+ * inserts commas between the results.
+ */
+#define MAP_LIST_ARG(f, ...) EVAL(MAP_LIST_ARG1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP_LIST_ARG0(f, p, x, peek, ...) f(p, x) MAP_LIST_NEXT(peek, MAP_LIST_ARG1)(f, p, peek, __VA_ARGS__)
+#define MAP_LIST_ARG1(f, p, x, peek, ...) f(p, x) MAP_LIST_NEXT(peek, MAP_LIST_ARG0)(f, p, peek, __VA_ARGS__)
+
+/*
+ * Applies the function macro `f` to first argument and each of the remaining parameters and
+ * inserts commas between the results.
+ */
+#define MAP_LIST_TWOARG(f, ...) EVAL(MAP_LIST_TWOARG1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP_LIST_TWOARG0(f, p1, p2, x, peek, ...) f(p1, p2, x) MAP_LIST_NEXT(peek, MAP_LIST_TWOARG1)(f, p1, p2, peek, __VA_ARGS__)
+#define MAP_LIST_TWOARG1(f, p1, p2, x, peek, ...) f(p1, p2, x) MAP_LIST_NEXT(peek, MAP_LIST_TWOARG0)(f, p1, p2, peek, __VA_ARGS__)
+
 
 #endif
