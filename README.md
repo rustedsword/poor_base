@@ -277,7 +277,16 @@ make_arrview_full(data_slc, data);
 print_array(data_slc); //prints: 012345
 ```
 ### (make_)arrview_str(var)
-Create a view of the array (var) without last elements. Useful for null-terminated strings.
+Create a view of the array (var) without last element. Useful for null-terminated strings.
+```c
+make_arrview_str(hello, "Hello");
+const char space[1] = {' '};
+make_arrview_str(world, "World");
+const char null[1] = {0};
+
+make_merged_array(str, hello, space, world, null);
+println(str); //Hello World
+```
 ## Array Access helpers
 ### array_first_ref(var)
 Returns a pointer to first array element
