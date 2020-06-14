@@ -22,14 +22,15 @@ sizeof(*b); //size of array where pointer points: 5 * 4 = 20
 ```
 You can't pass array by value into another function. If you declaring a function with array argument then that array decayed into pointer to first element, so it is not longer an array anymore.
 ```c
-void fn(uint32_t a[5]); -> void fn(uint32_t *a);  
-void fn(uint32_t a[]);  -> void fn(uint32_t *a);  
+void fn(uint32_t a[5]); -> void fn(uint32_t *a);
+void fn(uint32_t a[]);  -> void fn(uint32_t *a);
+void fn(size_t len, uint32_t a[len]); -> void fn(size_t len, uint32_t *a);
 ```
 If you declare a function with multi-dimensional array argument, then it is converted to pointer to it's first element too: pointer to subarray. So, you are losing dimension that way.
 ```c
 void fn(uint32_t a[5][3]); -> void fn(uint32_t (*a)[3]);  
 ```
-So, first thing is to consider that you should never declare functions with array arguments, you should always use pointers to arrays instead. Pointers to arrays do not decay. So, by using them it explicitly states the intent: we are sending a pointer to array into a function. That approach allows to use C type system to warn the programmer if he passes pointer to array of wrong size or type. While inside function body you will keep all arrays' dimensions.
+So, first thing is to consider that you should never declare functions with array arguments, you should always use pointers to arrays instead. Pointers to arrays do not decay. That approach allows to use C type system to warn the programmer if he passes pointer to array of wrong size or type. While inside function body you will keep all arrays' dimensions.
 ```c
 void fn(uint32_t (*a)[5]) {  //Function accepts only pointer to array of 5 uint32_t  
     sizeof(*a); //20  
@@ -53,7 +54,7 @@ And now it is where this macro library comes into play. By using auto_arr() and 
 ```c
 #define fn(a) _fn(ARRAY_SIZE(a), &auto_arr(a))  
 void _fn(const size_t len, uint32_t (*a)[len]) {  
-    sizeof(*a); //Returns length of array at runtime.  
+    sizeof(*a); //Returns length of array at runtime.
 }  
 
 uint32_t w[6];  //static array
@@ -69,6 +70,9 @@ fn(y);
 uint32_t (*z)[len] = &x; //Pointer to VLA
 fn(z);
 ```
+
+By keeping arrays' arrayness you can use all features of this library: array views, generic array iterators, information macros, and even treat arrays as static vectors.
+
 ## Generic Array Macros
 
 ### auto_arr(var) / arr(var)
