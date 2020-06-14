@@ -141,12 +141,33 @@ size_t len = 5;
 short b[len];   
 PRINT_ARRAY_INFO(b); //VLA "b" at 0x0 has size:5 uses 10 bytes, while single element has size:2 
 ```
+### malloc_array(var)
+Allocates memory for pointer to array (var) by using malloc()
+```c
+size_t len = 5000;
+int (*a)[len];
+if(!malloc_array(a)) {
+    /* Failed to allocate memory */
+}
+
+fill_array(a, 0);
+...
+```
+### calloc_array(var)
+Allocates memory for pointer to array (var) by using calloc()
+```c
+int (*a)[2048];
+if(!calloc_array(a)) {
+    /* Failed to allocate memory */
+}
+
+/* Use array a ... */
+```
 ### fill_array(var, value)
 Fills array (var) with (value).
 ```c
-int (*x)[5];
-malloc_array(x);
-
+size_t len = 5;
+int x[len];
 fill_array(x, 50);
 print_array(x); //Will print 5050505050
 ```
