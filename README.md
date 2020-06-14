@@ -98,12 +98,39 @@ int (*b)[2];
 ARRAY_SIZE(a); //5  
 ARRAY_SIZE(b); //2  
 ```
+### ARRAYS_SIZE(arr1, arr2, ..., arrn)
+Returns sum of all arrays sizes;
+```c
+int a[4];
+int b[3];
+int c[6];
+
+ARRAYS_SIZE(a, b, c); //13
+```
 ### ARRAY_SIZE_BYTES(var)
-Returns total array size
+Returns total array size in bytes
+```c
+uint16_t (*e)[20];
+ARRAY_SIZE_BYTES(e); //40
+```
+### ARRAYS_SIZE_BYTES(arr1, arr2, ..., arrn)
+Returns sum of all arrays sizes in bytes
+```c
+uint8_t a[4];
+uint16_t b[3];
+uint32_t c[6];
 
+ARRAYS_SIZE_BYTES(a, b, c); //34
+```
 ### ARRAY_ELEMENT_SIZE(var)
-Returns size of array element
+Returns size of one array element
+```c
+uint32_t x[5];
+ARRAY_ELEMENT_SIZE(x); //4: sizeof(uint32_t)
 
+uint16_t a[2][5];
+ARRAY_ELEMENT_SIZE(a); //10: sizeof(uint16_t [5])
+```
 ### PRINT_ARRAY_INFO(var)
 Prints information about array
 ```c
@@ -114,21 +141,54 @@ size_t len = 5;
 short b[len];   
 PRINT_ARRAY_INFO(b); //VLA "b" at 0x0 has size:5 uses 10 bytes, while single element has size:2 
 ```
+### fill_array(var, value)
+Fills array (var) with (value).
+```c
+int (*x)[5];
+malloc_array(x);
+
+fill_array(x, 50);
+print_array(x); //Will print 5050505050
+```
 ### copy_array(dst_arr, src_arr)
 Copies data from array (src_arr) to array (dst_arr)  
 Type of array elements may be compatible.  
 If destination array is not long enough then only part of source array will be copied.  
-
+Source and destination arrays should not overlap.
+```c
+unsigned char a[4] = {0,1,2,3};
+int (*b)[4] = malloc(sizeof(*b));
+copy_array(b, a); 
+print_array(b); //0123
+```
 ### copy_arrays(dst_arr, src_arr0, src_arr1, ..., src_arrn)
 Copies data from all source arrays into destination array.
 Type of all arrays' elements should be same.  
 Destination array should be long enough to fit all data from source arrays.
+```c
+int a1[] = {0,1,2,3};
+int a2[] = {4,5,6,7};
 
+int b[ ARRAYS_SIZE(a1, a2) ];
+copy_arrays(b, a1, a2);
+
+print_array(b); //01234567
+```
+### make_merged_array(var_name, arr1, arr2, ..., arrn)
+Creates an array with name (var_name) with size of all provided arrays and copies all these arrays' data into it.
+All source arrays should have same type and should not overlap.
+```c
+make_merged_array(data,
+                 ((int[]){0,1,2,3}),
+                 ((int[]){4,5,6}),
+                 ((int[]){7,8,9,10,11}));
+
+print_array(data); //prints: 01234567891011
+```
 ## ArrayView
-A view of an array. It is just a pointer to array pointing into some part of another array.  
-You can create a view from an array or from another view. View can be created from VLA or from a pointer to VLA.  
+A view of an array. It is just a pointer to array pointing into some part of another array.   
 Arguments are statically validated by default, prohibiting creating out-of-bounds views at compile time.  
-Optional run-time arguments validation.  
+it is somewhat similar to C++ std::span and rust slices.
 
 ### (make_)arrview(idx, len, var)
 Creates a view of array var, starting from position (idx) with len (len)
