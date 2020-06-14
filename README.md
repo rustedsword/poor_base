@@ -11,7 +11,8 @@ Before even considering to use this library you should completely understand how
 Arrays are not pointers. But in most operations they decay to pointer to it's first element.
 ```c
 unit32_t a[5]; //Array of 5 uint32_t  
-sizeof(a); // 5 * 4 = 20  
+sizeof(a); // 5 * 4 = 20  //sizeof doesn't decay array to pointer
+uint32_t *ptr = a;  //a decayed to pointer to first element 
 ```
 Pointers to arrays are just like regular pointers, but they pointing to whole array.
 ```c
@@ -24,7 +25,7 @@ You can't pass array by value into another function. If you declaring a function
 void fn(uint32_t a[5]); -> void fn(uint32_t *a);  
 void fn(uint32_t a[]);  -> void fn(uint32_t *a);  
 ```
-If you declare a function with multi-dimensional array arguments, then it is converted to pointer to it's first element too: pointer to subarray. So, you are losing dimension that way.
+If you declare a function with multi-dimensional array argument, then it is converted to pointer to it's first element too: pointer to subarray. So, you are losing dimension that way.
 ```c
 void fn(uint32_t a[5][3]); -> void fn(uint32_t (*a)[3]);  
 ```
@@ -55,12 +56,18 @@ void _fn(const size_t len, uint32_t (*a)[len]) {
     sizeof(*a); //Returns length of array at runtime.  
 }  
 
-uint32_t x[6];  
-fn(&x);  
+uint32_t w[6];  //static array
+fn(w);  
   
 size_t len = 9;  
-uint32_t y[len];  
-fn(&y);  
+uint32_t x[len];  //VLA
+fn(x);  
+
+uint32_t (*y)[6] = &w; //Pointer to static array
+fn(y);
+
+uint32_t (*z)[len] = &x; //Pointer to VLA
+fn(z);
 ```
 ## Generic Array Macros
 
