@@ -198,6 +198,7 @@ print_array(b); //01234567
 ### make_merged_array(var_name, arr1, arr2, ..., arrn)
 Creates an array with name (var_name) with size of all provided arrays and copies all these arrays' data into it.
 All source arrays should have same type and should not overlap.
+If at least one of source arrays is VLA or pointer to VLA, then merged array will be VLA too.
 ```c
 make_merged_array(data,
                  ((int[]){0,1,2,3}),
@@ -205,6 +206,21 @@ make_merged_array(data,
                  ((int[]){7,8,9,10,11}));
 
 print_array(data); //prints: 01234567891011
+```
+## Array Iterators
+### foreach_array_ref(var, ref_name)
+Iterate over an array (var) by declaring variable (ref_name) as a pointer to current array element.
+```c
+uint16_t test[] = {1, 2, 3, 4};
+foreach_array_ref(test, val)
+    print(*val);  //prints: 1234
+```
+### foreach_array_ref_bw(var, ref_name)
+Iterate over an array (var) backwards by declaring variable (ref_name) as a pointer to current array element.
+```c
+uint16_t test[] = {1, 2, 3, 4};
+foreach_array_ref_bw(test, val)
+    print(*val);  //prints: 4321
 ```
 ## ArrayView
 A view of an array. It is just a pointer to array pointing into some part of another array.   
@@ -262,3 +278,18 @@ print_array(data_slc); //prints: 012345
 ```
 ### (make_)arrview_str(var)
 Create a view of the array (var) without last elements. Useful for null-terminated strings.
+## Array Access helpers
+### array_first_ref(var)
+Returns a pointer to first array element
+### array_last_ref(var)
+Returns a pointer to last array element
+### array_end_ref(var)
+Returns a pointer to past the last array element. It is valid pointer, but it should not be dereferenced
+### array_ref_index(var, ref)
+Returns index of array element where (ref) points 
+### is_first_array_ref(var, ref)
+Returns true if (ref) points to the first element of the array (var)
+### is_last_array_ref(var, ref)
+Returns true if (ref) points to the last element of the array (var)
+### is_end_array_ref(var, ref)
+Returns true if (ref) points to the past the last element of the array (var)
