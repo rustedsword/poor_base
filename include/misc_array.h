@@ -1091,17 +1091,23 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
         _bit_idx_name_ < ARRAY_SIZE_BITS(arr); \
         _bit_idx_name_ --)
 
-#define print_array_bits(arr) do {                                   \
-    print("|");                                                      \
-    foreach_array_bit_bw(arr, bit_idx) {                             \
-        print( array_get_bit(arr, bit_idx) ? CGREEN "X" : CRED "O"); \
-                                                                     \
-        if(!(bit_idx % (ARRAY_ELEMENT_SIZE(arr) * 8)))               \
-            print(CRESET "|");                                       \
-        else if( !(bit_idx % 8) )                                    \
-            print(CBLUE "|");                                        \
-    }                                                                \
-    println(CRESET "\n");                                            \
+#define print_array_bits(_arr_) do {						\
+	print("|");								\
+	foreach_array_bit_bw(_arr_, bit_idx) {					\
+		print( array_get_bit(_arr_, bit_idx) ? CGREEN "X" : CRED "O");	\
+										\
+		if(!(bit_idx % (ARRAY_ELEMENT_SIZE(_arr_) * 8)))		\
+			print(CRESET "|");					\
+		else if( !(bit_idx % 8) )					\
+			print(CBLUE "|");					\
+	}									\
+	print((char)'\n');							\
+										\
+	for(size_t _byte_idx_ = ARRAY_SIZE_BYTES(_arr_); _byte_idx_ <= ARRAY_SIZE_BYTES(_arr_); _byte_idx_--) {	\
+		print(!(_byte_idx_ % ARRAY_ELEMENT_SIZE(_arr_)) ? CRESET : CBLUE, 				\
+			fmt_w( _byte_idx_ ? (_byte_idx_ * 8) - 1 : 0, _byte_idx_ ? -9 : 0));			\
+	}													\
+	print((char)'\n');											\
 } while(0)
 
 /**** Obsolete ****/
@@ -1158,5 +1164,3 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 /* Obsolete arrayr ref remove */
 #define array_ref_remove(_arr_ptr_, _ref_, _val_)  array_remove_ref_fill(_arr_ptr_, _ref_, _val)
-
-#endif // MISC_ARRAY_H
