@@ -1164,3 +1164,5 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 /* Obsolete arrayr ref remove */
 #define array_ref_remove(_arr_ptr_, _ref_, _val_)  array_remove_ref_fill(_arr_ptr_, _ref_, _val)
+
+#endif //MISC_ARRAY_H
