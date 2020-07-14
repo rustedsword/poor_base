@@ -1068,17 +1068,17 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 #define array_set_bit(arr, idx) \
     _array_bit_chk_index(arr, idx,  \
-        auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8) ] |= (1 << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8))) \
+        auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] |= (1ULL << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8ULL))) \
     )
 
 #define array_unset_bit(arr, idx)   \
     _array_bit_chk_index(arr, idx,  \
-        auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8) ] &= ~(1 << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8))) \
+        auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] &= ~(1ULL << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8ULL))) \
     )
 
 #define array_get_bit(arr, idx) \
     _array_bit_chk_index(arr, idx,  \
-        ((bool)(!!(auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8) ] & (1 << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8)))))) \
+        ((bool)(!!(auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] & (1ULL << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8ULL)))))) \
     )
 
 #define foreach_array_bit(arr, _bit_idx_name_) \
