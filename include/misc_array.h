@@ -674,7 +674,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 /* make_arrview_str(name, src): makr arrview without last element, useful for cutting '\0' from C strings */
 #define make_arrview_str(_name_, ...) make_arrview_cback(_name_, 1, __VA_ARGS__)
-#define arrview_str(...) arrview_cback(1, __VA_ARGS__)s
+#define arrview_str(...) arrview_cback(1, __VA_ARGS__)
 
 /* string_literal(_name_, string_literal)
  * @_name_: variable name for new array pointer
