@@ -160,17 +160,20 @@ int main(int argc, char **argv) {
 #define if_vla_or_vla_ptr(_arr_, t, f) if_constexpr(sizeof(_arr_) + sizeof(*(_arr_)), f, t)
 
 
-/* make_array_ptr()
+/* make_array_ptr(name, pointer, size)
  *
- * Declares an array pointer and sets it's value to (pointer)
- * Size of array calculated from size of element where (pointer) points and (size) variable
+ * Declares a pointer to an array with specified name and sets it's value to (pointer)
+ * This macro is useful to tie together pointer and size in the form of pointer to array.
+ *
+ * @pointer: pointer to the first array element
+ * @size: size of the array, should be greater than zero.
  *
  * example:
 
-    //Wraping pointer and size, returned from another function
+    //Wraping pointer and size returned from function
 
     size_t size;
-    void *ptr = function_which_returns_pointer_and_size(&size);
+    int *ptr = function_which_returns_pointer_and_size(&size);
     if(!ptr || !size)
         return;
 
@@ -181,15 +184,14 @@ int main(int argc, char **argv) {
 ...
     //Simple program:
 
-int main(int argc, char**argv) {
-    make_array_ptr(args, argv, argc);
-    print_array(args);
-    return 0;
-}
+    int main(int argc, char **argv) {
+	make_array_ptr(args, argv, argc);
+	print_array(args);
+	return 0;
+    }
 
- * NOTE: size should not be zero, but pointer can be NULL.
  */
-#define make_array_ptr(array_pointer_name, pointer, size) typeof(*pointer) (*(array_pointer_name))[size]  = (void*)pointer
+#define make_array_ptr(_name_, _pointer_, _size_) typeof(*(_pointer_)) (* _name_)[(_size_)]  = (void*)(_pointer_)
 
 /* Allocates memory for pointer to an array.
  * Provide pointer to an array, to allocate memory. Pointer can be pointer to VLA.
@@ -913,8 +915,8 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
  */
 #define make_merged_array(_name_, ...) \
-        ARRAY_ELEMENT_TYPE_NO_QUAL(TAKE_FIRST_ARG(__VA_ARGS__)) _name_ [ ARRAYS_SIZE(__VA_ARGS__) ]; \
-        copy_arrays(_name_, __VA_ARGS__)
+	ARRAY_ELEMENT_TYPE_NO_QUAL(TAKE_FIRST_ARG(__VA_ARGS__)) _name_ [ ARRAYS_SIZE(__VA_ARGS__) ]; \
+	copy_arrays(_name_, __VA_ARGS__)
 
 
 /* array_remove_view(array, view)
