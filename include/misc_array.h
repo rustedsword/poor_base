@@ -1051,7 +1051,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
         unsafe_foreach_array_ref(_tmp_arr_ptr2_, ref)                  \
             print(",", *ref);                                          \
     }                                                                  \
-    println("]");                                                      \
+    println((char)']');                                                \
 } while (0)
 
 /* Array bit operations */
