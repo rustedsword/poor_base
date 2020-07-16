@@ -198,7 +198,7 @@ print_array(b); //01234567
 ```
 ### make_merged_array(var_name, arr1, arr2, ..., arrn)
 Creates an array with name (var_name) with size of all provided arrays and copies all these arrays' data into it.
-All source arrays should have same type and should not overlap.
+All source arrays should have same type.
 If at least one of source arrays is VLA or pointer to VLA, then merged array will be VLA too.
 ```c
 make_merged_array(data,
