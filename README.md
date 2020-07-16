@@ -178,7 +178,8 @@ If destination array is not long enough then only part of source array will be c
 Source and destination arrays should not overlap.
 ```c
 unsigned char a[4] = {0,1,2,3};
-int (*b)[4] = malloc(sizeof(*b));
+int (*b)[4];
+malloc_array(b);
 copy_array(b, a); 
 print_array(b); //0123
 ```
