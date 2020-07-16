@@ -240,7 +240,7 @@ int main(int argc, char**argv) {
     malloc_array(ty);
 
     fill_array(ty, 50);
-    print_array(ty); //Will print 5050505050
+    print_array(ty); //Will print [50,50,50,50,50]
 
     free(ty);
 
@@ -387,7 +387,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     int dst[5] = {1,2,3,4,5};
     int src[3] = {9,8,7};
     copy_array(dst, src);
-    print_array(dst); //prints: 98745
+    print_array(dst); //prints: [9,8,7,4,5]
 ...
     //Source and Destination have different, but compatible types
     //Source is larger than Destination
@@ -395,7 +395,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     long dst[]  = {1,2};
     short src[] = {9,8,7};
     copy_array(dst, src);
-    print_array(dst); //prints: 98
+    print_array(dst); //prints: [9,8]
 ...
     //Dynamic array initialization:
 
@@ -508,12 +508,12 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
     make_arrview_str(src1, "This ");
     make_arrview_str(src2, "Is ");
-    make_arrview_str(src3, "A string");
+    make_arrview_str(src3, "a string");
 
     char dst[ARRAYS_SIZE(src1, src2, src3)];
     copy_arrays(dst, src1, src2, src3);
 
-    print_array(dst); //prints: This Is A string
+    print_array(dst); //prints: [T,h,i,s, ,I,s, ,a, ,s,t,r,i,n,g]
 
  */
 #define copy_arrays(_dst_arr_, ...) do {                                        \
@@ -535,7 +535,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
   uint8_t data[] = {0,1,2,3,4,5};
   make_arrview(data_slc, 2, 3, &data); //Start index: 2 and size: 3
-  print_array(data_slc); //prints: 234
+  print_array(data_slc); //prints: [2,3,4]
 */
 #define make_arrview(_name_, start, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = arrview(start, size, __VA_ARGS__)
 #define arrview(start, size, ...) h_arrview_(start, size, (__VA_ARGS__))
@@ -578,7 +578,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
   uint8_t data[] = {0,1,2,3,4,5};
   make_arrview_last(data_slc, 2, &data);
-  print_array(data_slc); //prints: 45
+  print_array(data_slc); //prints: [4,5]
  */
 #define make_arrview_last(_name_, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = arrview_last(size, __VA_ARGS__)
 #define arrview_last(size, ...) array_slice_last_(size, (__VA_ARGS__))
@@ -614,7 +614,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
   char data[] = {0, 0, 'H','I', 0, 0, 0};
   make_arrview_shrink(data_slc, 2, 3, &data);
-  print_array(data_slc); //prints: HI
+  print_array(data_slc); //prints: [H,I]
 */
 #define make_arrview_shrink(_name_, skip_start, skip_end, ...) \
     ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = arrview_shrink(skip_start, skip_end, __VA_ARGS__)
@@ -756,23 +756,112 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     const typeof( (_string_)[0] ) (*const (_name_)) [ is_same_type( array_first_ref(&(_string_)), char*, 1, 0) ? ARRAY_SIZE(_string_) : -1 ]
 
 
-/* Just prints array.
+/* Just prints array without any formatting.
+ * Type of array elements should be one of standard C types. See println() for more info.
  * @__VA_ARGS__: array or pointer to an array
  * example:
 
-    print_array(&(int[]){1, 2, 3, 4, 5, 6}); //will print: 123456
+    print_array_raw(&(int[]){1, 2, 3, 4, 5, 6}); //will print: 123456
 
     bool sexy[] = {true, false, true, true};
-    print_array(&sexy); //will print: truefalsetruetrue
+    print_array_raw(&sexy); //will print: truefalsetruetrue
 
-    print_array(&"String is an array too!"); //will print that string. less effective than println(), but works =)
+    print_array_raw(&"String is an array too!"); //will print that string. less effective than println(), but works =)
  */
-#define print_array(...) do {                                \
-    foreach_array_ref((__VA_ARGS__), ref) {                  \
-        print(*ref);                                         \
-    }                                                        \
+#define print_array_raw(...) do {		\
+	foreach_array_ref((__VA_ARGS__), ref) {	\
+		print(*ref);			\
+	}					\
 } while (0)
 
+/* Prints array as formatted output [x,y,z,...]
+ * Type of array elements should be one of standard C types. See println() for more info.
+ * @__VA_ARGS__: array or pointer to an array
+ * example:
+
+    print_array((int[]){1,2,3,4}); //prints: [1,2,3,4];
+
+    const char * strings[4] = {
+	"First",
+	"Second",
+	"Third",
+	"Fourth",
+    };
+    print_array(strings); //prints: [First,Second,Third,Fourth]
+
+ */
+#define print_array(...) do {						\
+	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);		\
+	print("[", *unsafe_array_first_ref(_tmp_arr_ptr_));		\
+									\
+	if(UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_) > 1) {			\
+		make_arrview_cfront(_tmp_arr_ptr2_, 1, _tmp_arr_ptr_);	\
+		unsafe_foreach_array_ref(_tmp_arr_ptr2_, ref)		\
+			print(",", *ref);				\
+	}								\
+	println((char)']');						\
+} while (0)
+
+/* Prints array as formatted output with custom print function for each element
+ * Useful for printing arrays with custom types or multidimensional arrays.
+ * @__VA_ARGS__: array or pointer to an array to print
+ * @fmt_fn: function or function-like macro.
+ *   should accept single argument: pointer to constant element of the array to be printed.
+ *
+ * example:
+
+    // Printing an array of structs
+    struct toto {
+	int a;
+	char *b;
+    };
+    struct toto some_data[4] = {
+	{1, "First"},
+	{2, "Second"},
+	{3, "Third"},
+	{4, "Fourth"},
+    };
+
+    #define toto_print(ptr) print("{a:", ptr->a, " b:", ptr->b, "}")
+
+    print_array_fmt(toto_print, some_data); //prints [{a:1 b:First},{a:2 b:Second},{a:3 b:Third},{a:4 b:Fourth}]
+
+    //Printing a multi-dimensional array using inline function
+
+    static inline void print_somedata(const int (*data)[4]) {
+	print("\n\t");
+	print_array(data);
+    }
+
+    int data[2][4] = {
+	{1,2,3,4},
+	{5,6,7,8},
+    };
+
+    print_array_fmt(print_somedata, data);
+    //prints:
+    //[
+    //    [1,2,3,4]
+    //,
+    //    [5,6,7,8]
+    //]
+
+ */
+#define print_array_fmt(_fmt_fn_, ...) do {				\
+	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);		\
+	print((char)'[');						\
+	unsafe_make_array_first_ref(_tmp_arr_ptr_, _first_ref_);	\
+	_fmt_fn_(_first_ref_);						\
+									\
+	if(UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_) > 1) {			\
+		make_arrview_cfront(_tmp_arr_ptr2_, 1, _tmp_arr_ptr_);	\
+		unsafe_foreach_array_ref(_tmp_arr_ptr2_, ref) {		\
+			print((char)',');				\
+			_fmt_fn_(ref);					\
+		}							\
+	}								\
+	println((char)']');						\
+} while (0)
 
 /*** Beta features ****/
 
@@ -804,7 +893,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
                       ((int[]){4,5,6}),
                       ((int[]){7,8,9,10,11}));
 
-    print_array(data); //prints: 01234567891011
+    print_array(data); //prints: [0,1,2,3,4,5,6,7,8,9,10,11]
 
 ...
 
@@ -876,9 +965,9 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  * example:
  *
     int v[] = {0,1,2,3,4,5,6,7,8};
-    make_v_view, 2, 3, v); //pointer to elements '2', '3', '4'
+    make_arrview(v_view, 2, 3, v); //pointer to elements '2', '3', '4'
     array_remove_view_fill(v, v_view, 9);
-    print_array(v); //prints: 015678999
+    print_array(v); //prints: [0,1,5,6,7,8,9,9,9]
 
  */
 #define array_remove_view_fill(_arr_ptr_, _view_, _val_)  do {     \
@@ -915,7 +1004,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     int v[] = {0,1,2,3,4};
     int *ptr = &v[2]; //pointer to value '2'
     array_remove_ref(v, ptr);
-    print_array(v); //prints: 01344
+    print_array(v); //prints: [0,1,3,4,4]
 
  */
 #define array_remove_ref(_arr_ptr_, _ref_)                                       \
@@ -946,7 +1035,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     int v[] = {0,1,2,3,4};
     int *ptr = &v[2]; //pointer to value '2'
     array_remove_ref_fill(v, ptr, 9);
-    print_array(v); //prints: 01349
+    print_array(v); //prints: [0,1,3,4,9]
 
  */
 #define array_remove_ref_fill(_arr_ptr_, _ref_, _val_) \
@@ -1003,7 +1092,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  *
     long v[] = {0,1,2,3,4,5,6};
     array_insert_array(v, 2, (long[]){7,8,9});
-    print_array(v);
+    print_array(v); //prints: [0,1,7,8,9,2,3]
 
  */
 #define array_insert_array(_arr_, _idx_, ...) h_array_insert_array(_arr_, _idx_, (__VA_ARGS__))
@@ -1040,19 +1129,6 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 #define h_decl_arrview_ref_ref(_name_, _ref1_, _ref2_) \
     typeof(*(_ref1_))(*_name_)[ (_ref2_) - (_ref1_) + 1]
-
-/* Prints array as [x,y,z,...] */
-#define print_array_fmt(...) do {                                      \
-    const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);               \
-    print("[", *unsafe_array_first_ref(_tmp_arr_ptr_));                \
-                                                                       \
-    if(UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_) > 1) {                        \
-        make_arrview_cfront(_tmp_arr_ptr2_, 1, _tmp_arr_ptr_);         \
-        unsafe_foreach_array_ref(_tmp_arr_ptr2_, ref)                  \
-            print(",", *ref);                                          \
-    }                                                                  \
-    println((char)']');                                                \
-} while (0)
 
 /* Array bit operations */
 
