@@ -659,10 +659,10 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
  * returns static single zero-terminated string with format specifiers for all variables passed
  * @endl: if set to non zero then it will add \n symbol to printf specifiers string
  */
-#define printf_specifier_string(endl, first_arg, ...) \
-    IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (printf_specifier_single, printf_specifier_string_multi)(endl, first_arg, __VA_ARGS__)
+#define printf_specifier_string(endl, ...) \
+    IF( ARGS_COUNT_ZERO(__VA_ARGS__) ) (printf_specifier_string_multi, printf_specifier_single)(endl, __VA_ARGS__)
 
-#define printf_specifier_single(endl, arg, ...) \
+#define printf_specifier_single(endl, arg) \
     IF( endl ) ( printf_dec_format_newline, printf_dec_format )(arg)
 
 #define _printf_specifier_size(x) (sizeof(printf_dec_format(x)) - 1)
