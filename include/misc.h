@@ -787,20 +787,20 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 
 /* single println variant, optimized case when single argument is a string
  * in that case we will use puts() */
-#define single_println(arg, ...)                                            \
-        is_same_type(arg, char*, 1, 1) ? puts( puts_charptr_guard(arg) ) : \
+#define single_println(arg)                                                 \
+        is_same_type(arg, char*, 1, 1) ? puts( puts_charptr_guard(arg) ) :  \
         println_main(arg)
 
 /* single print variant, optimized cases when single argument is string or char */
-#define single_print(arg, ...)                                                       \
+#define single_print(arg)                                                           \
         is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stdout ) : \
         is_same_type(arg, char, 1, 1)  ? putchar( char_or_zero(arg) ) :             \
         print_main(arg)
 
 /* single fprint variant, optimised cases when single argument is string or char */
-#define single_fprint(stream, arg, ...) \
+#define single_fprint(stream, arg)                                                  \
         is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stream ) : \
-        is_same_type(arg, char, 1, 1)  ? fputc( char_or_zero(arg), stream ) : \
+        is_same_type(arg, char, 1, 1)  ? fputc( char_or_zero(arg), stream ) :       \
         fprint_main(arg)
 
 /* These functions are real printx() functions */
@@ -852,15 +852,11 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
  */
 
 /* Print to stdout */
-#define print_(first_arg, ...)   IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_print, print_main)(first_arg, __VA_ARGS__)
-#define print(...) print_(__VA_ARGS__)
-
-#define println_(first_arg, ...) IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_println, println_main)(first_arg, __VA_ARGS__)
-#define println(...) println_(__VA_ARGS__)
+#define print(...) IF(ARGS_COUNT_ZERO(__VA_ARGS__))(print_main, single_print)(__VA_ARGS__)
+#define println(...) IF( ARGS_COUNT_ZERO(__VA_ARGS__) )(println_main, single_println)(__VA_ARGS__)
 
 /* Print to FILE* */
-#define fprint_(stream, first_arg, ...) IF( IS_ARGS_EMPTY(__VA_ARGS__) ) (single_fprint, fprint_main)(stream, first_arg, __VA_ARGS__)
-#define fprint(stream, ...) fprint_(stream, __VA_ARGS__)
+#define fprint(stream, ...) IF(ARGS_COUNT_ZERO(__VA_ARGS__))(fprint_main, single_fprint)(stream, __VA_ARGS__)
 
 #define fprintln_(stream, ...) fprintf(stream, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 #define fprintln(stream, ...) fprintln_(stream, __VA_ARGS__)
