@@ -665,57 +665,87 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 #define printf_specifier_single(endl, arg, ...) \
     IF( endl ) ( printf_dec_format_newline, printf_dec_format )(arg)
 
-#define _gen_printf_specifier(x)  const char CAT(arr , __COUNTER__ ) [sizeof(printf_dec_format(x)) - 1];
-#define _add_endline(...)  const char endl;
-#define _add_endline_symbol(...) '\n',
+#define _printf_specifier_size(x) (sizeof(printf_dec_format(x)) - 1)
 
-#define _check_specifier_size(x) (sizeof(printf_dec_format(x)) - 1) +
-#define _check_endline_size(...) 1 +
+#define _gen_printf_specifier(idx, x)  const char PRIMITIVE_CAT(s, idx) [_printf_specifier_size(x)];
+#define _add_endline const char endl;
+#define _add_endline_symbol '\n',
+#define _nothing
 
 #define printf_spec_size(endl, ...) \
-        ( MAP(_check_specifier_size, __VA_ARGS__) IF(endl)(_check_endline_size, EAT)() 1 )
+        ( MAP_SEP((+), _printf_specifier_size, __VA_ARGS__) + !!(endl) + 1 )
 
-#define printf_specifier_string_multi(endl, ...) printf_specifier_string_multi_es(endl, __VA_ARGS__)
+//#define printf_specifier_string_multi(endl, ...) printf_specifier_string_multi_es(endl, __VA_ARGS__)
+#define printf_specifier_string_multi(endl, ...) s_printf_specifier_string_multi_es(endl, __VA_ARGS__)
+//#define printf_specifier_string_multi(endl, ...) printf_specifier_string_multi_cl(endl, __VA_ARGS__)
+//#define printf_specifier_string_multi(endl, ...) s_printf_specifier_string_multi_cl(endl, __VA_ARGS__)
 
 /* Variant of creating format string with compound literal,
  * it uses automatic storage duration, but no compiler extensions used here, except for __COUNTER__ macro */
 #define printf_specifier_string_multi_cl(endl, ...) (           \
 (const union {                                                  \
         const struct {                                          \
-                MAP(_gen_printf_specifier, __VA_ARGS__)         \
-                IF(endl)(_add_endline, EAT)()                   \
+                MAP_INDEX(_gen_printf_specifier, __VA_ARGS__)   \
+                IF(endl)(_add_endline, _nothing)                \
                 const char null;                                \
         } specifier ;                                           \
         const char array [printf_spec_size(endl, __VA_ARGS__)]; \
 }){                                                             \
         .specifier = {                                          \
                 MAP_LIST(printf_dec_format, __VA_ARGS__),       \
-                IF(endl)(_add_endline_symbol, EAT)()            \
+                IF(endl)(_add_endline_symbol, _nothing)         \
                 0                                               \
         }                                                       \
-}                                  	                        \
+}                                                               \
 ).array                                                         \
+
+/* Simplified compound literal variant, struct directly casted to const char* */
+#define s_printf_specifier_string_multi_cl(endl, ...)   \
+(const char*)&                                          \
+(const struct {                                         \
+    MAP_INDEX(_gen_printf_specifier, __VA_ARGS__)       \
+    IF(endl)(_add_endline, _nothing)                    \
+    const char null;                                    \
+}){                                                     \
+    MAP_LIST(printf_dec_format, __VA_ARGS__),           \
+    IF(endl)(_add_endline_symbol, _nothing)             \
+    0                                                   \
+}                                                       \
 
 /* Variant of creating format string with an expression statement,
  * resulting object generated at compile time  */
 #define printf_specifier_string_multi_es(endl, ...) ({          \
 static const union {                                            \
         const struct {                                          \
-                MAP(_gen_printf_specifier, __VA_ARGS__)         \
-                IF(endl)(_add_endline, EAT)()                   \
+                MAP_INDEX(_gen_printf_specifier, __VA_ARGS__)   \
+                IF(endl)(_add_endline, _nothing)                \
                 const char null;                                \
         } specifier;                                            \
         const char array [printf_spec_size(endl, __VA_ARGS__)]; \
 } generic_printf_format_string = {                              \
         .specifier = {                                          \
-                MAP_LIST(printf_dec_format, __VA_ARGS__),	\
-                IF(endl)(_add_endline_symbol, EAT)()            \
+                MAP_LIST(printf_dec_format, __VA_ARGS__),       \
+                IF(endl)(_add_endline_symbol, _nothing)         \
                 0                                               \
         }                                                       \
 };                                                              \
 static_assert( sizeof(generic_printf_format_string.array) == sizeof(generic_printf_format_string.specifier), \
 "Size of structure for generic format string differs from array"); \
 generic_printf_format_string.array;                             \
+})
+
+/* Simplified expression statement variant, strcut directly casted to const char* */
+#define s_printf_specifier_string_multi_es(endl, ...) ({    \
+static const struct {                                       \
+    MAP_INDEX(_gen_printf_specifier, __VA_ARGS__)           \
+    IF(endl)(_add_endline, _nothing)                        \
+    const char null;                                        \
+} generic_printf_format_string = {                          \
+    MAP_LIST(printf_dec_format, __VA_ARGS__),               \
+    IF(endl)(_add_endline_symbol, _nothing)                 \
+    0                                                       \
+};                                                          \
+(const char*)&generic_printf_format_string;                 \
 })
 
 /*** Print optimization ****/
