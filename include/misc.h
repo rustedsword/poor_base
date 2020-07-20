@@ -750,16 +750,6 @@ static const struct {                                       \
 
 /*** Print optimization ****/
 
-/* This macro just returns third argument and nothing else */
-#define RETURN_THIRD_ARGUMENT(nothing, nothing2, return_value, ...) return_value
-
-/* returns 1 if args are completely empty, or 0 if something is present in __VA_ARGS__, including commas, () or other values
- *
- * we are calling RETURN_THIRD_ARGUMENT with four args, if __VA_ARGS__ is empty,
- * second argument will be removed, so fourth argument(1) becomes thrid and returned */
-#define IS_ARGS_EMPTY(x, ...) IS_ARGS_EMPTY__(x)
-#define IS_ARGS_EMPTY__(...) RETURN_THIRD_ARGUMENT(nothing, ## __VA_ARGS__, 0, 1 )
-
 /* is_same_type(variable, _type_, SIMPLE, CONST)
  * returns true if variable is _type_, or returns false
  *
@@ -852,8 +842,8 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
  */
 
 /* Print to stdout */
-#define print(...) IF(ARGS_COUNT_ZERO(__VA_ARGS__))(print_main, single_print)(__VA_ARGS__)
-#define println(...) IF( ARGS_COUNT_ZERO(__VA_ARGS__) )(println_main, single_println)(__VA_ARGS__)
+#define print(...)   IF(ARGS_COUNT_ZERO(__VA_ARGS__))(print_main, single_print)(__VA_ARGS__)
+#define println(...) IF(ARGS_COUNT_ZERO(__VA_ARGS__))(println_main, single_println)(__VA_ARGS__)
 
 /* Print to FILE* */
 #define fprint(stream, ...) IF(ARGS_COUNT_ZERO(__VA_ARGS__))(fprint_main, single_fprint)(stream, __VA_ARGS__)
@@ -928,6 +918,16 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 
 
 /* Obsolete */
+
+/* This macro just returns third argument and nothing else */
+#define RETURN_THIRD_ARGUMENT(nothing, nothing2, return_value, ...) return_value
+
+/* returns 1 if args are completely empty, or 0 if something is present in __VA_ARGS__, including commas, () or other values
+ *
+ * we are calling RETURN_THIRD_ARGUMENT with four args, if __VA_ARGS__ is empty,
+ * second argument will be removed, so fourth argument(1) becomes thrid and returned */
+#define IS_ARGS_EMPTY(x, ...) IS_ARGS_EMPTY__(x)
+#define IS_ARGS_EMPTY__(...) RETURN_THIRD_ARGUMENT(nothing, ## __VA_ARGS__, 0, 1 )
 
 static inline void printf_bool(const char *fmt, bool val) {
     (void)fmt;
