@@ -1132,6 +1132,37 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define h_decl_arrview_ref_ref(_name_, _ref1_, _ref2_) \
     typeof(*(_ref1_))(*_name_)[ (_ref2_) - (_ref1_) + 1]
 
+/* [make_]arrview_dim(size, src_arr)
+ * Creates an arrview for array by splitting it's top dimension into two dimensions
+ * int a[12] -> 4 -> int (*ptr)[3][4];
+ * int a[7] -> 3 -> int (*ptr)[2][3]; //Last element won't be part of the view
+ *
+ * @size: size of second dimension, should not be less than source array size
+ * @src_arr: source array/pointer to array
+ */
+#define make_arrview_dim(_name_, _size_, ...) h_make_arrview_dim(_name_, (_size_), (__VA_ARGS__))
+#define h_make_arrview_dim(_name_, _size_, _arr_) ARRAY_ELEMENT_TYPE(_arr_) (*_name_) [ h_check_arrview_dim(_size_, _arr_) ][_size_] = (void*)_arr_
+
+#define arrview_dim(_size_, ...) h_arrview_dim((_size_), (__VA_ARGS__))
+#define h_arrview_dim(_size_, _arr_) ((ARRAY_ELEMENT_TYPE(_arr_) (*) [ h_check_arrview_dim(_size_, _arr_) ][_size_])_arr_)
+
+#define h_check_arrview_dim(_size_, _arr_) _Generic(1,           \
+    int*:   sizeof(char [_size_ < 0 ? -1 : 1]),                  \
+    int**:  sizeof(char [_size_ > ARRAY_SIZE(_arr_) ? -1 : 1]),  \
+    default: ARRAY_SIZE(_arr_) / _size_                          \
+    )
+
+/* [make_]arrview_flat(src_arr)
+ * Creates an arrview for multi-dimensional array by merging it's first two dimensions into single dimension
+ * int a[4][3] -> int (*ptr)[12]
+ *
+ * @src_arr: source array/pointer to array. Should contain at least two dimensions
+ */
+#define make_arrview_flat(_name_, ...) h_make_arrview_flat(_name_, (__VA_ARGS__))
+#define h_make_arrview_flat(_name_, _arr_) UNSAFE_ARRAY_ELEMENT_TYPE(auto_arr(_arr_)[0])(*_name_) [ARRAY_SIZE(_arr_) * UNSAFE_ARRAY_SIZE(auto_arr(_arr_)[0])] = (void*)_arr_
+#define arrview_flat(...) h_arrview_flat((__VA_ARGS__))
+#define h_arrview_flat(_arr_) ((UNSAFE_ARRAY_ELEMENT_TYPE(auto_arr(_arr_)[0])(*)[ARRAY_SIZE(_arr_) * UNSAFE_ARRAY_SIZE(auto_arr(_arr_)[0])])_arr_)
+
 /* Array bit operations */
 
 #define ARRAY_SIZE_BITS(arr) (ARRAYS_SIZE_BYTES(arr) * 8)
