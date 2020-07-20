@@ -221,13 +221,14 @@
  * example:
 
     #define do_add(val)  (val + 2)
-    int a = MAP_SEP((+), do_add, a, 2, 4, 3);
+    int a = MAP_SEP((+), do_add, 2, 4, 3);
 
     //this expands to:
     // int a = (2 + 2) + (4 + 2) + (3 + 2);
 
     #define do_print_value(val) "val:", val
-    println("Values: ", MAP_SEP((," ",), do_print_value, 40, 5, 2) );
+    println("Values: ", MAP_SEP((, " ",), do_print_value, 40, 5, 2) );
+
     //this expands to:
     // println("Values: ", "val:", 40, " ", "val:", 5, " ", "val:", 2);
 
@@ -263,12 +264,10 @@
     int a[10];
 
     #define init_array_element(_idx_, _array_, _val_) (_array_)[_idx_] = (_val_)
-    MAP_SEQ_ARG_IDX((,), init_array_element, a, 10, 20, 30)
+    ( MAP_SEQ_ARG_IDX((,), init_array_element, a, 10, 20, 30) );
 
     //this expands to:
-    // a[0] = 10;
-    // a[1] = 20;
-    // a[2] = 30;
+    // ( a[0] = 10, a[1] = 20, a[2] = 30 );
 
  */
 #define MAP_SEP_ARG_IDX(sep, f, p, ...) EVAL_SELECT(__VA_ARGS__)(MAP_SEP_ARG_IDX1(sep, f, (1), p, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
