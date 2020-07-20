@@ -25,7 +25,7 @@ union _not_an_array_type_ {char a;};
 /* returns dummy array if var is VLA. returns dummy pointer if var is pointer to VLA otherwise returns var */
 #define vla_ptr_check(var)                                           \
                     if_vla(var,                                      \
-                        (union _dummy_type_ [1]){0},                 \
+                        (union _dummy_type_ [1]){{0}},               \
                         if_vla(*(var),                               \
                                 (union _not_an_array_type_ ***){0},  \
                                 var)                                 \
@@ -43,7 +43,7 @@ union _not_an_array_type_ {char a;};
 #define deref_or_arr__vla(var)  if_arr__vla_guard(var, var, *var)
 
 /* replaces var with dummy array if var is VLA */
-#define vla_check(var) if_vla(var, (union _dummy_type_ [1]){0}, var )
+#define vla_check(var) if_vla(var, (union _dummy_type_ [1]){{0}}, var )
 
 /* evaluates t, if var is array, do not use directly */
 #define if_arr__no_vla_ptr(var, t)	 	 	\
