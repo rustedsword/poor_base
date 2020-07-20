@@ -283,7 +283,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define foreach_array_ref_base(prefix, _arr_, _ref_ptr_name_)                           \
         for(prefix ARRAY_ELEMENT_TYPE(_arr_)                                            \
                 (*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),          \
-                *_ref_ptr_name_ = &(*_tmp_arr_ptr_)[0];                                 \
+                *_ref_ptr_name_ = unsafe_array_first_ref(_tmp_arr_ptr_);                \
                                                                                         \
                 _ref_ptr_name_ < unsafe_array_end_ref(_tmp_arr_ptr_);                   \
                                                                                         \
@@ -295,10 +295,10 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  * @_ref_ptr_name_: name of new pointer for iteration
  */
 #define unsafe_foreach_array_ref(_array_ptr_, _ref_ptr_name_) \
-    for(unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != &(*(_array_ptr_))[UNSAFE_ARRAY_SIZE(*(_array_ptr_))]; _ref_ptr_name_++)
+    for(unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != unsafe_array_end_ref(_array_ptr_); _ref_ptr_name_++)
 
 #define unsafe_foreach_array_const_ref(_array_ptr_, _ref_ptr_name_) \
-    for(const unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != &(*(_array_ptr_))[UNSAFE_ARRAY_SIZE(*(_array_ptr_))]; _ref_ptr_name_++)
+    for(const unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != unsafe_array_end_ref(_array_ptr_); _ref_ptr_name_++)
 
 
 /*
@@ -317,9 +317,9 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)                            \
         for(prefix ARRAY_ELEMENT_TYPE(_arr_)                                                \
                 (*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),              \
-                *_ref_ptr_name_ = &(*_tmp_arr_ptr_)[UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_) - 1]; \
+                *_ref_ptr_name_ = unsafe_array_last_ref(_tmp_arr_ptr_)                      \
                                                                                             \
-                _ref_ptr_name_ >= &(*_tmp_arr_ptr_)[0];                                     \
+                _ref_ptr_name_ >= unsafe_array_first_ref(_tmp_arr_ptr_)                     \
                                                                                             \
                 (_ref_ptr_name_)--)
 
