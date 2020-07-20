@@ -317,9 +317,9 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)                            \
         for(prefix ARRAY_ELEMENT_TYPE(_arr_)                                                \
                 (*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),              \
-                *_ref_ptr_name_ = unsafe_array_last_ref(_tmp_arr_ptr_)                      \
+                *_ref_ptr_name_ = unsafe_array_last_ref(_tmp_arr_ptr_);                     \
                                                                                             \
-                _ref_ptr_name_ >= unsafe_array_first_ref(_tmp_arr_ptr_)                     \
+                _ref_ptr_name_ >= unsafe_array_first_ref(_tmp_arr_ptr_);                    \
                                                                                             \
                 (_ref_ptr_name_)--)
 
