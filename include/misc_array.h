@@ -621,44 +621,44 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define make_arrview_shrink(_name_, skip_start, skip_end, ...) \
     ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = arrview_shrink(skip_start, skip_end, __VA_ARGS__)
 
-#define arrview_shrink(skip_start, skip_end, ...) array_slice_shrink_(skip_start, skip_end, (__VA_ARGS__))
+#define arrview_shrink(skip_start, skip_end, ...) array_slice_shrink_((skip_start), (skip_end), (__VA_ARGS__))
 
 /* (make_)array_slice_shrink() runtime and static error checking */
 #if defined (ARRAY_RUNTIME_CHECKS)
-#define array_slice_shrink_(skip_start, skip_end, ...) arrslc_shrink_dyncheck(skip_start, skip_end, __VA_ARGS__)
+#define array_slice_shrink_(skip_start, skip_end, _arr_) arrslc_shrink_dyncheck(skip_start, skip_end, _arr_)
 #else
-#define array_slice_shrink_(skip_start, skip_end, ...) arrslc_shrink_static(skip_start, skip_end, __VA_ARGS__)
+#define array_slice_shrink_(skip_start, skip_end, _arr_) arrslc_shrink_static(skip_start, skip_end, _arr_)
 #endif
 
-#define arrslc_shrink_static(skip_start, skip_end, ...) \
-        (ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*) [ chk_arrslc_shrink_static((__VA_ARGS__), (skip_start), (skip_end)) ]) &(auto_arr((__VA_ARGS__))[skip_start])
+#define arrslc_shrink_static(skip_start, skip_end, _arr_) \
+        (ARRAY_ELEMENT_TYPE(_arr_) (*) [ chk_arrslc_shrink_static(_arr_, skip_start, skip_end) ]) &(auto_arr(_arr_)[skip_start])
 
-#define chk_arrslc_shrink_static(arr, skip_start, skip_end) _Generic(1,                 \
-    int*:   sizeof(char [skip_start < 0 ? -1 : 1]),                                     \
-    int**:  sizeof(char [skip_end < 0 ? -1 : 1]),                                       \
-    int***: sizeof(char [skip_start >= ARRAY_SIZE(arr) ? -1 : 1 ] ),                    \
-    char*:  sizeof(char [skip_end >= ARRAY_SIZE(arr) ? -1 : 1 ] ),                      \
-    char**: sizeof(char [skip_start + skip_end >= ARRAY_SIZE(arr) ? -1 : 1 ] ),         \
-    default: ARRAY_SIZE(arr) - (skip_start) - (skip_end)                                \
+#define chk_arrslc_shrink_static(_arr_, skip_start, skip_end) _Generic(1,                 \
+    int*:   sizeof(char [skip_start < 0 ? -1 : 1]),                                       \
+    int**:  sizeof(char [skip_end < 0 ? -1 : 1]),                                         \
+    int***: sizeof(char [skip_start >= ARRAY_SIZE(_arr_) ? -1 : 1 ] ),                    \
+    char*:  sizeof(char [skip_end >= ARRAY_SIZE(_arr_) ? -1 : 1 ] ),                      \
+    char**: sizeof(char [skip_start + skip_end >= ARRAY_SIZE(_arr_) ? -1 : 1 ] ),         \
+    default: ARRAY_SIZE(_arr_) - (skip_start) - (skip_end)                                \
     )
 
-#define arrslc_shrink_dyncheck(skip_start, skip_end, ...) \
-         ((void)chk_arrslc_shrink_dyn((__VA_ARGS__), skip_start, skip_end) ,(ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (*) [ ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ]) &(auto_arr((__VA_ARGS__))[skip_start]))
+#define arrslc_shrink_dyncheck(skip_start, skip_end, _arr_) \
+         ((void)chk_arrslc_shrink_dyn(_arr_, skip_start, skip_end), (ARRAY_ELEMENT_TYPE(_arr_) (*) [ ARRAY_SIZE(_arr_) - skip_start - skip_end ]) &(auto_arr(_arr_)[skip_start]))
 
-#define chk_arrslc_shrink_dyn(arr, skip_start, skip_end) (                                                                                                      \
+#define chk_arrslc_shrink_dyn(_arr_, skip_start, skip_end) (                                                                                                      \
         (void)(sizeof(char [skip_start < 0 ? -1 : 1]) != 1 ?                                                                                                    \
             arr_errmsg(CRED "Start index less than 0 when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                                       \
         (void)(sizeof(char [skip_end < 0 ? -1 : 1]) != 1 ?                                                                                                      \
             arr_errmsg(CRED "End index is less than 0 when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                                \
-        (void)(sizeof(char [skip_start >= ARRAY_SIZE(arr) ? -1 : 1]) != 1 ? 											\
+        (void)(sizeof(char [skip_start >= ARRAY_SIZE(_arr_) ? -1 : 1]) != 1 ? 											\
             arr_errmsg(CRED "Start index is equals or greater than array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__),	                \
-            " skip_start:", skip_start, " array size:", ARRAY_SIZE(arr), CRESET) : 0),                                                                              \
-        (void)(sizeof(char [skip_end >= ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?                                                                                       \
+            " skip_start:", skip_start, " array size:", ARRAY_SIZE(_arr_), CRESET) : 0),                                                                              \
+        (void)(sizeof(char [skip_end >= ARRAY_SIZE(_arr_) ? -1 : 1]) != 1 ?                                                                                       \
             arr_errmsg(CRED "End index is equals or greater than array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__),                	\
-            " skip_end:", skip_end, " array size:", ARRAY_SIZE(arr), CRESET) : 0),                                                                                  \
-        (void)(sizeof(char [skip_start + skip_end >= ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?                                                                          \
+            " skip_end:", skip_end, " array size:", ARRAY_SIZE(_arr_), CRESET) : 0),                                                                                  \
+        (void)(sizeof(char [skip_start + skip_end >= ARRAY_SIZE(_arr_) ? -1 : 1]) != 1 ?                                                                          \
             arr_errmsg(CRED "Sum of start position and end position is equals or greater than source array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) \
-            " skip_start:", skip_start, " skip_end:", skip_end, " array size:", ARRAY_SIZE(arr), CRESET) : 0)                                                       \
+            " skip_start:", skip_start, " skip_end:", skip_end, " array size:", ARRAY_SIZE(_arr_), CRESET) : 0)                                                       \
     )
 
 
@@ -797,7 +797,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 	print("[", *unsafe_array_first_ref(_tmp_arr_ptr_));		\
 									\
 	if(UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_) > 1) {			\
-		make_arrview_cfront(_tmp_arr_ptr2_, 1, _tmp_arr_ptr_);	\
+        make_arrview_cfront(_tmp_arr_ptr2_, 1, _tmp_arr_ptr_);	\
 		unsafe_foreach_array_ref(_tmp_arr_ptr2_, ref)		\
 			print(",", *ref);				\
 	}								\
