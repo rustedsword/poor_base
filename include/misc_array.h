@@ -314,14 +314,14 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 /* same as foreach_array_ref_bw(), but _ref_ptr_name_ is always const */
 #define foreach_array_const_ref_bw(_arr_, _ref_ptr_name_) foreach_array_ref_bw_base(const, (_arr_), _ref_ptr_name_)
 
-#define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)                            \
-        for(prefix ARRAY_ELEMENT_TYPE(_arr_)                                                \
-                (*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),              \
-                *_ref_ptr_name_ = unsafe_array_last_ref(_tmp_arr_ptr_);                     \
-                                                                                            \
-                _ref_ptr_name_ >= unsafe_array_first_ref(_tmp_arr_ptr_);                    \
-                                                                                            \
-                (_ref_ptr_name_)--)
+#define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)		\
+	for(prefix ARRAY_ELEMENT_TYPE(_arr_)					\
+		(*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),	\
+		*_ref_ptr_name_ = unsafe_array_last_ref(_tmp_arr_ptr_);		\
+										\
+		_ref_ptr_name_ >= unsafe_array_first_ref(_tmp_arr_ptr_);	\
+										\
+		(_ref_ptr_name_)--)
 
 /* Get index of an array element where _ref_ is pointing.
  * @_array_ptr_: array or pointer to array
@@ -794,14 +794,13 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  */
 #define print_array(...) do {						\
 	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);		\
-	print("[", *unsafe_array_first_ref(_tmp_arr_ptr_));		\
-									\
-	if(UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_) > 1) {			\
-        make_arrview_cfront(_tmp_arr_ptr2_, 1, _tmp_arr_ptr_);	\
-		unsafe_foreach_array_ref(_tmp_arr_ptr2_, ref)		\
-			print(",", *ref);				\
-	}								\
-	println((char)']');						\
+	unsafe_make_array_first_ref(_tmp_arr_ptr_, _ref_);		\
+										\
+	print((char)'[', *_ref_);						\
+	for(_ref_++; _ref_ != unsafe_array_end_ref(_tmp_arr_ptr_); _ref_++)	\
+		print((char)',', *_ref_);					\
+										\
+	println("]");								\
 } while (0)
 
 /* Prints array as formatted output with custom print function for each element
@@ -849,20 +848,15 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     //]
 
  */
-#define print_array_fmt(_fmt_fn_, ...) do {				\
-	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);		\
-	print((char)'[');						\
-	unsafe_make_array_first_ref(_tmp_arr_ptr_, _first_ref_);	\
-	_fmt_fn_(_first_ref_);						\
-									\
-	if(UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_) > 1) {			\
-		make_arrview_cfront(_tmp_arr_ptr2_, 1, _tmp_arr_ptr_);	\
-		unsafe_foreach_array_ref(_tmp_arr_ptr2_, ref) {		\
-			print((char)',');				\
-			_fmt_fn_(ref);					\
-		}							\
-	}								\
-	println((char)']');						\
+#define print_array_fmt(_fmt_fn_, ...) do {					\
+	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);			\
+	unsafe_make_array_first_ref(_tmp_arr_ptr_, _ref_);			\
+										\
+	print((char)'['); _fmt_fn_(_ref_);					\
+	for(_ref_++; _ref_ != unsafe_array_end_ref(_tmp_arr_ptr_); _ref_++) {	\
+		print((char)','); _fmt_fn_(_ref_);				\
+	}									\
+	println("]");								\
 } while (0)
 
 /*** Beta features ****/
@@ -1201,22 +1195,24 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
         _bit_idx_name_ --)
 
 #define print_array_bits(_arr_) do {						\
-	print("|");								\
-	foreach_array_bit_bw(_arr_, bit_idx) {					\
-		print( array_get_bit(_arr_, bit_idx) ? CGREEN "X" : CRED "O");	\
+	const size_t _tmp_el_size_ = ARRAY_ELEMENT_SIZE(_arr_);			\
+	const size_t _tmp_arr_size_ = ARRAY_SIZE_BYTES(_arr_);			\
+	print((char)'|');							\
+	foreach_array_bit_bw(_arr_, _bit_idx_) {				\
+		print( array_get_bit(_arr_, _bit_idx_) ? CGREEN "X" : CRED "O");\
 										\
-		if(!(bit_idx % (ARRAY_ELEMENT_SIZE(_arr_) * 8)))		\
+		if(!(_bit_idx_ % (_tmp_el_size_ * 8)))				\
 			print(CRESET "|");					\
-		else if( !(bit_idx % 8) )					\
+		else if( !(_bit_idx_ % 8) )					\
 			print(CBLUE "|");					\
 	}									\
 	print((char)'\n');							\
 										\
-	for(size_t _byte_idx_ = ARRAY_SIZE_BYTES(_arr_); _byte_idx_ <= ARRAY_SIZE_BYTES(_arr_); _byte_idx_--) {	\
-		print(!(_byte_idx_ % ARRAY_ELEMENT_SIZE(_arr_)) ? CRESET : CBLUE, 				\
-			fmt_w( _byte_idx_ ? (_byte_idx_ * 8) - 1 : 0, _byte_idx_ ? -9 : 0));			\
-	}													\
-	print((char)'\n');											\
+	for(size_t _byte_idx_ = _tmp_arr_size_; _byte_idx_ <= _tmp_arr_size_; _byte_idx_--) {	\
+		print(!(_byte_idx_ % _tmp_el_size_) ? CRESET : CBLUE,				\
+			fmt_w( _byte_idx_ ? (_byte_idx_ * 8) - 1 : 0, _byte_idx_ ? -9 : 0));	\
+	}											\
+	print((char)'\n');									\
 } while(0)
 
 /**** Obsolete ****/
