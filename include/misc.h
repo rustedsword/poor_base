@@ -225,6 +225,22 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
 #define PP_NARG_HELPER3_11(N)    N
 
 
+/* Test macro helpers for single or multiple arguments in variadic argument list */
+#define ARG_TST_END2(...) 0, 0
+#define ARG_TST_END1(...) ARG_TST_END2
+#define ARG_TST_END(...) ARG_TST_END1
+
+#define ARG_TEST3(test, t, f, ...) f
+#define ARG_TEST2(test, t, f) ARG_TEST3(test, t, f, 0)
+#define ARG_TEST1(test, t, f) ARG_TEST2(ARG_TST_END test, t, f )
+
+#define SINGLE_ARG_TEST(t, f, _1, test, ...) ARG_TEST1(test, t, f)
+
+/* Returns 1 if single argument passed in variadic argument list, or 0 if more than one argument passed */
+#define IS_SINGLE_ARG(...) SINGLE_ARG_TEST(1, 0, __VA_ARGS__, (0)(0)(0), 0)
+/* Expands t if single argument passed in variadic argument list, or f if more than one argument passed */
+#define IF_SINGLE_ARG(t, f, ...) SINGLE_ARG_TEST(t, f, __VA_ARGS__, (0)(0)(0), 0)
+
 /*
  * this macroses will create zero-terminated slice of string and
  * allocate it using variable length array, alloca or malloc
@@ -660,7 +676,7 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
  * @endl: if set to non zero then it will add \n symbol to printf specifiers string
  */
 #define printf_specifier_string(endl, ...) \
-    IF( ARGS_COUNT_ZERO(__VA_ARGS__) ) (printf_specifier_string_multi, printf_specifier_single)(endl, __VA_ARGS__)
+    IF_SINGLE_ARG(printf_specifier_single, printf_specifier_string_multi, __VA_ARGS__)(endl, __VA_ARGS__)
 
 #define printf_specifier_single(endl, arg) \
     IF( endl ) ( printf_dec_format_newline, printf_dec_format )(arg)
@@ -791,7 +807,7 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 #define single_fprint(stream, arg)                                                  \
         is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stream ) : \
         is_same_type(arg, char, 1, 1)  ? fputc( char_or_zero(arg), stream ) :       \
-        fprint_main(arg)
+        fprint_main(stream, arg)
 
 /* These functions are real printx() functions */
 #define print_main(...)   printf(printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
@@ -842,11 +858,11 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
  */
 
 /* Print to stdout */
-#define print(...)   IF(ARGS_COUNT_ZERO(__VA_ARGS__))(print_main, single_print)(__VA_ARGS__)
-#define println(...) IF(ARGS_COUNT_ZERO(__VA_ARGS__))(println_main, single_println)(__VA_ARGS__)
+#define print(...)   IF_SINGLE_ARG(single_print, print_main, __VA_ARGS__)(__VA_ARGS__)
+#define println(...) IF_SINGLE_ARG(single_println, println_main, __VA_ARGS__)(__VA_ARGS__)
 
 /* Print to FILE* */
-#define fprint(stream, ...) IF(ARGS_COUNT_ZERO(__VA_ARGS__))(fprint_main, single_fprint)(stream, __VA_ARGS__)
+#define fprint(stream, ...) IF_SINGLE_ARG(single_fprint, fprint_main, __VA_ARGS__)(stream, __VA_ARGS__)
 
 #define fprintln_(stream, ...) fprintf(stream, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 #define fprintln(stream, ...) fprintln_(stream, __VA_ARGS__)
