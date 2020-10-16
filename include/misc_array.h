@@ -781,15 +781,15 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  * @__VA_ARGS__: array or pointer to an array
  * example:
 
-    print_array((int[]){1,2,3,4}); //prints: [1,2,3,4];
+	print_array((int[]){1,2,3,4}); //prints: [1,2,3,4];
 
-    const char * strings[4] = {
-	"First",
-	"Second",
-	"Third",
-	"Fourth",
-    };
-    print_array(strings); //prints: [First,Second,Third,Fourth]
+	const char * strings[4] = {
+		"First",
+		"Second",
+		"Third",
+		"Fourth",
+	};
+	print_array(strings); //prints: [First,Second,Third,Fourth]
 
  */
 #define print_array(...) do {						\
@@ -811,41 +811,41 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
  *
  * example:
 
-    // Printing an array of structs
-    struct toto {
-	int a;
-	char *b;
-    };
-    struct toto some_data[4] = {
-	{1, "First"},
-	{2, "Second"},
-	{3, "Third"},
-	{4, "Fourth"},
-    };
+	// Printing an array of structs
+	struct toto {
+		int a;
+		char *b;
+	};
+	struct toto some_data[4] = {
+		{1, "First"},
+		{2, "Second"},
+		{3, "Third"},
+		{4, "Fourth"},
+	};
 
-    #define toto_print(ptr) print("{a:", ptr->a, " b:", ptr->b, "}")
+	#define toto_print(ptr) print("{a:", ptr->a, " b:", ptr->b, "}")
 
-    print_array_fmt(toto_print, some_data); //prints [{a:1 b:First},{a:2 b:Second},{a:3 b:Third},{a:4 b:Fourth}]
+	print_array_fmt(toto_print, some_data); //prints [{a:1 b:First},{a:2 b:Second},{a:3 b:Third},{a:4 b:Fourth}]
 
-    //Printing a multi-dimensional array using inline function
+	//Printing a multi-dimensional array using inline function
 
-    static inline void print_somedata(const int (*data)[4]) {
-	print("\n\t");
-	print_array(data);
-    }
+	static inline void print_somedata(const int (*data)[4]) {
+		print("\n\t");
+		print_array(data);
+	}
 
-    int data[2][4] = {
-	{1,2,3,4},
-	{5,6,7,8},
-    };
+	int data[2][4] = {
+		{1,2,3,4},
+		{5,6,7,8},
+	};
 
-    print_array_fmt(print_somedata, data);
-    //prints:
-    //[
-    //    [1,2,3,4]
-    //,
-    //    [5,6,7,8]
-    //]
+	print_array_fmt(print_somedata, data);
+	//prints:
+	//[
+	//    [1,2,3,4]
+	//,
+	//    [5,6,7,8]
+	//]
 
  */
 #define print_array_fmt(_fmt_fn_, ...) do {					\
