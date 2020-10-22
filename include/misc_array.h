@@ -1194,10 +1194,11 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
         _bit_idx_name_ < ARRAY_SIZE_BITS(arr); \
         _bit_idx_name_ --)
 
-#define print_array_bits(_arr_) do {						\
-	const size_t _tmp_el_size_ = ARRAY_ELEMENT_SIZE(_arr_);			\
-	const size_t _tmp_arr_size_ = ARRAY_SIZE_BYTES(_arr_);			\
+#define print_array_bits(...) do {						\
+	make_arrview_full(_arr_, __VA_ARGS__);					\
 	print((char)'|');							\
+										\
+	const size_t _tmp_el_size_ = UNSAFE_ARRAY_ELEMENT_SIZE(*_arr_);		\
 	foreach_array_bit_bw(_arr_, _bit_idx_) {				\
 		print( array_get_bit(_arr_, _bit_idx_) ? CGREEN "X" : CRED "O");\
 										\
@@ -1208,6 +1209,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 	}									\
 	print((char)'\n');							\
 										\
+	const size_t _tmp_arr_size_ = UNSAFE_ARRAY_SIZE_BYTES(*_arr_);		\
 	for(size_t _byte_idx_ = _tmp_arr_size_; _byte_idx_ <= _tmp_arr_size_; _byte_idx_--) {	\
 		print(!(_byte_idx_ % _tmp_el_size_) ? CRESET : CBLUE,				\
 			fmt_w( _byte_idx_ ? (_byte_idx_ * 8) - 1 : 0, _byte_idx_ ? -9 : 0));	\
