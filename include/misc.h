@@ -1,10 +1,10 @@
 #ifndef MISC_H
 #define MISC_H
 
-#include "map.h"
-#include "stdio.h"
-#include "stdbool.h"
-#include "assert.h"
+#include <map.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <assert.h>
 
 /* assert.h on windows have no static_assert define =\ */
 #if defined WIN32 && !defined static_assert && !defined __cplusplus && defined _MSC_VER

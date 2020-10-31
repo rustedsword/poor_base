@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.14)
 
 if(TARGET poor_base)
     message("Project already exist")
@@ -14,6 +14,10 @@ target_include_directories(poor_base INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 install(TARGETS poor_base EXPORT poor_base-config)
 

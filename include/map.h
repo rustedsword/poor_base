@@ -29,6 +29,11 @@
 #ifndef MAP_H_INCLUDED
 #define MAP_H_INCLUDED
 
+#define TOKEN_CAT_2(a, ...) TOKEN_CAT_1(a, __VA_ARGS__)
+#define TOKEN_CAT_1(a, ...) a ## __VA_ARGS__
+
+#define EXPAND(...) __VA_ARGS__
+
 #define H_ARG_CUT( \
     _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8,  _9, _10, \
     _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, \
@@ -152,8 +157,44 @@
 
 #define EVAL_MAX(...) EVAL_210(__VA_ARGS__)
 
-/* Choses one of EVAL_X macro depending on arguments count */
-#define EVAL_SELECT(...) CAT(EVAL_, EVAL_ARGS_COUNT(__VA_ARGS__))
+
+/* Same set as above, but with different name, for nested calls */
+#define EVAL2_1(...) __VA_ARGS__
+#define EVAL2_2(...) EVAL2_1(__VA_ARGS__)
+#define EVAL2_3(...) EVAL2_1(EVAL2_1(__VA_ARGS__))
+#define EVAL2_4(...) EVAL2_2(EVAL2_1(__VA_ARGS__))
+#define EVAL2_5(...) EVAL2_3(EVAL2_1(__VA_ARGS__))
+#define EVAL2_6(...) EVAL2_4(EVAL2_1(__VA_ARGS__))
+#define EVAL2_7(...) EVAL2_5(EVAL2_1(__VA_ARGS__))
+#define EVAL2_8(...) EVAL2_6(EVAL2_1(__VA_ARGS__))
+#define EVAL2_9(...) EVAL2_7(EVAL2_1(__VA_ARGS__))
+#define EVAL2_10(...) EVAL2_8(EVAL2_1(__VA_ARGS__))
+
+#define EVAL2_15(...) EVAL2_10(EVAL2_4(__VA_ARGS__))
+#define EVAL2_20(...) EVAL2_15(EVAL2_4(__VA_ARGS__))
+#define EVAL2_25(...) EVAL2_20(EVAL2_4(__VA_ARGS__))
+#define EVAL2_30(...) EVAL2_25(EVAL2_4(__VA_ARGS__))
+
+#define EVAL2_40(...) EVAL2_30(EVAL2_9(__VA_ARGS__))
+#define EVAL2_50(...) EVAL2_40(EVAL2_9(__VA_ARGS__))
+#define EVAL2_60(...) EVAL2_50(EVAL2_9(__VA_ARGS__))
+#define EVAL2_70(...) EVAL2_60(EVAL2_9(__VA_ARGS__))
+#define EVAL2_80(...) EVAL2_70(EVAL2_9(__VA_ARGS__))
+#define EVAL2_90(...) EVAL2_80(EVAL2_9(__VA_ARGS__))
+#define EVAL2_100(...) EVAL2_90(EVAL2_9(__VA_ARGS__))
+
+#define EVAL2_125(...) EVAL2_100(EVAL2_20(EVAL2_4(__VA_ARGS__)))
+#define EVAL2_150(...) EVAL2_100(EVAL2_40(EVAL2_9(__VA_ARGS__)))
+#define EVAL2_175(...) EVAL2_100(EVAL2_70(EVAL2_4(__VA_ARGS__)))
+#define EVAL2_200(...) EVAL2_100(EVAL2_90(EVAL2_9(__VA_ARGS__)))
+#define EVAL2_210(...) EVAL2_200(EVAL2_9(__VA_ARGS__))
+
+#define EVAL2_MAX(...) EVAL2_210(__VA_ARGS__)
+
+
+/* Choses one of EVAL_X/EVAL2_x macros depending on arguments count */
+#define EVAL_SELECT(...) TOKEN_CAT_2(EVAL_, EVAL_ARGS_COUNT(__VA_ARGS__))
+#define EVAL2_SELECT(...) TOKEN_CAT_2(EVAL2_, EVAL_ARGS_COUNT(__VA_ARGS__))
 
 /* map helpers */
 #define MAP_END(...)
@@ -181,9 +222,13 @@
    // printf("%d\n", 5);
 
  */
-#define MAP(f, ...) EVAL_SELECT(__VA_ARGS__)(MAP1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
-#define MAP0(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP1)(f, peek, __VA_ARGS__)
-#define MAP1(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP0)(f, peek, __VA_ARGS__)
+#define MAP(f, ...) EVAL_SELECT(__VA_ARGS__)(MAP_1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP_0(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP_1)(f, peek, __VA_ARGS__)
+#define MAP_1(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP_0)(f, peek, __VA_ARGS__)
+
+#define MAP2(f, ...) EVAL2_SELECT(__VA_ARGS__)(MAP2_1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP2_0(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP2_1)(f, peek, __VA_ARGS__)
+#define MAP2_1(f, x, peek, ...) f(x) MAP_NEXT(peek, MAP2_0)(f, peek, __VA_ARGS__)
 
 /*
  * Calls macro/function 'f' for each parameters one at a time and with parameter 'p'
@@ -217,12 +262,14 @@
     // printf("index:%d, value:%d\n", 2, 15);
 
  */
-#define MAP_INDEX(f, ...) \
-    EVAL_SELECT(__VA_ARGS__)(MAP_INDEX1(f, (1), __VA_ARGS__, ()()(), ()()(), ()()(), 0))
-#define MAP_INDEX0(f, cnt, x, peek, ...) \
-    f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP_INDEX1)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
-#define MAP_INDEX1(f, cnt, x, peek, ...) \
-    f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP_INDEX0)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+#define MAP_INDEX(f, ...) EVAL_SELECT(__VA_ARGS__)(MAP_INDEX1(f, (1), __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP_INDEX0(f, cnt, x, peek, ...) f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP_INDEX1)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+#define MAP_INDEX1(f, cnt, x, peek, ...) f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP_INDEX0)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+
+#define MAP2_INDEX(f, ...) EVAL2_SELECT(__VA_ARGS__)(MAP2_INDEX1(f, (1), __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP2_INDEX0(f, cnt, x, peek, ...) f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP2_INDEX1)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+#define MAP2_INDEX1(f, cnt, x, peek, ...) f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP2_INDEX0)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+
 
 /*
  * Calls macro/function 'f' for each parameters, provides index of each parameter starting from 0 and passes parameter 'p'
@@ -333,6 +380,10 @@
 #define MAP_LIST_ARG(f, p, ...) EVAL_SELECT(__VA_ARGS__)(MAP_LIST_ARG1(f, p, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 #define MAP_LIST_ARG0(f, p, x, peek, ...) f(p, x) MAP_LIST_NEXT(peek, MAP_LIST_ARG1)(f, p, peek, __VA_ARGS__)
 #define MAP_LIST_ARG1(f, p, x, peek, ...) f(p, x) MAP_LIST_NEXT(peek, MAP_LIST_ARG0)(f, p, peek, __VA_ARGS__)
+
+#define MAP2_LIST_ARG(f, p, ...) EVAL2_SELECT(__VA_ARGS__)(MAP2_LIST_ARG1(f, p, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP2_LIST_ARG0(f, p, x, peek, ...) f(p, x) MAP_LIST_NEXT(peek, MAP2_LIST_ARG1)(f, p, peek, __VA_ARGS__)
+#define MAP2_LIST_ARG1(f, p, x, peek, ...) f(p, x) MAP_LIST_NEXT(peek, MAP2_LIST_ARG0)(f, p, peek, __VA_ARGS__)
 
 
 /* Obsolete */
