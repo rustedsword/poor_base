@@ -318,8 +318,11 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 
 /****** ---- printf modifiers macros ---- ******/
 
-/* Wrap number to unsigned hex type:
- * println(fmt_hex(1)); -> printf("%x\n", 1);  */
+/* fmt_hex(var): hexademical modifier, only integers are supported
+
+	println(fmt_hex(1223)); // -> printf("%x\n", 1223);
+	//prints: 4c7
+ */
 #define fmt_hex(var) _Generic((var),                    \
     signed char:        _to_hex_uchar ,                 \
     unsigned char:      _to_hex_uchar ,                 \
@@ -333,52 +336,88 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
     unsigned long long: _to_hex_ullong                  \
 )(var)
 
-/* convert number to hex with specified precision:
- * println( fmt_hex_p(1, 4) ); -> println( fmt_p(fmt_hex(1), 4) ); -> printf("%.*x\n", 4, 1); */
+/* fmt_hex_p(var, precision) hexademical modifier with specified precision:
+
+	println(fmt_hex_p(1223, 8)); // -> println( fmt_p(fmt_hex(1223), 8) ); -> printf("%.*x\n", 8, 1223);
+	//prints: 000004c7
+ */
 #define fmt_hex_p(var, prcsn) fmt_p(fmt_hex(var), prcsn)
 
-/* convert number to hex with specified width:
- * println( fmt_hex_w(1, 4) ); -> println( fmt_w(fmt_hex(1), 4) ); -> printf("%*x\n", 4, 1); */
+/* fmt_hex_w(var, width) hexademical modifier with specified width:
+
+	println(fmt_hex_w(1223, 8)); // -> println( fmt_w(fmt_hex(1223), 8) ); -> printf("%*x\n", 8, 1223);
+	//prints:      4c7
+ */
 #define fmt_hex_w(var, prcsn) fmt_w(fmt_hex(var), prcsn)
 
-/* convert number to hex with specified width, filled with zeros:
- * println( fmt_hex_zw(1, 4) ); -> println( fmt_zw(fmt_hex(1), 4) ); -> printf("%0*x\n", 4, 1); */
+/* fmt_hex_zw(var, width) hexademical modifier with specified width, filled with zeros:
+
+	//println(fmt_hex_zw(1223, 8)); // -> println( fmt_zw(fmt_hex(1223), 8) ); -> printf("%0*x\n", 8, 1223);
+	//prints: 000004c7
+ */
 #define fmt_hex_zw(var, prcsn) fmt_zw(fmt_hex(var), prcsn)
 
-/* precision modifier:
- * println(fmt_p(10, 4)) -> printf("%.*d", 4, 10); */
-#define fmt_p(var, precision) \
-    _pack_precision(precision), generic_precision_width_fmt(var)
+/* fmt_p(var, precision): precision modifier:
+ *
+	println(fmt_p(10, 4)); // -> printf("%.*d", 4, 10);
+	//prints: 0010
 
-/* width modifier:
- * println(fmt_w(10, 4)) -> printf("%*d", 4, 10); width can be negative */
-#define fmt_w(var, width) \
-    _pack_width(width), generic_precision_width_fmt(var)
+	println(fmt_p("string", 4)); // -> printf("%.*s", 4, "string");
+	//prints: stri
 
-/* width and precision modifiers:
- * width can be negative
+	println(fmt_p(10.f, 3)); // -> printf("%.*f", 3, 10.f);
+	//prints: 10.000
 
-	println(fmt_wp("yeah", 10, 2)); // ->  printf("%*.*s", "yeah", 8, 10);
-	//will print:        ye
+ */
+#define fmt_p(var, precision) _pack_precision(precision), generic_precision_width_fmt(var)
+
+/* fmt_w(var, width) width modifier.
+ * @width can be negative
+
+	println(fmt_w(10, 9)); // -> printf("%*d", 9, 10);
+	//prints:        10
+
+	println(fmt_w("string", 9)); // -> printf("%*s", 9, "string");
+	//prints:    string
+
+	println(fmt_w(10.f, 20)); // -> printf("%*s", 20, 10.f);
+	//prints:            10.000000
+
+ */
+#define fmt_w(var, width) _pack_width(width), generic_precision_width_fmt(var)
+
+/* fmt_wp(var, width, precision) width and precision modifiers:
+ * @width can be negative
+
+	println(fmt_wp(10, 9, 5)); // -> printf("%*.*d", 9, 5, 10);
+	//prints:     00010
+
+	println(fmt_wp("string", 9, 4)); // -> printf("%*.*s", 9, 5, "string");
+	//prints:      stri
+
+	println(fmt_wp(10.f, 8, 2)); // -> printf("%*.*f", 8, 2, 10.f);
+	//prints:    10.00
  */
 #define fmt_wp(var, width, precision) \
     _pack_width(width), _pack_and_precision(precision), generic_precision_width_fmt(var)
 
 /* fmt_zw(var, width): width with zero flag modifier:
- * @width can be negative
  * can only be used with numbers
 
-	println(fmt_zw(10, 4)); // -> printf("%0*d", 4, 10);
-	//will print: 0010
+	println(fmt_zw(10, 9)); // ->  printf("%0*d", 9, 10);
+	//prints: 000000010
+
+	println(fmt_zw(10.f, 20)); // ->  printf("%0*f", 9, 10);
+	//prints: 0000000000010.000000
  */
 #define fmt_zw(var, width) \
     _pack_width_zero(width), generic_precision_width_numbers_fmt(var)
 
-/* width with zero flag modifier and precision:
- * can be used only with real types
+/* fmt_zwp(var, width, precision) width with zero flag modifier and precision:
+ * can only be used with real types
 
-	println(fmt_zwp(10.1f, 8, 3)); // -> printf("%0*.*f", 8, 3, 10.1f);
-	//will print: 0010.100
+	println(fmt_zwp(10.f, 10, 1)); // -> printf("%0*.*f", 10, 1, 10.f);
+	//prints: 00000010.0
  */
 #define fmt_zwp(var, width, precision) \
     _pack_width_zero(width), _pack_and_precision(precision), generic_precision_width_real_fmt(var)
@@ -444,11 +483,11 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 )
 
 #define _each_printf_args(arg) _Generic((arg),   \
-        _hex_uchar_raw:         _psn_hex_uchar,      \
-        _hex_ushort_raw:        _psn_hex_ushort,     \
-        _hex_uint_raw:          _psn_hex_uint,       \
-        _hex_ulong_raw:         _psn_hex_ulong,      \
-        _hex_ullong_raw:        _psn_hex_ullong,     \
+	_hex_uchar_raw:         _psn_hex_uchar,      \
+	_hex_ushort_raw:        _psn_hex_ushort,     \
+	_hex_uint_raw:          _psn_hex_uint,       \
+	_hex_ulong_raw:         _psn_hex_ulong,      \
+	_hex_ullong_raw:        _psn_hex_ullong,     \
         \
         schar_raw:          _psn_schar,   \
         uchar_raw:          _psn_uchar,   \
@@ -499,9 +538,11 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
         bool:               _p_bool             \
 )((arg))
 
-/* This macro is used to convert values for printing */
-#define printf_args_pre_process(...) \
-    MAP_LIST(_each_printf_args, __VA_ARGS__)
+/* printf_args_pre_process(...)
+ * This macro should be used in place of variadic arguments of printf-like functions
+ * if printf_specifier_string() is used to create format specifers
+ * see print_main() macro for example */
+#define printf_args_pre_process(...) MAP_LIST(_each_printf_args, __VA_ARGS__)
 
 /*
  * printf_specifier_string(endl, ...):
@@ -534,7 +575,7 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 //#define printf_specifier_string_multi(endl, ...) s_printf_specifier_string_multi_cl(endl, __VA_ARGS__)
 
 /* Variant of creating format string with compound literal,
- * it uses automatic storage duration, but no compiler extensions used here, except for __COUNTER__ macro */
+ * it uses automatic storage duration, but no compiler extensions used here */
 #define printf_specifier_string_multi_cl(endl, ...) (           \
 (const union {                                                  \
         const struct {                                          \
@@ -566,7 +607,7 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 }                                                       \
 
 /* Variant of creating format string with an expression statement,
- * resulting object generated at compile time  */
+ * resulting string will be generated at compile time, but expression statements is not a part of standard C */
 #define printf_specifier_string_multi_es(endl, ...) ({          \
 static const union {                                            \
         const struct {                                          \
@@ -659,8 +700,8 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
  * by using _Generic() and some magic this macro will create printf specifier string
  * for printf() at compile time for all arguments passed.
  *
- * for example, look at this code:
- *
+ * example:
+
    short sh = 5;
    size_t sz = 9;
    intmax_t max = 700;
@@ -668,7 +709,7 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
    const char str[] = "string";
    uint_fast16_t hx = 0xfefe;
 
-   println(sh, sz, max, truth, str, to_hex(hx, 8));
+   println(sh, sz, max, truth, str, fmt_hex_p(hx, 8));
 
  * println macro after expanding and compilation will become on amd64 linux platform:
 
@@ -678,7 +719,7 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
  *  variable sz of size_t mapped to unsigned long on this platform - %lu
  *  variable max of intmax_t mapped to long - %ld
  *  variable truth is replaced with string "false", (this is actually runtime check)
- *  specifier for variable hx is %.8lx and uint_fast16_t is actiually unsigned long on this platform
+ *  specifier for variable hx is %.*lx with precision 8 and uint_fast16_t is actiually unsigned long on this platform
  *
  * So, by using println() you do not need to remember all these specifiers.
  * Just print your variables with println() and don't fuck your brain anymore!
@@ -690,39 +731,44 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
      // this is int:45, this is float:65.139999 and this is unsigned long to hex:0x23fc
 
      println(true, " or ", false, "? That is the question.");
-     // will print
+     // will print:
      // true or false? That is the question.
  */
 
-/* Print to stdout */
+/* print(...): print to stdout */
 #define print(...)   IF_SINGLE_ARG(single_print, print_main, __VA_ARGS__)(__VA_ARGS__)
+/* println(...): print to stdout with newline */
 #define println(...) IF_SINGLE_ARG(single_println, println_main, __VA_ARGS__)(__VA_ARGS__)
 
-/* Print to FILE* */
+/* fprint(stream, ...): print to FILE* */
 #define fprint(stream, ...) IF_SINGLE_ARG(single_fprint, fprint_main, __VA_ARGS__)(stream, __VA_ARGS__)
 
-#define fprintln_(stream, ...) fprintf(stream, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
-#define fprintln(stream, ...) fprintln_(stream, __VA_ARGS__)
+/* fprint(stream, ...): print to FILE* with newline */
+#define fprintln(stream, ...) h_fprintln_(stream, __VA_ARGS__)
+#define h_fprintln_(stream, ...) fprintf(stream, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
-/* Print to stderr */
-#define printerr_(...)   fprint(stderr, __VA_ARGS__)
-#define printerr(...)   printerr_(__VA_ARGS__)
+/* printerr(...): print to stderr */
+#define printerr(...)   h_printerr_(__VA_ARGS__)
+#define h_printerr_(...)   fprint(stderr, __VA_ARGS__)
 
-#define printerrln_(...) fprintln(stderr, __VA_ARGS__)
-#define printerrln(...)   printerrln_(__VA_ARGS__)
+/* printerrln(...): print to stderr with newline */
+#define printerrln(...)   h_printerrln_(__VA_ARGS__)
+#define h_printerrln_(...) fprintln(stderr, __VA_ARGS__)
 
-/* Print to fd */
+/* dprint(fd, ...): print to file descriptor */
 #define dprint(fd, ...)   dprintf(fd, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+/* dprintln(fd, ...): print to file descriptor with new line*/
 #define dprintln(fd, ...) dprintf(fd, printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
-/* Print to buffer */
+/* sprint(buf, ...): print to buffer. buffer should be large enough for string to fit */
 #define sprint(buf, ...) sprintf(buf, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
-/*
+/* concat(...) / concat_vla(var_name, ...) / concat_alloca(...)
  * Concatenates any number of variables of any standard types into buffer
  * allocated with variable length array, alloca or malloc
  *
  * note: concat_vla() will always create VLA.
+ *	 concat() uses malloc, so it can fail.
  *
  * Examples:
 
@@ -735,39 +781,41 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 	println("Stack string: ", abuf);
 
 	char *buf = concat("num is:", num, " var l is:", l, " string:", str);
-	println("Heap string: ", buf);
-	free(buf);
+	if(buf) {
+		println("Heap string: ", buf);
+		free(buf);
+	}
  */
-#define concat_vla(var_name, ...) \
-    const char * const fmt___ ## var_name = printf_specifier_string(0, __VA_ARGS__); \
-    char var_name[snprintf(NULL, 0, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__)) + 1];        \
-    sprintf(var_name, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__));                           \
-    var_name[ sizeof(var_name) - 1  ] = '\0'
+#define concat_vla(var_name, ...)									\
+	const char * const fmt___ ## var_name = printf_specifier_string(0, __VA_ARGS__);		\
+	char var_name[snprintf(NULL, 0, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__)) + 1];	\
+	sprintf(var_name, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__));			\
+	var_name[ sizeof(var_name) - 1  ] = '\0'
 
 /* Same as concat_vla(), but without '\0' byte at the end */
-#define concat_vla_nonull(var_name, ...)                                                               \
-    const char * const fmt___ ## var_name = printf_specifier_string(0, __VA_ARGS__);                   \
-    char var_name[snprintf(NULL, 0, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__))];        \
-    sprintf(var_name, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__))                        \
+#define concat_vla_nonull(var_name, ...)								\
+	const char * const fmt___ ## var_name = printf_specifier_string(0, __VA_ARGS__);		\
+	char var_name[snprintf(NULL, 0, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__))];	\
+	sprintf(var_name, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__))			\
 
 #define concat_alloca(...) ({ \
-    const char * const fmt = printf_specifier_string(0, __VA_ARGS__); \
-    size_t size = snprintf(NULL, 0, fmt, printf_args_pre_process(__VA_ARGS__));             \
-    char * string = alloca(size + 1);                              \
-    sprintf(string, fmt, printf_args_pre_process(__VA_ARGS__));                             \
-    string[size] = '\0';                                           \
-    string;                                                        \
+	const char * const fmt = printf_specifier_string(0, __VA_ARGS__);		\
+	size_t size = snprintf(NULL, 0, fmt, printf_args_pre_process(__VA_ARGS__));	\
+	char * string = alloca(size + 1);						\
+	sprintf(string, fmt, printf_args_pre_process(__VA_ARGS__));			\
+	string[size] = '\0';								\
+	string;										\
 })
 
-#define concat(...) ({ \
-    const char * const fmt = printf_specifier_string(0, __VA_ARGS__); \
-    size_t size = snprintf(NULL, 0, fmt, printf_args_pre_process(__VA_ARGS__));             \
-    char * string = malloc(size + 1);                              \
-    if(!string)                                                    \
-        NULL;                                                      \
-    sprintf(string, fmt, printf_args_pre_process(__VA_ARGS__));                             \
-    string[size] = '\0';                                           \
-    string;                                                        \
+#define concat(...) ({									\
+	const char * const fmt = printf_specifier_string(0, __VA_ARGS__);		\
+	size_t size = snprintf(NULL, 0, fmt, printf_args_pre_process(__VA_ARGS__));	\
+	char * string = malloc(size + 1);						\
+	if(!string)									\
+		NULL;									\
+	sprintf(string, fmt, printf_args_pre_process(__VA_ARGS__));			\
+	string[size] = '\0';								\
+	string;										\
 })
 
 /* Obsolete */
