@@ -32,6 +32,7 @@
 #define TOKEN_CAT_2(a, ...) TOKEN_CAT_1(a, __VA_ARGS__)
 #define TOKEN_CAT_1(a, ...) a ## __VA_ARGS__
 
+#define EAT(...)
 #define EXPAND(...) __VA_ARGS__
 
 #define H_ARG_CUT( \

@@ -92,8 +92,6 @@
 
 #define IF(c) IIF(BOOL(c))
 
-#define EAT(...)
-#define EXPAND(...) __VA_ARGS__
 #define WHEN(c) IF(c)(EXPAND, EAT)
 
 #define EMPTY()
