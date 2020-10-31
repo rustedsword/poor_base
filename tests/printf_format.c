@@ -195,6 +195,70 @@ static int concat_test(void) {
 	return 0;
 }
 
+static int fmt_p_test(void) {
+	concat_vla(a, fmt_p(10, 4));
+	assert(strcmp(a, "0010") == 0);
+
+	concat_vla(b, fmt_p("string", 4));
+	assert(strcmp(b, "stri") == 0);
+
+	concat_vla(c, fmt_p(10.f, 4));
+	assert(strcmp(c, "10.0000") == 0);
+	return 0;
+}
+
+static int fmt_w_test(void) {
+	concat_vla(a, fmt_w(10, 9));
+	assert(strcmp(a, "       10") == 0);
+
+	concat_vla(b, fmt_w("string", 9));
+	assert(strcmp(b, "   string") == 0);
+
+	concat_vla(c, fmt_w(10.f, 20));
+	assert(strcmp(c, "           10.000000") == 0);
+	return 0;
+}
+
+static int fmt_wp_test(void) {
+	concat_vla(a, fmt_wp(10, 9, 5));
+	assert(strcmp(a, "    00010") == 0);
+
+	concat_vla(b, fmt_wp("string", 9, 4));
+	assert(strcmp(b, "     stri") == 0);
+
+	concat_vla(c, fmt_wp(10.f, 8, 2));
+	assert(strcmp(c, "   10.00") == 0);
+	return 0;
+}
+
+static int fmt_zw_test(void) {
+	concat_vla(a, fmt_zw(10, 9));
+	assert(strcmp(a, "000000010") == 0);
+
+	concat_vla(b, fmt_zw(10.f, 20));
+	assert(strcmp(b, "0000000000010.000000") == 0);
+
+	return 0;
+}
+
+static int fmt_zwp_test(void) {
+	concat_vla(a, fmt_zwp(10.f, 10, 1));
+	assert(strcmp(a, "00000010.0") == 0);
+	return 0;
+}
+
+static int fmt_hex_fmt_test(void) {
+	concat_vla(a, fmt_hex_p(1223, 8));
+	assert(strcmp(a, "000004c7") == 0);
+
+	concat_vla(b, fmt_hex_w(1223, 8));
+	assert(strcmp(b, "     4c7") == 0);
+
+	concat_vla(c, fmt_hex_zw(1223, 8));
+	assert(strcmp(c, "000004c7") == 0);
+	return 0;
+}
+
 typedef int test_fn (void) ;
 
 #define TEST_FN(fn) {STRINGIFY2(fn), fn}
@@ -216,6 +280,13 @@ static struct tests_struct {
 	TEST_FN(printf_fmt_hex_llong),
 	TEST_FN(concat_vla_test),
 	TEST_FN(concat_test),
+
+	TEST_FN(fmt_p_test),
+	TEST_FN(fmt_w_test),
+	TEST_FN(fmt_wp_test),
+	TEST_FN(fmt_zw_test),
+	TEST_FN(fmt_zwp_test),
+	TEST_FN(fmt_hex_fmt_test),
 };
 
 static void usage(void) {

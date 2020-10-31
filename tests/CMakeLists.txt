@@ -22,3 +22,11 @@ add_test(NAME printf_fmt_hex_llong COMMAND printf_format printf_fmt_hex_llong)
 
 add_test(NAME concat_vla_test COMMAND printf_format concat_vla_test)
 add_test(NAME concat_test COMMAND printf_format concat_test)
+
+add_test(NAME fmt_p_test COMMAND printf_format fmt_p_test)
+add_test(NAME fmt_w_test COMMAND printf_format fmt_w_test)
+add_test(NAME fmt_wp_test COMMAND printf_format fmt_wp_test)
+add_test(NAME fmt_zw_test COMMAND printf_format fmt_zw_test)
+add_test(NAME fmt_zwp_test COMMAND printf_format fmt_zwp_test)
+add_test(NAME fmt_hex_fmt_test COMMAND printf_format fmt_hex_fmt_test)
+
