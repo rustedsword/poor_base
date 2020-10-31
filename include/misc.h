@@ -1,8 +1,9 @@
 #ifndef MISC_H
 #define MISC_H
 
-#include <map.h>
+#include <poor_map.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
 
@@ -185,7 +186,9 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
 /* Expands t if single argument passed in variadic argument list, or f if more than one argument passed */
 #define IF_SINGLE_ARG(t, f, ...) SINGLE_ARG_TEST(t, f, __VA_ARGS__, (0)(0)(0), 0)
 
-/*** unpack basic 1-to-1 */
+
+/**** ---- printf format specifiers helper functions ****/
+/* unpack basic types */
 
 static inline char               _p_char(char c)            { return c; }
 static inline signed char        _p_schar(signed char c)    { return c; }
@@ -212,41 +215,30 @@ static inline const char *       _p_cchar_arr_ptr(const char (*c)[]){ return *c;
 
 static inline const void *       _p_cvoid_ptr(const void *c){ return c; }
 
+/* This is special function for bool type to print strings "true" or "false", instead of 1 or 0,
+ * since there is no printf format specifier for bool */
 static inline const char *       _p_bool(bool c) { return c ? "true" : "false"; }
 
-/* simple hex 1-1*/
-
+/* hex types */
 typedef union { unsigned char v; }      _hex_uchar;
 typedef union { unsigned short v; }     _hex_ushort;
 typedef union { unsigned v; }           _hex_uint;
 typedef union { unsigned long v; }      _hex_ulong;
 typedef union { unsigned long long v; } _hex_ullong;
 
+/* functions to pack unsigned integers into _hex unions for _Generic selection  */
 static inline _hex_uchar  _to_hex_uchar(unsigned char c)       { return (_hex_uchar){c}; }
 static inline _hex_ushort _to_hex_ushort(unsigned short c)     { return (_hex_ushort){c}; }
 static inline _hex_uint   _to_hex_uint(unsigned c)             { return (_hex_uint){c}; }
 static inline _hex_ulong  _to_hex_ulong(unsigned long c)       { return (_hex_ulong){c}; }
 static inline _hex_ullong _to_hex_ullong(unsigned long long c) { return (_hex_ullong){c}; }
 
+/* functions for unpacking unsigned integers from _hex_types for passing to printf() */
 static inline unsigned char       _p_hex_uchar(_hex_uchar c){ return c.v; }
 static inline unsigned short      _p_hex_ushort(_hex_ushort c){ return c.v; }
 static inline unsigned            _p_hex_uint(_hex_uint c){ return c.v; }
 static inline unsigned long       _p_hex_ulong(_hex_ulong c){ return c.v; }
 static inline unsigned long long  _p_hex_ullong(_hex_ullong c){ return c.v; }
-
-/* Wrap number to unsigned hex type: println(fmt_hex(1)); -> printf("%x\n", 1);  */
-#define fmt_hex(var) _Generic((var),                    \
-    signed char:        _to_hex_uchar ,                 \
-    unsigned char:      _to_hex_uchar ,                 \
-    short:              _to_hex_ushort,                 \
-    unsigned short:     _to_hex_ushort,                 \
-    int:                _to_hex_uint  ,                 \
-    unsigned:           _to_hex_uint  ,                 \
-    long:               _to_hex_ulong ,                 \
-    unsigned long:      _to_hex_ulong ,                 \
-    long long:          _to_hex_ullong,                 \
-    unsigned long long: _to_hex_ullong                  \
-)(var)
 
 /* printf modifiers */
 typedef union { int p; } format_precision;
@@ -296,7 +288,7 @@ typedef union { unsigned v; }           _hex_uint_raw;
 typedef union { unsigned long v; }      _hex_ulong_raw;
 typedef union { unsigned long long v; } _hex_ullong_raw;
 
-/* pack functions */
+/* pack functions to use with format modifiers  */
 
 static inline schar_raw   _to_psn_schar(signed char c)        { return (schar_raw){c}; }
 static inline uchar_raw   _to_psn_uchar(unsigned char c)      { return (uchar_raw){c}; }
@@ -321,7 +313,7 @@ static inline const_char_ptr_raw _to_psn_const_char_ptr(const char *c) { return 
 static inline const_char_ptr_raw _to_psn_const_char_arr_ptr(const char (*c)[]) { return (const_char_ptr_raw){*c}; }
 static inline const_char_ptr_raw _to_psn_const_char_ptr_bool(bool c) { return (const_char_ptr_raw){ _p_bool(c) }; }
 
-/*** hex pack */
+/*** hex pack to use with format modifiers  */
 
 static inline _hex_uchar_raw  _to_psn_hex_uchar(_hex_uchar c)   { return (_hex_uchar_raw){c.v}; }
 static inline _hex_ushort_raw _to_psn_hex_ushort(_hex_ushort c) { return (_hex_ushort_raw){c.v}; }
@@ -359,18 +351,6 @@ static inline unsigned short      _psn_hex_ushort(_hex_ushort_raw c){ return c.v
 static inline unsigned            _psn_hex_uint(_hex_uint_raw c)    { return c.v; }
 static inline unsigned long       _psn_hex_ulong(_hex_ulong_raw c)  { return c.v; }
 static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v; }
-
-/* convert number to hex with specified precision:
- * println( fmt_hex_p(1, 4) ); -> println( fmt_p(fmt_hex(1), 4) ); -> printf("%.*x\n", 4, 1); */
-#define fmt_hex_p(var, prcsn) fmt_p(fmt_hex(var), prcsn)
-
-/* convert number to hex with specified width:
- * println( fmt_hex_w(1, 4) ); -> println( fmt_w(fmt_hex(1), 4) ); -> printf("%*x\n", 4, 1); */
-#define fmt_hex_w(var, prcsn) fmt_w(fmt_hex(var), prcsn)
-
-/* convert number to hex with specified width, filled with zeros:
- * println( fmt_hex_zw(1, 4) ); -> println( fmt_zw(fmt_hex(1), 4) ); -> printf("%0*x\n", 4, 1); */
-#define fmt_hex_zw(var, prcsn) fmt_zw(fmt_hex(var), prcsn)
 
 
 #define generic_format_selector_int_fmt(var)    \
@@ -419,33 +399,74 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 )(var)
 
 
-/* WARNING: Do not wrap fmt_x() macros in parentheses!! Use them only inside print*() functions! */
+/****** ---- printf modifiers macros ---- ******/
 
-/* precision modifier: printf("%.*d", 4, 10); */
+/* Wrap number to unsigned hex type:
+ * println(fmt_hex(1)); -> printf("%x\n", 1);  */
+#define fmt_hex(var) _Generic((var),                    \
+    signed char:        _to_hex_uchar ,                 \
+    unsigned char:      _to_hex_uchar ,                 \
+    short:              _to_hex_ushort,                 \
+    unsigned short:     _to_hex_ushort,                 \
+    int:                _to_hex_uint  ,                 \
+    unsigned:           _to_hex_uint  ,                 \
+    long:               _to_hex_ulong ,                 \
+    unsigned long:      _to_hex_ulong ,                 \
+    long long:          _to_hex_ullong,                 \
+    unsigned long long: _to_hex_ullong                  \
+)(var)
+
+/* convert number to hex with specified precision:
+ * println( fmt_hex_p(1, 4) ); -> println( fmt_p(fmt_hex(1), 4) ); -> printf("%.*x\n", 4, 1); */
+#define fmt_hex_p(var, prcsn) fmt_p(fmt_hex(var), prcsn)
+
+/* convert number to hex with specified width:
+ * println( fmt_hex_w(1, 4) ); -> println( fmt_w(fmt_hex(1), 4) ); -> printf("%*x\n", 4, 1); */
+#define fmt_hex_w(var, prcsn) fmt_w(fmt_hex(var), prcsn)
+
+/* convert number to hex with specified width, filled with zeros:
+ * println( fmt_hex_zw(1, 4) ); -> println( fmt_zw(fmt_hex(1), 4) ); -> printf("%0*x\n", 4, 1); */
+#define fmt_hex_zw(var, prcsn) fmt_zw(fmt_hex(var), prcsn)
+
+/* precision modifier:
+ * println(fmt_p(10, 4)) -> printf("%.*d", 4, 10); */
 #define fmt_p(var, precision) \
     _pack_precision(precision), generic_precision_width_fmt(var)
 
-/* width modifier: printf("%*d", 4, 10); width can be negative */
+/* width modifier:
+ * println(fmt_w(10, 4)) -> printf("%*d", 4, 10); width can be negative */
 #define fmt_w(var, width) \
     _pack_width(width), generic_precision_width_fmt(var)
 
-/* width and precision modifiers: printf("%*.*d", 4, 8, 10); width can be negative */
+/* width and precision modifiers:
+ * width can be negative
+
+	println(fmt_wp("yeah", 10, 2)); // ->  printf("%*.*s", "yeah", 8, 10);
+	//will print:        ye
+ */
 #define fmt_wp(var, width, precision) \
     _pack_width(width), _pack_and_precision(precision), generic_precision_width_fmt(var)
 
-/* width with zero flag modifier: printf("%0*d", 4, 10); can only be used with numbers */
+/* fmt_zw(var, width): width with zero flag modifier:
+ * @width can be negative
+ * can only be used with numbers
+
+	println(fmt_zw(10, 4)); // -> printf("%0*d", 4, 10);
+	//will print: 0010
+ */
 #define fmt_zw(var, width) \
     _pack_width_zero(width), generic_precision_width_numbers_fmt(var)
 
-/* width with zero flag modifier and precision: printf("%0*.*f", 4, 8, 10f); can be used only with real types */
+/* width with zero flag modifier and precision:
+ * can be used only with real types
+
+	println(fmt_zwp(10.1f, 8, 3)); // -> printf("%0*.*f", 8, 3, 10.1f);
+	//will print: 0010.100
+ */
 #define fmt_zwp(var, width, precision) \
     _pack_width_zero(width), _pack_and_precision(precision), generic_precision_width_real_fmt(var)
 
-/* printf_dec_format(variable)
- *
- * Turns standard types into printf's format specifier
- */
-
+/* printf_dec_format(var): returns single printf's format specifier according to type of var */
 #define printf_dec_format(x) printf_dec_format_base(x,)
 #define printf_dec_format_newline(x) printf_dec_format_base(x, "\n")
 
@@ -567,8 +588,12 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 
 /*
  * printf_specifier_string(endl, ...):
- * returns static single zero-terminated string with format specifiers for all variables passed
+ * returns static single null-terminated string with format specifiers for all variables passed
  * @endl: if set to non zero then it will add \n symbol to printf specifiers string
+ *
+ * usage example:
+ *	char *format = printf_specifier_string(1, 5.6f, true, fmt_hex(0xFFF));
+ *	//format is %f%s%x\n
  */
 #define printf_specifier_string(endl, ...) \
     IF_SINGLE_ARG(printf_specifier_single, printf_specifier_string_multi, __VA_ARGS__)(endl, __VA_ARGS__)
@@ -743,7 +768,7 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
  *
  * usage examples:
 
-     println("this is int:", 45, ", this is float:", 65.14f, " and this is unsigned long to hex:0x", to_hex(9212UL));
+     println("this is int:", 45, ", this is float:", 65.14f, " and this is unsigned long to hex:0x", fmt_hex(9212UL));
      // will print:
      // this is int:45, this is float:65.139999 and this is unsigned long to hex:0x23fc
 
@@ -777,31 +802,32 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 #define sprint(buf, ...) sprintf(buf, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
 /*
- * Concatenates any number of variables of any type into buffer
+ * Concatenates any number of variables of any standard types into buffer
  * allocated with variable length array, alloca or malloc
  *
+ * note: concat_vla() will always create VLA.
+ *
  * Examples:
- *
- * int num = 2; uint64_t l = 500; const char *str = "some string";
- *
- * concat_vla(str_vla, "num is:", num, " var l is:", l, " string:", str);
- * println("VLA string: ", str_vla, " it's size:", sizeof(str_vla));
- *
- * char *abuf = concat_alloca("num is:", num, " var l is:", l, " string:", str);
- * println("Stack string: ", abuf);
- *
- * char *buf = concat("num is:", num, " var l is:", l, " string:", str);
- * println("Heap string: ", buf);
- * free(buf);
- */
 
+	int num = 2; uint64_t l = 500; const char *str = "some string";
+
+	concat_vla(str_vla, "num is:", num, " var l is:", l, " string:", str);
+	println("VLA string: ", str_vla, " it's size:", sizeof(str_vla));
+
+	char *abuf = concat_alloca("num is:", num, " var l is:", l, " string:", str);
+	println("Stack string: ", abuf);
+
+	char *buf = concat("num is:", num, " var l is:", l, " string:", str);
+	println("Heap string: ", buf);
+	free(buf);
+ */
 #define concat_vla(var_name, ...) \
     const char * const fmt___ ## var_name = printf_specifier_string(0, __VA_ARGS__); \
     char var_name[snprintf(NULL, 0, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__)) + 1];        \
     sprintf(var_name, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__));                           \
     var_name[ sizeof(var_name) - 1  ] = '\0'
 
-/* Same as concat_vla(), but without '\0' byte */
+/* Same as concat_vla(), but without '\0' byte at the end */
 #define concat_vla_nonull(var_name, ...)                                                               \
     const char * const fmt___ ## var_name = printf_specifier_string(0, __VA_ARGS__);                   \
     char var_name[snprintf(NULL, 0, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__))];        \
@@ -827,19 +853,7 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
     string;                                                        \
 })
 
-
 /* Obsolete */
-
-/* This macro just returns third argument and nothing else */
-#define RETURN_THIRD_ARGUMENT(nothing, nothing2, return_value, ...) return_value
-
-/* returns 1 if args are completely empty, or 0 if something is present in __VA_ARGS__, including commas, () or other values
- *
- * we are calling RETURN_THIRD_ARGUMENT with four args, if __VA_ARGS__ is empty,
- * second argument will be removed, so fourth argument(1) becomes thrid and returned */
-#define IS_ARGS_EMPTY(x, ...) IS_ARGS_EMPTY__(x)
-#define IS_ARGS_EMPTY__(...) RETURN_THIRD_ARGUMENT(nothing, ## __VA_ARGS__, 0, 1 )
-
 static inline void printf_bool(const char *fmt, bool val) {
     (void)fmt;
     printf(val ? "true" : "false");
