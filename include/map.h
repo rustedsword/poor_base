@@ -300,10 +300,10 @@
     int a[10];
 
     #define init_array_element(_idx_, _array_, _val_) (_array_)[_idx_] = (_val_)
-    ( MAP_SEQ_ARG_IDX((,), init_array_element, a, 10, 20, 30) );
+    MAP_SEP_ARG_IDX((,), init_array_element, a, 10, 20, 30) ;
 
     //this expands to:
-    // ( a[0] = 10, a[1] = 20, a[2] = 30 );
+    // a[0] = 10, a[1] = 20, a[2] = 30 ;
 
  */
 #define MAP_SEP_ARG_IDX(sep, f, p, ...) EVAL_SELECT(__VA_ARGS__)(MAP_SEP_ARG_IDX1(sep, f, (1), p, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
