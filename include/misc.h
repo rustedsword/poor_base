@@ -169,10 +169,6 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
                                          default: helper_container_of(ptr, type, member) )
 #define helper_container_of(ptr, type, member) (type *)( (uintptr_t)(ptr) - offsetof(type, member) )
 
-#define memcpy_and_null(dst, src, len) \
-    memcpy(dst, src, len );            \
-    dst[len] = '\0'
-
 /*
  * PP_NARG will return count of parameters passed, up to 63
  */
@@ -238,55 +234,6 @@ IIF(BITAND(IS_COMPARABLE(x))(IS_COMPARABLE(y)) ) \
 #define IS_SINGLE_ARG(...) SINGLE_ARG_TEST(1, 0, __VA_ARGS__, (0)(0)(0), 0)
 /* Expands t if single argument passed in variadic argument list, or f if more than one argument passed */
 #define IF_SINGLE_ARG(t, f, ...) SINGLE_ARG_TEST(t, f, __VA_ARGS__, (0)(0)(0), 0)
-
-/*
- * this macroses will create zero-terminated slice of string and
- * allocate it using variable length array, alloca or malloc
- *
- * @src is source string
- * @start is index of the first byte, starting from zero
- * @count is number of bytes to copy
- *
- * example:
- *  char * string = "this is just a string";
- *  string_slice_vla_unsafe(slice, string, 0, 4);
- *  printf("slice contains:%s and it's length is %zu\n", slice, sizeof(slice));
- *
- * Will print:
- * > slice contains:this and it's length is 5
- */
-
-#define string_slice_vla(var_name, src, start, count) \
-    char var_name [count + 1];                        \
-    memcpy_and_null(var_name, src + start, count);
-
-#define string_slice_alloca(src, start, count) ({ \
-    char *slice = alloca(count + 1);              \
-    memcpy_and_null(slice, src + start, count);   \
-    slice;})
-
-#define string_slice(src, start, count) ({      \
-    char *slice = malloc(count + 1);            \
-    if(!slice)                                  \
-        NULL;                                   \
-    memcpy_and_null(slice, src + start, count); \
-    slice;})
-
-
-/*
- * Safe variant of string slice.
- *
- * Arguments are same as in string_slice_vla_unsafe.
- *
- * @src must be zero terminated string
- */
-#define string_slice_vla_safe(var_name, src, start, count) \
-    size_t _len##var_name = strlen(src); \
-    size_t _var_name##start = start > _len##var_name ? _len##var_name : start; \
-    size_t _var_name##count = start + count > _len##var_name ? _len##var_name - start : count; \
-    char var_name [_var_name##count + 1]; \
-    memcpy(var_name, src + _var_name##start, _var_name##count); \
-    var_name[_var_name##count] = '\0'
 
 /*** unpack basic 1-to-1 */
 
