@@ -33,3 +33,14 @@ add_test(NAME fmt_hex_fmt_test COMMAND printf_format fmt_hex_fmt_test)
 add_executable(poor_array_tests poor_array_tests.c )
 target_link_libraries(poor_array_tests poor_base)
 add_test(NAME auto_arr_test COMMAND poor_array_tests auto_arr_test)
+
+#These tests should fail
+add_library(auto_arr_compile_ptr OBJECT EXCLUDE_FROM_ALL auto_arr_compile_ptr.c)
+target_link_libraries(auto_arr_compile_ptr poor_base)
+add_test(NAME auto_arr_compile_ptr COMMAND ${CMAKE_COMMAND} --build . --target auto_arr_compile_ptr WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(auto_arr_compile_ptr PROPERTIES WILL_FAIL TRUE)
+
+add_library(auto_arr_compile_ptr2 OBJECT EXCLUDE_FROM_ALL auto_arr_compile_ptr2.c)
+target_link_libraries(auto_arr_compile_ptr2 poor_base)
+add_test(NAME auto_arr_compile_ptr2 COMMAND ${CMAKE_COMMAND} --build . --target auto_arr_compile_ptr2 WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(auto_arr_compile_ptr2 PROPERTIES WILL_FAIL TRUE)
