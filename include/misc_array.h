@@ -1,9 +1,10 @@
 #ifndef MISC_ARRAY_H
 #define MISC_ARRAY_H
 
-#include <misc.h>
+#include <poor_stdio.h>
 #include <traits.h>
 #include <inttypes.h>
+#include <string.h>
 
 /* Some colors */
 #define CRED    "\033[0;31m"
@@ -82,11 +83,11 @@ union _not_an_array_type_ {char a;};
     println( arr(arptr)[0][0][1] ); //Prints 'R'
     println( arr(array)[0][1][0] ); //Prints 'F'
  */
-#define auto_arr(var)  if_arr__no_vla_ptr(deref_or_arr__vla(var), deref_or_arr__vla(var))
+#define auto_arr(...)  if_arr__no_vla_ptr(deref_or_arr__vla((__VA_ARGS__)), deref_or_arr__vla((__VA_ARGS__)))
 
 /* Macro alias for auto_arr() */
 #if !defined(arr)
-#define arr(...) auto_arr((__VA_ARGS__))
+#define arr(...) auto_arr(__VA_ARGS__)
 #endif
 
 /* Returns number of elements in the array */
