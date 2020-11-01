@@ -30,3 +30,6 @@ add_test(NAME fmt_zw_test COMMAND printf_format fmt_zw_test)
 add_test(NAME fmt_zwp_test COMMAND printf_format fmt_zwp_test)
 add_test(NAME fmt_hex_fmt_test COMMAND printf_format fmt_hex_fmt_test)
 
+add_executable(poor_array_tests poor_array_tests.c )
+target_link_libraries(poor_array_tests poor_base)
+add_test(NAME auto_arr_test COMMAND poor_array_tests auto_arr_test)
