@@ -113,8 +113,7 @@ union _not_an_array_type_ {char a;};
     long (*me)[2] = &(long[]){5, 6};
     println(ARRAYS_SIZE(te, me)); //prints: 5
 */
-#define ARRAYS_SIZE(...) ( MAP(array_size_helper__, __VA_ARGS__) 0 )
-#define array_size_helper__(arr) ARRAY_SIZE(arr) +
+#define ARRAYS_SIZE(...) ( MAP_SEP((+), ARRAY_SIZE, __VA_ARGS__) )
 
 /* Get total size in bytes for all arrays
  * @__VA_ARGS__: arrays or pointer to arrays
@@ -124,8 +123,7 @@ union _not_an_array_type_ {char a;};
     long (*me)[2] = &(long[]){5, 6};
     println(ARRAYS_SIZE_BYTES(te, me)); //prints: 19  (if sizeof(long) == 8, then (8 * 2) + 3 )
  */
-#define ARRAYS_SIZE_BYTES(...) ( MAP(array_size_bytes_helper__, __VA_ARGS__) 0 )
-#define array_size_bytes_helper__(arr) ARRAY_SIZE_BYTES(arr) +
+#define ARRAYS_SIZE_BYTES(...) ( MAP_SEP((+), ARRAY_SIZE_BYTES, __VA_ARGS__) )
 
 /* is_ptr_to_vla(_arr_ptr_)
  * Returns true if _arr_ptr_ is pointer to VLA. */
