@@ -33,6 +33,12 @@ add_test(NAME fmt_hex_fmt_test COMMAND printf_format fmt_hex_fmt_test)
 add_executable(poor_array_tests poor_array_tests.c )
 target_link_libraries(poor_array_tests poor_base)
 add_test(NAME auto_arr_test COMMAND poor_array_tests auto_arr_test)
+add_test(NAME array_size COMMAND poor_array_tests array_size)
+add_test(NAME arrays_size COMMAND poor_array_tests arrays_size)
+add_test(NAME fill_array_test COMMAND poor_array_tests fill_array_test)
+add_test(NAME array_accessors COMMAND poor_array_tests array_accessors)
+add_test(NAME copy_array_single COMMAND poor_array_tests copy_array_single)
+add_test(NAME copy_array_multiple COMMAND poor_array_tests copy_array_multiple)
 
 #These tests should fail
 add_library(auto_arr_compile_ptr OBJECT EXCLUDE_FROM_ALL auto_arr_compile_ptr.c)
