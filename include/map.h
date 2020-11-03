@@ -388,6 +388,19 @@
 #define RECURSION_1(f, prev, x, peek, ...) MAP_CHOOSE_NEXT(peek, RECURSION_END, RECURSION_0)(f, f(prev, x), peek, __VA_ARGS__)
 #define RECURSION_END(f, prev, ...) prev
 
+/* Apply macro f(arg, prev, var) for each argument passed.
+ * same as RECUSRION(), but with an argument.
+ *
+ * RECURSION_ARG(do_that, 9, 100, 1)       ->                       do_that(9, 100, 1)
+ * RECURSION_ARG(do_that, 9, 100, 1, 2)    ->            do_that(9, do_that(9, 100, 1), 2)
+ * RECURSION_ARG(do_that, 9, 100, 1, 2, 3) -> do_that(9, do_that(9, do_that(9, 100, 1), 2, 3)
+ */
+#define RECURSION_ARG(f, arg, prev, ...) EVAL_SELECT(__VA_ARGS__)(RECURSION_ARG0(f, arg, prev, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define RECURSION_ARG0(f, arg, prev, x, peek, ...) MAP_CHOOSE_NEXT(peek, RECURSION_ARG_END, RECURSION_ARG1)(f, arg, f(arg, prev, x), peek, __VA_ARGS__)
+#define RECURSION_ARG1(f, arg, prev, x, peek, ...) MAP_CHOOSE_NEXT(peek, RECURSION_ARG_END, RECURSION_ARG0)(f, arg, f(arg, prev, x), peek, __VA_ARGS__)
+#define RECURSION_ARG_END(f, arg, prev, ...) prev
+
+
 /* Obsolete */
 
 /*
