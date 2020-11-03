@@ -83,5 +83,18 @@ int main(void) {
 	char a1[][4] = { MAP_LIST_ARG(h_arr1_dim, 100, 10, 20, 30, 40) };
 	_Static_assert(sizeof(a1) == 16);
 
+/* RECURSION() test */
+#define h_rec_val(prev, val) TOKEN_CAT_2(prev, val)
+	char RECURSION(h_rec_val, rrr, 1);
+	rrr1 = 0;
+	char RECURSION(h_rec_val, rrr, 1, 2);
+	rrr12 = 0;
+	char RECURSION(h_rec_val, rrr, 1, 2, 3);
+	rrr123 = 0;
+	char RECURSION(h_rec_val, rrr, 1, 2, 3, 4);
+	rrr1234 = 0;
+	char RECURSION(h_rec_val, rrr, 1, 2, 3, 4, 5);
+	rrr12345 = 0;
+
 	return 0;
 }
