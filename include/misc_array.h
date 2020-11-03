@@ -525,7 +525,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 } while(0)
 
 #define helper_copy_arrays(_tmp_ptr_, _dst_array_, _src_array_) \
-    static_assert_expr(is_arrays_of_same_types( _dst_array_ , _src_array_), "Source array: " #_src_array_ " doesn't have same type as destination array"), \
+    static_assert_expr(is_arrays_of_same_types( _dst_array_ , _src_array_), "Source array " #_src_array_ " doesn't have same type as destination array"), \
     (void)(_tmp_ptr_ = ((typeof(_tmp_ptr_))memcpy(_tmp_ptr_, _src_array_, ARRAY_SIZE_BYTES(_src_array_))) + ARRAY_SIZE(_src_array_))
 
 /***** Arrview *****/
