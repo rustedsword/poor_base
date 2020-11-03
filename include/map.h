@@ -365,6 +365,29 @@
 #define MAP2_LIST_ARG1(f, p, x, peek, ...) f(p, x) MAP_LIST_NEXT(peek, MAP2_LIST_ARG0)(f, p, peek, __VA_ARGS__)
 
 
+/* Experimental */
+
+#define MAP_CHOOSE_END2() 0, 0
+#define MAP_CHOOSE_END1(...) MAP_CHOOSE_END2
+#define MAP_CHOOSE_END(...) MAP_CHOOSE_END1
+#define MAP_CHOOSE0(test, t, f, ...) f MAP_OUT
+#define MAP_CHOOSE1(test, t, f) MAP_CHOOSE0(test, t, f, 0)
+#define MAP_CHOOSE_NEXT(test, t, f) MAP_CHOOSE1(MAP_CHOOSE_END test, t, f )
+
+
+/* Apply macro f(prev, var) for each argument passed.
+ * result of f() expansion is passed into next expansion of f() as 'prev' parameter along with next argument,
+ * and it's result is passed into next f() until no more arguments left
+ *
+ * RECURSION(do_that, 100, 1)       ->                 do_that(100, 1)
+ * RECURSION(do_that, 100, 1, 2)    ->         do_that(do_that(100, 1), 2)
+ * RECURSION(do_that, 100, 1, 2, 3) -> do_that(do_that(do_that(100, 1), 2, 3)
+ */
+#define RECURSION(f, prev, ...) EVAL_SELECT(__VA_ARGS__)(RECURSION_0(f, prev, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define RECURSION_0(f, prev, x, peek, ...) MAP_CHOOSE_NEXT(peek, RECURSION_END, RECURSION_1)(f, f(prev, x), peek, __VA_ARGS__)
+#define RECURSION_1(f, prev, x, peek, ...) MAP_CHOOSE_NEXT(peek, RECURSION_END, RECURSION_0)(f, f(prev, x), peek, __VA_ARGS__)
+#define RECURSION_END(f, prev, ...) prev
+
 /* Obsolete */
 
 /*
