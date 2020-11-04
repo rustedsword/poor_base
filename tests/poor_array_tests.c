@@ -194,6 +194,142 @@ int copy_array_multiple(void) {
 
 	return 0;
 }
+
+int same_type_arrays(void) {
+	int i1[1];
+	const int i1c[1];
+	int (*i1p)[1] = &i1;
+	const int (*i1cp)[1] = &i1c;
+	int (*const ci1p)[1] = &i1;
+	const int (*const ci1cp)[1] = &i1c;
+
+	int i2[2];
+	const int i2c[2];
+	int (*i2p)[2] = &i2;
+	const int (*i2cp)[2] = &i2c;
+	int (*const ci2p)[2] = &i2;
+	const int (*const ci2cp)[2] = &i2c;
+
+	short s1[1];
+	const short s1c[1];
+	short (*s1p)[1] = &s1;
+	const short (*s1cp)[1] = &s1c;
+	short (*const cs1p)[1] = &s1;
+	const short (*const cs1cp)[1] = &s1c;
+
+	static_assert(is_arrays_of_same_types(i1, i1c) == true);
+	static_assert(is_arrays_of_same_types(i1, i1p) == true);
+	static_assert(is_arrays_of_same_types(i1, i1cp) == true);
+	static_assert(is_arrays_of_same_types(i1, ci1p) == true);
+	static_assert(is_arrays_of_same_types(i1, ci1cp) == true);
+
+	static_assert(is_arrays_of_same_types(i1c, i1c) == true);
+	static_assert(is_arrays_of_same_types(i1c, i1p) == true);
+	static_assert(is_arrays_of_same_types(i1c, i1cp) == true);
+	static_assert(is_arrays_of_same_types(i1c, ci1p) == true);
+	static_assert(is_arrays_of_same_types(i1c, ci1cp) == true);
+
+	static_assert(is_arrays_of_same_types(i1p, i1c) == true);
+	static_assert(is_arrays_of_same_types(i1p, i1p) == true);
+	static_assert(is_arrays_of_same_types(i1p, i1cp) == true);
+	static_assert(is_arrays_of_same_types(i1p, ci1p) == true);
+	static_assert(is_arrays_of_same_types(i1p, ci1cp) == true);
+
+	static_assert(is_arrays_of_same_types(i1cp, i1c) == true);
+	static_assert(is_arrays_of_same_types(i1cp, i1p) == true);
+	static_assert(is_arrays_of_same_types(i1cp, i1cp) == true);
+	static_assert(is_arrays_of_same_types(i1cp, ci1p) == true);
+	static_assert(is_arrays_of_same_types(i1cp, ci1cp) == true);
+
+	static_assert(is_arrays_of_same_types(ci1p, i1c) == true);
+	static_assert(is_arrays_of_same_types(ci1p, i1p) == true);
+	static_assert(is_arrays_of_same_types(ci1p, i1cp) == true);
+	static_assert(is_arrays_of_same_types(ci1p, ci1p) == true);
+	static_assert(is_arrays_of_same_types(ci1p, ci1cp) == true);
+
+	static_assert(is_arrays_of_same_types(ci1cp, i1c) == true);
+	static_assert(is_arrays_of_same_types(ci1cp, i1p) == true);
+	static_assert(is_arrays_of_same_types(ci1cp, i1cp) == true);
+	static_assert(is_arrays_of_same_types(ci1cp, ci1p) == true);
+	static_assert(is_arrays_of_same_types(ci1cp, ci1cp) == true);
+
+	/* int[1] vs int[2] */
+	static_assert(is_arrays_of_same_types(i2, i1c) == true);
+	static_assert(is_arrays_of_same_types(i2, i1p) == true);
+	static_assert(is_arrays_of_same_types(i2, i1cp) == true);
+	static_assert(is_arrays_of_same_types(i2, ci1p) == true);
+	static_assert(is_arrays_of_same_types(i2, ci1cp) == true);
+
+	static_assert(is_arrays_of_same_types(i2c, i1c) == true);
+	static_assert(is_arrays_of_same_types(i2c, i1p) == true);
+	static_assert(is_arrays_of_same_types(i2c, i1cp) == true);
+	static_assert(is_arrays_of_same_types(i2c, ci1p) == true);
+	static_assert(is_arrays_of_same_types(i2c, ci1cp) == true);
+
+	static_assert(is_arrays_of_same_types(i2p, i1c) == true);
+	static_assert(is_arrays_of_same_types(i2p, i1p) == true);
+	static_assert(is_arrays_of_same_types(i2p, i1cp) == true);
+	static_assert(is_arrays_of_same_types(i2p, ci1p) == true);
+	static_assert(is_arrays_of_same_types(i2p, ci1cp) == true);
+
+	static_assert(is_arrays_of_same_types(i2cp, i1c) == true);
+	static_assert(is_arrays_of_same_types(i2cp, i1p) == true);
+	static_assert(is_arrays_of_same_types(i2cp, i1cp) == true);
+	static_assert(is_arrays_of_same_types(i2cp, ci1p) == true);
+	static_assert(is_arrays_of_same_types(i2cp, ci1cp) == true);
+
+	static_assert(is_arrays_of_same_types(ci2p, i1c) == true);
+	static_assert(is_arrays_of_same_types(ci2p, i1p) == true);
+	static_assert(is_arrays_of_same_types(ci2p, i1cp) == true);
+	static_assert(is_arrays_of_same_types(ci2p, ci1p) == true);
+	static_assert(is_arrays_of_same_types(ci2p, ci1cp) == true);
+
+	static_assert(is_arrays_of_same_types(ci2cp, i1c) == true);
+	static_assert(is_arrays_of_same_types(ci2cp, i1p) == true);
+	static_assert(is_arrays_of_same_types(ci2cp, i1cp) == true);
+	static_assert(is_arrays_of_same_types(ci2cp, ci1p) == true);
+	static_assert(is_arrays_of_same_types(ci2cp, ci1cp) == true);
+
+	/* int vs short */
+	static_assert(is_arrays_of_same_types(s1, i1c) == false);
+	static_assert(is_arrays_of_same_types(s1, i1p) == false);
+	static_assert(is_arrays_of_same_types(s1, i1cp) == false);
+	static_assert(is_arrays_of_same_types(s1, ci1p) == false);
+	static_assert(is_arrays_of_same_types(s1, ci1cp) == false);
+
+	static_assert(is_arrays_of_same_types(s1c, i1c) == false);
+	static_assert(is_arrays_of_same_types(s1c, i1p) == false);
+	static_assert(is_arrays_of_same_types(s1c, i1cp) == false);
+	static_assert(is_arrays_of_same_types(s1c, ci1p) == false);
+	static_assert(is_arrays_of_same_types(s1c, ci1cp) == false);
+
+	static_assert(is_arrays_of_same_types(s1p, i1c) == false);
+	static_assert(is_arrays_of_same_types(s1p, i1p) == false);
+	static_assert(is_arrays_of_same_types(s1p, i1cp) == false);
+	static_assert(is_arrays_of_same_types(s1p, ci1p) == false);
+	static_assert(is_arrays_of_same_types(s1p, ci1cp) == false);
+
+	static_assert(is_arrays_of_same_types(s1cp, i1c) == false);
+	static_assert(is_arrays_of_same_types(s1cp, i1p) == false);
+	static_assert(is_arrays_of_same_types(s1cp, i1cp) == false);
+	static_assert(is_arrays_of_same_types(s1cp, ci1p) == false);
+	static_assert(is_arrays_of_same_types(s1cp, ci1cp) == false);
+
+	static_assert(is_arrays_of_same_types(cs1p, i1c) == false);
+	static_assert(is_arrays_of_same_types(cs1p, i1p) == false);
+	static_assert(is_arrays_of_same_types(cs1p, i1cp) == false);
+	static_assert(is_arrays_of_same_types(cs1p, ci1p) == false);
+	static_assert(is_arrays_of_same_types(cs1p, ci1cp) == false);
+
+	static_assert(is_arrays_of_same_types(cs1cp, i1c) == false);
+	static_assert(is_arrays_of_same_types(cs1cp, i1p) == false);
+	static_assert(is_arrays_of_same_types(cs1cp, i1cp) == false);
+	static_assert(is_arrays_of_same_types(cs1cp, ci1p) == false);
+	static_assert(is_arrays_of_same_types(cs1cp, ci1cp) == false);
+
+	return 0;
+}
+
 typedef int test_fn (void);
 
 #define TEST_FN(fn) {STRINGIFY2(fn), fn}
@@ -208,6 +344,7 @@ static struct tests_struct {
 	TEST_FN(array_accessors),
 	TEST_FN(copy_array_single),
 	TEST_FN(copy_array_multiple),
+	TEST_FN(same_type_arrays),
 };
 
 static void usage(void) {
