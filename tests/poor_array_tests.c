@@ -152,6 +152,17 @@ int copy_array_single(void) {
 		assert(auto_arr(t)[3] == 4);
 		assert(auto_arr(t)[4] == 255);
 	}
+	{
+		int t1[2][3] = {{1,2,3}, {4,5,6}};
+		int t2[1][3] = {{7,8,9}};
+		copy_array(t1, t2);
+		assert(t1[0][0] == 7);
+		assert(t1[0][0] == 8);
+		assert(t1[0][0] == 9);
+		assert(t1[1][0] == 4);
+		assert(t1[1][0] == 5);
+		assert(t1[1][0] == 6);
+	}
 	return 0;
 }
 
