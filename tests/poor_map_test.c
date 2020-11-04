@@ -86,27 +86,27 @@ int main(void) {
 /* RECURSION() test */
 #define h_rec_val(prev, val) TOKEN_CAT_2(prev, val)
 	char RECURSION(h_rec_val, rrr, 1);
-	rrr1 = 0;
+	(void)rrr1;
 	char RECURSION(h_rec_val, rrr, 1, 2);
-	rrr12 = 0;
+	(void)rrr12;
 	char RECURSION(h_rec_val, rrr, 1, 2, 3);
-	rrr123 = 0;
+	(void)rrr123;
 	char RECURSION(h_rec_val, rrr, 1, 2, 3, 4);
-	rrr1234 = 0;
+	(void)rrr1234;
 	char RECURSION(h_rec_val, rrr, 1, 2, 3, 4, 5);
-	rrr12345 = 0;
+	(void)rrr12345;
 
 #define h_rec_arg_val(arg, prev, val) TOKEN_CAT_2(arg, TOKEN_CAT_2(prev, val))
 	char RECURSION_ARG(h_rec_arg_val, y, z, 1);
-	yz1 = 0;
+	(void)yz1;
 	char RECURSION_ARG(h_rec_arg_val, y, z, 1, 2);
-	yyz12 = 0;
+	(void)yyz12;
 	char RECURSION_ARG(h_rec_arg_val, y, z, 1, 2, 3);
-	yyyz123 = 0;
+	(void)yyyz123;
 	char RECURSION_ARG(h_rec_arg_val, y, z, 1, 2, 3, 4);
-	yyyyz1234 = 0;
+	(void)yyyyz1234;
 	char RECURSION_ARG(h_rec_arg_val, y, z, 1, 2, 3, 4, 5);
-	yyyyyz12345 = 0;
+	(void)yyyyyz12345;
 
 	return 0;
 }
