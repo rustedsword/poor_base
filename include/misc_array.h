@@ -20,7 +20,10 @@
 
 #define arr_errmsg(...) ((void)printerrln(__VA_ARGS__), (void)abort(), 0)
 
-union _dummy_type_ {char a;};
+typedef union _dummy_type_ {char a;} _dummy_type_;
+#define if_dummy_true(var, t, f) _Generic(&var, _dummy_type_(*)[1 + true]: t, default: f)
+#define is_dummy_true(var) _Generic(&var, _dummy_type_(*)[1 + true]: true, default: false)
+
 union _not_an_array_type_ {char a;};
 
 /* returns dummy array if var is VLA. returns dummy pointer if var is pointer to VLA otherwise returns var */
@@ -415,7 +418,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
     size_t len = 10;
     struct toto values[len];
-    fill_array(values, (const struct toto){0});
+    fill_array(values, (const struct toto){.val = -1, .string = "None"});
     copy_array(values, (const struct toto[]){
                    {.val = 1,  .string = "First"},
                    {.val = 10, .string = "Second"},
@@ -426,15 +429,32 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
             println(ref->val, " ", ref->string);
 
  */
-#define copy_array(dst_arr, ...) do {                                    \
-        make_arrview_full(_tmp_dst_ptr_, dst_arr);                       \
-        const make_arrview_full(_tmp_src_ptr_, (__VA_ARGS__));           \
-                                                                         \
-        if(unsafe_is_ptas_of_same_types(_tmp_dst_ptr_, _tmp_src_ptr_)) { \
-            unsafe_copy_array_fast(_tmp_dst_ptr_, _tmp_src_ptr_);        \
-        } else {                                                         \
-            unsafe_copy_array_slow(_tmp_dst_ptr_, _tmp_src_ptr_);        \
-        }                                                                \
+#if 0
+#define copy_array(dst_arr, ...) do {					\
+	make_arrview_full(_tmp_dst_ptr_, dst_arr);			\
+	const make_arrview_full(_tmp_src_ptr_, (__VA_ARGS__));		\
+									\
+	if(unsafe_is_ptas_of_same_types(_tmp_dst_ptr_, _tmp_src_ptr_)){	\
+		unsafe_copy_array_fast(_tmp_dst_ptr_, _tmp_src_ptr_);	\
+	} else {							\
+		unsafe_copy_array_slow(_tmp_dst_ptr_, _tmp_src_ptr_);	\
+	}								\
+} while(0)
+#endif
+
+#define copy_array(_dst_arr_, ...) do {										\
+	make_arrview_full(_tmp_dst_, _dst_arr_);								\
+	const make_arrview_full(_tmp_src_, (__VA_ARGS__));							\
+														\
+	_dummy_type_ _same_[1 + unsafe_is_ptas_of_same_types(_tmp_dst_, _tmp_src_)];				\
+														\
+	if(is_dummy_true(_same_)) {										\
+		unsafe_copy_array_fast(_tmp_dst_, _tmp_src_);							\
+	} else {												\
+		__typeof__( if_dummy_true(_same_, &(char[]){0}, _tmp_dst_)) _s_dst_ = (void*)_tmp_dst_;		\
+		__typeof__( if_dummy_true(_same_, &(const char[]){0}, _tmp_src_)) _s_src_ = (void*)_tmp_src_;	\
+		unsafe_copy_array_slow(_s_dst_, _s_src_);							\
+	}													\
 } while(0)
 
 /* unsafe_copy_array_fast(): copies data from src_ptr pta to dst_ptr pta. types of pta are not checked for arrayness.
@@ -517,6 +537,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     print_array(dst); //prints: [T,h,i,s, ,I,s, ,a, ,s,t,r,i,n,g]
 
  */
+#if 0
 #define copy_arrays(_dst_arr_, ...) do {                                        \
     make_array_first_ref(_dst_arr_, _tmp_ptr_);                                 \
     (                                                                           \
@@ -527,6 +548,34 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define helper_copy_arrays(_tmp_ptr_, _dst_array_, _src_array_) \
     static_assert_expr(is_arrays_of_same_types( _dst_array_ , _src_array_), "Source array " #_src_array_ " doesn't have same type as destination array"), \
     (void)(_tmp_ptr_ = ((typeof(_tmp_ptr_))memcpy(_tmp_ptr_, _src_array_, ARRAY_SIZE_BYTES(_src_array_))) + ARRAY_SIZE(_src_array_))
+
+#endif
+
+#define copy_arrays(_dst_, ...) (							\
+	h_rec_copy_arr_chk_sz(_dst_, __VA_ARGS__),					\
+	(void)RECURSION_ARG(h_rec_copy_arr, _dst_, _dst_, __VA_ARGS__)			\
+)
+
+#define h_rec_copy_arr(_dst_, _prev_, _src_) (								\
+	h_rec_copy_arr_chk_type(_dst_, _src_),								\
+	(unsigned char*)memcpy(_prev_, _src_, ARRAY_SIZE_BYTES(_src_)) + ARRAY_SIZE_BYTES(_src_)	\
+)
+
+#define h_rec_copy_arr_chk_type(_dst_, _src_)				\
+	static_assert_expr(is_arrays_of_same_types( _dst_ , _src_),	\
+	"copy_arrays(): source array (" #_src_ ") doesn't have same type as destination array (" #_dst_ ")")
+
+#ifndef ARRAY_RUNTIME_CHECKS
+#define h_rec_copy_arr_chk_sz(_dst_, ...)							\
+	(void)sizeof(char [ARRAY_SIZE(_dst_) < ARRAYS_SIZE(__VA_ARGS__) ? -1 : 1 ])
+
+#else
+#define h_rec_copy_arr_chk_sz(_dst_, ...)											\
+	(void)(sizeof(char [ARRAY_SIZE(_dst_) < ARRAYS_SIZE(__VA_ARGS__) ? -1 : 1 ]) != 1 ?					\
+	arr_errmsg(CRED "copy_arrays(): Array \"" #_dst_ "\" has incufficient space (", ARRAY_SIZE(_dst_), " element(s))"	\
+	" while size of all sources is ", ARRAYS_SIZE(__VA_ARGS__) ," at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0)
+#endif
+
 
 /***** Arrview *****/
 
