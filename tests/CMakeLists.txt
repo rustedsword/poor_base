@@ -40,6 +40,11 @@ add_test(NAME array_accessors COMMAND poor_array_tests array_accessors)
 add_test(NAME copy_array_single COMMAND poor_array_tests copy_array_single)
 add_test(NAME copy_array_multiple COMMAND poor_array_tests copy_array_multiple)
 add_test(NAME same_type_arrays COMMAND poor_array_tests same_type_arrays)
+add_test(NAME merged_array_test COMMAND poor_array_tests merged_array_test)
+add_test(NAME arrview_simple COMMAND poor_array_tests arrview_simple)
+add_test(NAME arrview_first_test COMMAND poor_array_tests arrview_first_test)
+add_test(NAME arrview_last_test COMMAND poor_array_tests arrview_last_test)
+add_test(NAME arrview_shrink_test COMMAND poor_array_tests arrview_shrink_test)
 
 #These tests should fail
 add_library(auto_arr_compile_ptr OBJECT EXCLUDE_FROM_ALL auto_arr_compile_ptr.c)

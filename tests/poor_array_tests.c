@@ -109,7 +109,7 @@ static int fill_array_test(void) {
 	return 0;
 }
 
-int array_accessors(void) {
+static int array_accessors(void) {
 	int a[] = {1,2,3,4,5,6,7,8,9,10};
 	assert( *array_first_ref(a) == 1);
 	assert( *array_last_ref(a) == 10);
@@ -122,7 +122,7 @@ int array_accessors(void) {
 	return 0;
 }
 
-int copy_array_single(void) {
+static int copy_array_single(void) {
 	const int a[4] = {1,2,3,4};
 
 	{	//t is smaller than a
@@ -152,21 +152,21 @@ int copy_array_single(void) {
 		assert(auto_arr(t)[3] == 4);
 		assert(auto_arr(t)[4] == 255);
 	}
-	{
+	{	//multi-dimensional copy
 		int t1[2][3] = {{1,2,3}, {4,5,6}};
 		int t2[1][3] = {{7,8,9}};
 		copy_array(t1, t2);
 		assert(t1[0][0] == 7);
-		assert(t1[0][0] == 8);
-		assert(t1[0][0] == 9);
+		assert(t1[0][1] == 8);
+		assert(t1[0][2] == 9);
 		assert(t1[1][0] == 4);
-		assert(t1[1][0] == 5);
-		assert(t1[1][0] == 6);
+		assert(t1[1][1] == 5);
+		assert(t1[1][2] == 6);
 	}
 	return 0;
 }
 
-int copy_array_multiple(void) {
+static int copy_array_multiple(void) {
 	{
 		int a[] = {1,2};
 		int b[] = {5,6,7};
@@ -186,7 +186,7 @@ int copy_array_multiple(void) {
 
 		assert(t[5] == 99);
 	}
-	{
+	{	//multi-dimensional copy
 		int a[2][2] = {{1,2},{3,4}};
 		int b[1][2] = {{5,6}};
 
@@ -206,7 +206,30 @@ int copy_array_multiple(void) {
 	return 0;
 }
 
-int same_type_arrays(void) {
+static int merged_array_test(void) {
+	const int a[] = {1,2,3};
+	int b[(size_t){2}];
+	copy_array(b, (int[]){4,5});
+
+	int (*c)[2] = &(int[]){6,7};
+	int (*d)[(size_t){1}] = &(int[]){8};
+
+	make_merged_array(merged, a, b, c, d);
+	assert(ARRAYS_SIZE(a,b,c,d) == ARRAY_SIZE(merged));
+
+	assert(arr(merged)[0] == 1);
+	assert(arr(merged)[1] == 2);
+	assert(arr(merged)[2] == 3);
+	assert(arr(merged)[3] == 4);
+	assert(arr(merged)[4] == 5);
+	assert(arr(merged)[5] == 6);
+	assert(arr(merged)[6] == 7);
+	assert(arr(merged)[7] == 8);
+
+	return 0;
+}
+
+static int same_type_arrays(void) {
 	int i1[1];
 	const int i1c[1];
 	int (*i1p)[1] = &i1;
@@ -341,6 +364,103 @@ int same_type_arrays(void) {
 	return 0;
 }
 
+static int arrview_simple(void) {
+	//arrview from array
+	int a[] = {1,2,3,4,5};
+	make_arrview(a_view, 1, 3, a);
+	static_assert(ARRAY_SIZE(a_view) == 3);
+	assert(auto_arr(a_view)[0] == 2);
+	assert(auto_arr(a_view)[1] == 3);
+	assert(auto_arr(a_view)[2] == 4);
+
+	//view that takes whole array should be equal to original array
+	make_arrview(a_view_1, 0, 5, a);
+	static_assert(ARRAYS_SIZE(a_view_1) == ARRAY_SIZE(a));
+	assert(a_view_1 == &a);
+
+	//arrview from VLA
+	int b[(size_t){5}];
+	copy_array(b, (int[]){1,2,3,4,5});
+	make_arrview(b_view, 2, 2, b);
+	assert(ARRAY_SIZE(b_view) == 2);
+	assert(auto_arr(b_view)[0] == 3);
+	assert(auto_arr(b_view)[1] == 4);
+
+	return 0;
+}
+
+static int arrview_first_test(void) {
+	int a[] = {1,2,3,4,5};
+	//take first 3 elements
+	make_arrview_first(a_view, 3, a);
+	static_assert(ARRAY_SIZE(a_view) == 3);
+	assert(auto_arr(a_view)[0] == 1);
+	assert(auto_arr(a_view)[1] == 2);
+	assert(auto_arr(a_view)[2] == 3);
+
+	//view that cut all elements should be equal to original array
+	make_arrview_first(a_view_2, 5, a);
+	static_assert(ARRAY_SIZE(a_view_2) == ARRAY_SIZE(a));
+
+	return 0;
+}
+
+static int arrview_last_test(void) {
+	int a[] = {1,2,3,4,5};
+	//take last 3 elements
+	make_arrview_last(a_view, 3, a);
+	static_assert(ARRAY_SIZE(a_view) == 3);
+	assert(auto_arr(a_view)[0] == 3);
+	assert(auto_arr(a_view)[1] == 4);
+	assert(auto_arr(a_view)[2] == 5);
+
+	//view that cut all elements should be equal to original array
+	make_arrview_last(a_view_2, 5, a);
+	static_assert(ARRAY_SIZE(a_view_2) == ARRAY_SIZE(a));
+
+	return 0;
+}
+
+static int arrview_shrink_test(void) {
+	int a[] = {1,2, 3,4, 5,6,7};
+
+	//view without first two and last 3 elements
+	make_arrview_shrink(a_view_1, 2, 3, a);
+	static_assert(ARRAY_SIZE(a_view_1) == ARRAY_SIZE(a) - 2 - 3);
+	assert(auto_arr(a_view_1)[0] == 3);
+	assert(auto_arr(a_view_1)[1] == 4);
+
+	//view without first two elements
+	make_arrview_cfront(a_view_2, 2, a);
+	static_assert(ARRAY_SIZE(a_view_2) == ARRAY_SIZE(a) - 2);
+	assert(auto_arr(a_view_2)[0] == 3);
+	assert(auto_arr(a_view_2)[1] == 4);
+	assert(auto_arr(a_view_2)[2] == 5);
+	assert(auto_arr(a_view_2)[3] == 6);
+	assert(auto_arr(a_view_2)[4] == 7);
+
+	//view without last 4 elements
+	make_arrview_cback(a_view_3, 4, a);
+	static_assert(ARRAY_SIZE(a_view_3) == ARRAY_SIZE(a) - 4);
+	assert(auto_arr(a_view_3)[0] == 1);
+	assert(auto_arr(a_view_3)[1] == 2);
+	assert(auto_arr(a_view_3)[2] == 3);
+
+	//views that do not cut anything should be equal to original array
+	make_arrview_shrink(a_view_t1, 0, 0, a);
+	make_arrview_cback(a_view_t2, 0, a);
+	make_arrview_cfront(a_view_t3, 0, a);
+
+	assert(ARRAY_SIZE(a_view_t1) == ARRAY_SIZE(a) );
+	assert(a_view_t1 == &a);
+	assert(ARRAY_SIZE(a_view_t2) == ARRAY_SIZE(a) );
+	assert(a_view_t2 == &a);
+	assert(ARRAY_SIZE(a_view_t3) == ARRAY_SIZE(a) );
+	assert(a_view_t2 == &a);
+	return 0;
+}
+
+
 typedef int test_fn (void);
 
 #define TEST_FN(fn) {STRINGIFY2(fn), fn}
@@ -356,6 +476,12 @@ static struct tests_struct {
 	TEST_FN(copy_array_single),
 	TEST_FN(copy_array_multiple),
 	TEST_FN(same_type_arrays),
+
+	TEST_FN(merged_array_test),
+	TEST_FN(arrview_simple),
+	TEST_FN(arrview_first_test),
+	TEST_FN(arrview_last_test),
+	TEST_FN(arrview_shrink_test),
 };
 
 static void usage(void) {
