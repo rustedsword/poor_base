@@ -26,34 +26,39 @@ typedef union _dummy_type_ {char a;} _dummy_type_;
 
 union _not_an_array_type_ {char a;};
 
-/* returns dummy array if var is VLA. returns dummy pointer if var is pointer to VLA otherwise returns var */
-#define vla_ptr_check(var)                                           \
-                    if_vla(var,                                      \
-                        (union _dummy_type_ [1]){{0}},               \
-                        if_vla(*(var),                               \
-                                (union _not_an_array_type_ ***){0},  \
-                                var)                                 \
-                        )
+typedef struct _is_arr_ {int a;} _is_arr_;
+typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 
+/* returns _is_arr_ if var is VLA
+ * returns _is_p_arr if var is a pointer to VLA
+ * or returns var as is */
+#define h_arrvla_chk(var) if_vla(var, (_is_arr_){0}, if_vla(*var, (_is_p_arr_){0}, var))
+/* returns _dummy_type_ if var is VLA */
+#define vla_to_dummy(var) if_vla(var, (_dummy_type_){0}, var)
 
-/* evaluates t, if var is array or (f) if it is not. additionally checks if var is not pointer to VLA */
-#define if_arr__vla_guard(var, t, f)  	 	 	 	\
-        _Generic( &(typeof( vla_ptr_check(var) )){0},           \
-                typeof(* vla_ptr_check(var) )(*)[]: (t),        \
-                default: (f)                                    \
-        )
+/* returns _is_arr_ if var is an array or VLA
+ * returns _is_p_arr_ if var is a pointer to VLA
+ * or returns dereferenced var if it is a pointer to any other type */
+#define h_aa_l1(var)							\
+	_Generic(& (typeof(h_arrvla_chk(var))){0},			\
+		typeof(vla_to_dummy(*var))(*)[]: (_is_arr_*){0},	\
+		_is_arr_ *: (_is_arr_*){0},				\
+		_is_p_arr_ *: (_is_p_arr_*){0},				\
+		default: *var)
 
-/* This macro returns (var) if (var) is an array or returns (*var) if var is a pointer to something */
-#define deref_or_arr__vla(var)  if_arr__vla_guard(var, var, *var)
+/* var should not be vla or pointer to vla
+ * returns 2 if var is array */
+#define h_aa_l2(var)				\
+	_Generic(&var,				\
+		typeof(*var)(*)[]: 2,		\
+		_is_p_arr_ **: 2,		\
+		_is_arr_ **: 1			\
+	)
 
-/* replaces var with dummy array if var is VLA */
-#define vla_check(var) if_vla(var, (union _dummy_type_ [1]){{0}}, var )
-
-/* evaluates t, if var is array, do not use directly */
-#define if_arr__no_vla_ptr(var, t)	 	 	\
-        _Generic( & vla_check(var),                     \
-                typeof(* vla_check(var) )(*)[]: (t)     \
-        )
+#define h_auto_arr(var)					\
+	_Generic(&(int [h_aa_l2(h_aa_l1(var))]){0},	\
+		int(*)[1]: var,				\
+		int(*)[2]: *var)
 
 /* auto_arr(var)
  * @var: array or pointer to an array
@@ -86,7 +91,7 @@ union _not_an_array_type_ {char a;};
     println( arr(arptr)[0][0][1] ); //Prints 'R'
     println( arr(array)[0][1][0] ); //Prints 'F'
  */
-#define auto_arr(...)  if_arr__no_vla_ptr(deref_or_arr__vla((__VA_ARGS__)), deref_or_arr__vla((__VA_ARGS__)))
+#define auto_arr(...) h_auto_arr((__VA_ARGS__))
 
 /* Macro alias for auto_arr() */
 #if !defined(arr)
