@@ -37,6 +37,44 @@ static int auto_arr_test(void) {
 	assert( auto_arr((unsigned char(*)[(size_t){2}]){&ar_v} )[1] == 13 ); //pointer to vla as a compound literal
 	assert( auto_arr(*(unsigned char(*)[(size_t){2}]){&ar_v} )[1] == 13 ); //dereferenced pointer to array as a compound literal
 
+	//multi-dimensional array and pointer to array
+	int md_v0[2][1] = {{1},{2}};
+	int (*pv0)[2][1] = &md_v0;
+	assert(auto_arr(md_v0)[0][0] == 1);
+	assert(auto_arr(md_v0)[1][0] == 2);
+	assert(auto_arr(pv0)[0][0] == 1);
+	assert(auto_arr(pv0)[1][0] == 2);
+
+	//first dimension is variable, second is static
+	typedef int md_v1_t[(size_t){2}][1];
+	md_v1_t md_v1, *pv1 = &md_v1;
+	md_v1[0][0] = 1; md_v1[1][0] = 2;
+
+	assert(auto_arr(md_v1)[0][0] == 1);
+	assert(auto_arr(md_v1)[1][0] == 2);
+	assert(auto_arr(pv1)[0][0] == 1);
+	assert(auto_arr(pv1)[1][0] == 2);
+
+	//first dimension is static, second is variable
+	typedef int md_v2_t[2][(size_t){1}];
+	md_v2_t md_v2, *pv2 = &md_v2;
+	md_v2[0][0] = 1; md_v2[1][0] = 2;
+
+	assert(auto_arr(md_v2)[0][0] == 1);
+	assert(auto_arr(md_v2)[1][0] == 2);
+	assert(auto_arr(pv2)[0][0] == 1);
+	assert(auto_arr(pv2)[1][0] == 2);
+
+	//2 dimensional VLA
+	typedef int md_v3_t[(size_t){2}][(size_t){1}];
+	md_v3_t md_v3, *pv3 = &md_v3;
+	md_v3[0][0] = 1; md_v3[1][0] = 2;
+
+	assert(auto_arr(md_v3)[0][0] == 1);
+	assert(auto_arr(md_v3)[1][0] == 2);
+	assert(auto_arr(pv3)[0][0] == 1);
+	assert(auto_arr(pv3)[1][0] == 2);
+
 	return 0;
 }
 
