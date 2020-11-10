@@ -15,10 +15,50 @@
 #define CCYAN   "\033[0;36m"
 #define CRESET  "\033[0m"
 
-/* Define ARRAY_RUNTIME_CHECKS to activate runtime array checks, use only for debugging! */
-//#define ARRAY_RUNTIME_CHECKS
+/* Define ARRAY_RUNTIME_CHECKS to one of three values to activate various checks when using macros from this library.
+ *
+ * NO_CHECK - no checks will be performed at compile-time or runtime when creating views,
+ *	copying arrays and other macros. But your compiler may still catch some errors if any.
+ *
+ * STATIC_CHECK - compile-time checks will be generated where possible, this will allow
+ *	to catch generation of out-of-bounds views or array copies where parameters are known at compile time.
+ *	This option will increase compilation time.
+ *
+ * RUNTIME_CHECK - same as STATIC_CHECK, but also with run-time checks where non constant values are used.
+ *	i.e creating an array view from VLA, or creating a view from static array but with variable size.
+ *	This option will incur run-time overhead, so use this only for debugging.
+*/
+#define NO_CHECK		0
+#define STATIC_CHECK		1
+#define RUNTIME_CHECK		2
+#define POOR_ARRAY_CHECK	STATIC_CHECK
 
+/* arr_errmsg() will be called when POOR_ARRAY_CHECK is set to RUNTIME_CHECK when error occurs */
+#ifndef arr_errmsg
 #define arr_errmsg(...) ((void)printerrln(__VA_ARGS__), (void)abort(), 0)
+#endif
+
+/* expands one of three provided macros by checking current POOR_ARRAY_CHECK setting */
+#define POOR_ARR_CHK_SEL(_no_check_, _static_check_, _runtime_check_) \
+	TOKEN_CAT_2(CHECK_SELECT_, POOR_ARRAY_CHECK)(_no_check_, _static_check_, _runtime_check_)
+
+#define CHECK_SELECT_0(_macro_, _1, _2)	_macro_
+#define CHECK_SELECT_1(_0, _macro_, _2)	_macro_
+#define CHECK_SELECT_2(_0, _1, _macro_)	_macro_
+#define CHECK_SELECT_POOR_ARRAY_CHECK(_0, _macro_, _2)	_macro_
+
+/* Expands to string literal with file:line. example: /home/user/cool_program.c:56 */
+#define FILE_AND_LINE __FILE__ ":" STRINGIFY2(__LINE__)
+
+/* If _expr_ is not constant expression and is equals zero then this macro calls arr_errmsg() macro
+ * If _expr_ is constant expression and is equals zero then terminates compilation  */
+#define ARR_ASSERT_MSG(_expr_, ...) (void)(sizeof(char [_expr_ ? 1 : -1]) == 1 ? 0 : arr_errmsg(__VA_ARGS__))
+
+/* If _expr_ is constant expression and is equals zero then terminates compilation  */
+#define ARR_ASSERT(_expr_)  (void)(sizeof(char [_expr_ ? 1 : -1]))
+
+/* Declares a pointer to array with same type as another pointer to array but with different size */
+#define unsafe_make_arrptr(_name_, _size_, _arrp_) UNSAFE_ARRAY_ELEMENT_TYPE(*_arrp_)(* _name_)[_size_]
 
 typedef union _dummy_type_ {char a;} _dummy_type_;
 #define if_dummy_true(var, t, f) _Generic(&var, _dummy_type_(*)[1 + true]: t, default: f)
@@ -583,151 +623,233 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 
 /***** Arrview *****/
-
-
-/* make_arrview(name, start, size, src): make an array view of the array src with size (size) starting from (start) position.
+/* make_arrview(name, start, size, src):
+ * make an array view of the array src with size (size) starting from (start) position.
  * example:
 
-  uint8_t data[] = {0,1,2,3,4,5};
-  make_arrview(data_slc, 2, 3, &data); //Start index: 2 and size: 3
-  print_array(data_slc); //prints: [2,3,4]
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview(data_slc, 2, 3, &data); //Start index: 2 and size: 3
+	print_array(data_slc); //prints: [2,3,4]
 */
-#define make_arrview(_name_, start, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = arrview(start, size, __VA_ARGS__)
-#define arrview(start, size, ...) h_arrview_(start, size, (__VA_ARGS__))
+#define make_arrview(_name_, _idx_, _size_, ...) make_unsafe_arrview(_name_, (_idx_), (_size_), &auto_arr(__VA_ARGS__))
+#define arrview(_idx_, _size_, ...) unsafe_arrview((_idx_), (_size_), &auto_arr(__VA_ARGS__))
 
-/* (make_)array_slice_size() runtime and static error checking */
-#if defined (ARRAY_RUNTIME_CHECKS)
-#define h_arrview_(start, size, _arr_) h_arrview__dyncheck(start, size, _arr_)
-#else
-#define h_arrview_(start, size, _arr_) h_arrview__static(start, size, (_arr_))
-#endif
+#define make_unsafe_arrview(_name_, _idx_, _size_, _arrp_) \
+	unsafe_make_arrptr(_name_, _size_, _arrp_) = h_unsafe_arrview(_idx_, _size_, _arrp_, "make_arrview()")
+#define unsafe_arrview(_idx_, _size_, _arrp_)  h_unsafe_arrview(_idx_, _size_, _arrp_, "arrview()")
 
-#define h_arrview__static(start, size, _arr_) \
-    (ARRAY_ELEMENT_TYPE(_arr_) (*) [  h_arrview__check_size_static(_arr_, start, size)  ]) &(auto_arr(_arr_) [start])
+#define h_unsafe_arrview(_idx_, _size_, _arrp_, _macro_name_) \
+	(unsafe_make_arrptr(, _size_, _arrp_))&(*_arrp_)[_idx_ + h_av_chk_sel(_arrp_, _idx_, _size_, _macro_name_)]
 
-#define h_arrview__check_size_static(_arr_, start, size) _Generic(1,                    \
-                int*:   sizeof(char [start < 0 ? -1 : 1]),                        \
-                int**:  sizeof(char [size  < 1 ? -1 : 1]),                        \
-                int***: sizeof(char [start + size > ARRAY_SIZE(_arr_) ? -1 : 1]), \
-                default: size )
+#define h_av_chk_sel(_arrp_, _idx_, _size_, _macro_name_) \
+	POOR_ARR_CHK_SEL(h_av_chk_none, h_av_chk_static, h_av_chk_dyn)(_arrp_, _idx_, _size_, _macro_name_)
 
-#define h_arrview__dyncheck(start, size, _arr_) \
-    ((void)h_arrview__check_size_dyn(_arr_, start, size), (ARRAY_ELEMENT_TYPE(_arr_) (*) [size]) &(auto_arr(_arr_) [start]))
+#define h_av_chk_none(...) 0
+#define h_av_chk_static(_arrp_, _idx_, _size_, _macro_name_) _Generic(1,	\
+	int*:	ARR_ASSERT(_idx_ >= 0),						\
+	int**:	ARR_ASSERT(_size_ > 0),						\
+	int***:	ARR_ASSERT(_idx_ + _size_ <= UNSAFE_ARRAY_SIZE(*_arrp_)),	\
+	default: 0 )
 
-#define h_arrview__check_size_dyn(_arr_, start, size) (                                                                                                     \
-        (void)(sizeof(char [start < 0 ? -1 : 1]) != 1 ?                                                                                               \
-        arr_errmsg(CRED "Start index less than 0 when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                           \
-        (void)(sizeof(char [size < 1 ? -1 : 1]) != 1 ? 													                                              \
-        arr_errmsg(CRED "Size is less than 1 when creating arrview slice at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                         \
-        (void)(sizeof(char [start + size > ARRAY_SIZE(_arr_) ? -1 : 1]) != 1 ?                                                                        \
-        arr_errmsg(CRED "Sum of start position and size is larger than source array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) \
-        " start:", start, " size:", size, " array size:", ARRAY_SIZE(_arr_), CRESET) : 0)                                                             \
-    )
+#define h_av_chk_dyn(_arrp_, _idx_, _size_, _macro_name_) ((			\
+	ARR_ASSERT_MSG(_idx_ >= 0,						\
+		CRED _macro_name_ ": Start index ", _idx_ ," is less than 0"	\
+		" (start index:", _idx_, ")"					\
+		" at " FILE_AND_LINE CRESET),					\
+	ARR_ASSERT_MSG(_size_ > 0,						\
+		CRED _macro_name_ ": Size of the view should be greater than 0"	\
+		" (size:", _size_, ")"						\
+		" at " FILE_AND_LINE CRESET),					\
+	ARR_ASSERT_MSG(_idx_ + _size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),		\
+		CRED _macro_name_ ": Out of bound view "			\
+		" (start index:", _idx_, " view size:", _size_,			\
+		" source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"		\
+		" at " FILE_AND_LINE CRESET)					\
+    ), 0)
 
-/* make_arrview_first(name, size, src): create arrview of the first (size) elements of the array src */
-#define make_arrview_first(_name_, size, ...) make_arrview(_name_, 0, size, __VA_ARGS__)
-#define arrview_first(size, ...) arrview(0, size, __VA_ARGS__)
-
-/* make_arrview_last(name, size, src): create arrview of the last (size) elements of the array src
+/* make_arrview_first(name, size, src):
+ * create arrview of the first (size) elements of the array src
  * example:
 
-  uint8_t data[] = {0,1,2,3,4,5};
-  make_arrview_last(data_slc, 2, &data);
-  print_array(data_slc); //prints: [4,5]
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_first(data_slc, 2, &data);
+	print_array(data_slc); //prints: [0,1]
  */
-#define make_arrview_last(_name_, size, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ (size) ] = arrview_last(size, __VA_ARGS__)
-#define arrview_last(size, ...) array_slice_last_(size, (__VA_ARGS__))
+#define make_arrview_first(_name_, _size_, ...) unsafe_make_arrview_first(_name_, (_size_), &auto_arr(__VA_ARGS__))
+#define arrview_first(_size_, ...) unsafe_arrview_first((_size_), &auto_arr(__VA_ARGS__))
 
-/* (make_)array_slice_last() error check */
-#if defined (ARRAY_RUNTIME_CHECKS)
-#define array_slice_last_(size, src_arr) arrslc_last_dyncheck(size, src_arr)
-#else
-#define array_slice_last_(size, src_arr) arrslc_last_static(size, src_arr)
-#endif
+#define unsafe_make_arrview_first(_name_, _size_, _arrp_) \
+	unsafe_make_arrptr(_name_, _size_, _arrp_) = h_unsafe_arrview_first(_size_, _arrp_, "make_arrview_first()")
+#define unsafe_arrview_first(_size_, _arrp_) h_unsafe_arrview_first(_size_, _arrp_, "arrview_first()")
 
-#define arrslc_last_static(size, src_arr) \
-    (ARRAY_ELEMENT_TYPE(src_arr) (*) [ chk_arrslc_last_static(src_arr, size) ]) (array_end_ref(src_arr) - size)
+#define h_unsafe_arrview_first(_size_, _arrp_, _macro_name_) \
+	(unsafe_make_arrptr(, _size_, _arrp_))&(*_arrp_)[h_av_size_chk_sel(_arrp_, _size_, _macro_name_)]
 
-#define chk_arrslc_last_static(arr, size) _Generic(1,                           \
-                int*:  sizeof(char [size > ARRAY_SIZE(arr) ? -1 : 1]),          \
-                int**: sizeof(char [size < 1 ? -1 : 1]),                        \
-                default: size )
-
-#define arrslc_last_dyncheck(size, src_arr) \
-    ((void)chk_arrslc_last_dyn(src_arr, size), (ARRAY_ELEMENT_TYPE(src_arr) (*) [size])(array_end_ref(src_arr) - size) )
-
-#define chk_arrslc_last_dyn(arr, size) (                                                                                                \
-        (void)(sizeof(char [size < 1 ? -1 : 1]) != 1 ? 													                                \
-        arr_errmsg(CRED "Size is less than 1 when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),             \
-        (void)(sizeof(char [size > ARRAY_SIZE(arr) ? -1 : 1]) != 1 ?                                                                    \
-        arr_errmsg(CRED "Size is larger than source array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__)               \
-        " size:", size, " array size:", ARRAY_SIZE(arr), CRESET) : 0)                                                                   \
-    )
-
-/* make_arrview_shrink(name, skip_start, skip_end, src): Make an array view by skipping (skip_start) elements from the beginning and (skip_end) elements from the end of the array src
+/* make_arrview_last(name, size, src):
+ * create arrview of the last (size) elements of the array src
  * example:
 
-  char data[] = {0, 0, 'H','I', 0, 0, 0};
-  make_arrview_shrink(data_slc, 2, 3, &data);
-  print_array(data_slc); //prints: [H,I]
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_last(data_slc, 2, &data);
+	print_array(data_slc); //prints: [4,5]
+ */
+#define make_arrview_last(_name_, _size_, ...) unsafe_make_arrview_last(_name_, (_size_), &auto_arr(__VA_ARGS__))
+#define arrview_last(_size_, ...) unsafe_arrview_last((_size_), &auto_arr(__VA_ARGS__))
+
+#define unsafe_make_arrview_last(_name_, _size_, _arrp_) \
+	unsafe_make_arrptr(_name_, _size_, _arrp_) = h_unsafe_arrview_last(_size_, _arrp_, "make_arrview_last()")
+#define unsafe_arrview_last(_size_, _arrp_) h_unsafe_arrview_last(_size_, _arrp_, "arrview_last()")
+
+#define h_unsafe_arrview_last(_size_, _arrp_, _macro_name_) \
+	(unsafe_make_arrptr(, _size_, _arrp_))&(*_arrp_)[UNSAFE_ARRAY_SIZE(*_arrp_) - _size_ + h_av_size_chk_sel(_arrp_, _size_, _macro_name_)]
+
+/* arrview first/last checks */
+#define h_av_size_chk_sel(_arrp_, _size_, _macro_name_) \
+	POOR_ARR_CHK_SEL(h_av_size_chk_none, h_av_size_chk_static, h_av_size_chk_dyn)(_arrp_, _size_, _macro_name_)
+
+#define h_av_size_chk_none(...) 0
+#define h_av_size_chk_static(_arrp_, _size_, _macro_name_) _Generic(1,		\
+	int*:  ARR_ASSERT(_size_ > 0),						\
+	int**: ARR_ASSERT(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_)),		\
+	default: 0 )
+
+#define h_av_size_chk_dyn(_arrp_, _size_, _macro_name_) ((					\
+	ARR_ASSERT_MSG(_size_ > 0,								\
+		CRED _macro_name_ ": Size of the view should be greater than 0"			\
+		" (view size:", _size_, ")"							\
+		" at " FILE_AND_LINE CRESET),							\
+	ARR_ASSERT_MSG(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),					\
+		CRED _macro_name_ ": Out of bound view "					\
+		" (view size:", _size_, " source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
+		" at " FILE_AND_LINE CRESET)							\
+    ), 0)
+
+/* make_arrview_shrink(name, skip_start, skip_end, src):
+ * Make an array view without first (skip_start) elements
+ * and without last (skip_end) elements of the array (src)
+ *
+ * example:
+
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_shrink(data_slc, 2, 1, &data);
+	print_array(data_slc); //prints: [2,3,4]
 */
-#define make_arrview_shrink(_name_, skip_start, skip_end, ...) \
-    ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ ARRAY_SIZE((__VA_ARGS__)) - (skip_start) - (skip_end) ] = arrview_shrink(skip_start, skip_end, __VA_ARGS__)
+#define make_arrview_shrink(_name_, _skip_start_, _skip_end_, ...) \
+	unsafe_make_arrview_shrink(_name_, (_skip_start_), (_skip_end_), &auto_arr(__VA_ARGS__))
+#define arrview_shrink(_skip_start_, _skip_end_, ...) \
+	unsafe_arrview_shrink((_skip_start_), (_skip_end_), &auto_arr(__VA_ARGS__))
 
-#define arrview_shrink(skip_start, skip_end, ...) array_slice_shrink_((skip_start), (skip_end), (__VA_ARGS__))
+#define unsafe_make_arrview_shrink(_name_, _skip_start_, _skip_end_, _arrp_) \
+	h_av_shrnk_decl(_name_, _skip_start_, _skip_end_, _arrp_) = h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, "make_arrview_shrink()")
 
-/* (make_)array_slice_shrink() runtime and static error checking */
-#if defined (ARRAY_RUNTIME_CHECKS)
-#define array_slice_shrink_(skip_start, skip_end, _arr_) arrslc_shrink_dyncheck(skip_start, skip_end, _arr_)
-#else
-#define array_slice_shrink_(skip_start, skip_end, _arr_) arrslc_shrink_static(skip_start, skip_end, _arr_)
-#endif
+#define unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_) h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, "arrview_shrink()")
 
-#define arrslc_shrink_static(skip_start, skip_end, _arr_) \
-        (ARRAY_ELEMENT_TYPE(_arr_) (*) [ chk_arrslc_shrink_static(_arr_, skip_start, skip_end) ]) &(auto_arr(_arr_)[skip_start])
+#define h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, _macro_name_)	\
+	(h_av_shrnk_decl(,_skip_start_, _skip_end_, _arrp_))&(*_arrp_)[_skip_start_ + h_av_shrink_chk_sel(_arrp_, _skip_start_, _skip_end_, _macro_name_)]
 
-#define chk_arrslc_shrink_static(_arr_, skip_start, skip_end) _Generic(1,                 \
-    int*:   sizeof(char [skip_start < 0 ? -1 : 1]),                                       \
-    int**:  sizeof(char [skip_end < 0 ? -1 : 1]),                                         \
-    int***: sizeof(char [skip_start >= ARRAY_SIZE(_arr_) ? -1 : 1 ] ),                    \
-    char*:  sizeof(char [skip_end >= ARRAY_SIZE(_arr_) ? -1 : 1 ] ),                      \
-    char**: sizeof(char [skip_start + skip_end >= ARRAY_SIZE(_arr_) ? -1 : 1 ] ),         \
-    default: ARRAY_SIZE(_arr_) - (skip_start) - (skip_end)                                \
-    )
+/* arrview shrink args check macros */
+#define h_av_shrnk_decl(_name_, _skip_start_, _skip_end_, _arrp_) unsafe_make_arrptr(_name_, h_av_shrink_size(_arrp_, _skip_start_, _skip_end_), _arrp_)
+#define h_av_shrink_size(_arrp_, _skip_start_, _skip_end_) UNSAFE_ARRAY_SIZE(*_arrp_) - _skip_start_ - _skip_end_
 
-#define arrslc_shrink_dyncheck(skip_start, skip_end, _arr_) \
-         ((void)chk_arrslc_shrink_dyn(_arr_, skip_start, skip_end), (ARRAY_ELEMENT_TYPE(_arr_) (*) [ ARRAY_SIZE(_arr_) - skip_start - skip_end ]) &(auto_arr(_arr_)[skip_start]))
+#define h_av_shrink_chk_sel(_arrp_, _skip_start_, _skip_end_, _macro_name_) \
+	POOR_ARR_CHK_SEL(h_av_shrink_chk_none, h_av_shrink_chk_static, h_av_shrink_chk_dyn)(_arrp_, _skip_start_, _skip_end_, _macro_name_)
 
-#define chk_arrslc_shrink_dyn(_arr_, skip_start, skip_end) (                                                                                                      \
-        (void)(sizeof(char [skip_start < 0 ? -1 : 1]) != 1 ?                                                                                                    \
-            arr_errmsg(CRED "Start index less than 0 when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                                       \
-        (void)(sizeof(char [skip_end < 0 ? -1 : 1]) != 1 ?                                                                                                      \
-            arr_errmsg(CRED "End index is less than 0 when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0),                                \
-        (void)(sizeof(char [skip_start >= ARRAY_SIZE(_arr_) ? -1 : 1]) != 1 ? 											\
-            arr_errmsg(CRED "Start index is equals or greater than array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__),	                \
-            " skip_start:", skip_start, " array size:", ARRAY_SIZE(_arr_), CRESET) : 0),                                                                              \
-        (void)(sizeof(char [skip_end >= ARRAY_SIZE(_arr_) ? -1 : 1]) != 1 ?                                                                                       \
-            arr_errmsg(CRED "End index is equals or greater than array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__),                	\
-            " skip_end:", skip_end, " array size:", ARRAY_SIZE(_arr_), CRESET) : 0),                                                                                  \
-        (void)(sizeof(char [skip_start + skip_end >= ARRAY_SIZE(_arr_) ? -1 : 1]) != 1 ?                                                                          \
-            arr_errmsg(CRED "Sum of start position and end position is equals or greater than source array size when creating arrview at " __FILE__ ":" STRINGIFY2(__LINE__) \
-            " skip_start:", skip_start, " skip_end:", skip_end, " array size:", ARRAY_SIZE(_arr_), CRESET) : 0)                                                       \
-    )
+#define h_av_shrink_chk_none(_arrp_, _skip_start_, _skip_end_, _macro_name_) 0
+
+#define h_av_shrink_chk_static(_arrp_, _skip_start_, _skip_end_, _macro_name_) _Generic(1,	\
+	int*:   ARR_ASSERT(_skip_start_ >= 0 && _skip_end_ >= 0),				\
+	int**:	ARR_ASSERT(_skip_start_ + _skip_end_ < UNSAFE_ARRAY_SIZE(*_arrp_)),		\
+	default: 0										\
+	)
+
+#define h_av_shrink_chk_dyn(_arrp_, _skip_start_, _skip_end_, _macro_name_) ((					\
+	ARR_ASSERT_MSG(_skip_start_ >= 0 && _skip_end_ >= 0,							\
+		CRED _macro_name_ ": Skipping negative amount of elements"					\
+		" (skipped front:", _skip_start_, " skipped back:", _skip_end_, ")"				\
+		" at " FILE_AND_LINE CRESET),									\
+	ARR_ASSERT_MSG(_skip_start_ + _skip_end_ < UNSAFE_ARRAY_SIZE(*_arrp_),					\
+		CRED _macro_name_ ": Skipping the whole array"							\
+		" (skipped front:", _skip_start_, " skipped back:", _skip_end_, ","				\
+		" array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"							\
+		" at " FILE_AND_LINE CRESET)									\
+	), 0)
 
 
-/* make_arrview_cfront(name, start, src): make arrview by skipping (skip_start) elements from the beginning of the array src */
-#define make_arrview_cfront(_name_, skip_start, ...) make_arrview_shrink(_name_, skip_start, 0, __VA_ARGS__)
-#define arrview_cfront(skip_start, ...) arrview_shrink(skip_start, 0, __VA_ARGS__)
+/* make_arrview_cfront(name, skip_start, src):
+ * make an arrview without first (skip_start) elements of the array src
+ * example:
 
-/* make_arrview_cback(name, skip_end, src): make arrview by skipping (skip_end) elements from the end of the array src */
-#define make_arrview_cback(_name_, skip_end, ...) make_arrview_shrink(_name_, 0, skip_end, __VA_ARGS__)
-#define arrview_cback(skip_end, ...) arrview_shrink(0, skip_end, __VA_ARGS__)
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_cfront(data_slc, 3, &data);
+	print_array(data_slc); //prints: [3,4,5]
+ */
+#define make_arrview_cfront(_name_, _skip_start_, ...) unsafe_make_arrview_cfront(_name_, (_skip_start_), &auto_arr(__VA_ARGS__))
+#define arrview_cfront(_skip_start_, ...) unsafe_arrview_cfront((_skip_start_), &auto_arr(__VA_ARGS__))
 
-/* make_arrview_full(name, src): make full arrview of the array src */
+#define unsafe_make_arrview_cfront(_name_, _skip_start_, _arrp_) \
+	h_av_skip_decl(_name_, _skip_start_, _arrp_) = h_unsafe_arrview_cfront(_skip_start_, _arrp_, "make_arrview_cfront()")
+#define unsafe_arrview_cfront(_skip_start_, _arrp_) h_unsafe_arrview_cfront(_skip_start_, _arrp_, "arrview_cfront()")
+
+#define h_unsafe_arrview_cfront(_skip_start_, _arrp_, _macro_name_) \
+	(h_av_skip_decl(, _skip_start_, _arrp_))&(*_arrp_)[_skip_start_ + h_av_skip_chk_sel(_arrp_, _skip_start_, _macro_name_)]
+
+/* make_arrview_cback(name, skip_end, src):
+ * make an arrview without last (skip_end) elements of the array src
+ * example:
+
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_cback(data_slc, 3, &data);
+	print_array(data_slc); //prints: [0,1,2]
+*/
+#define make_arrview_cback(_name_, _skip_end_, ...) unsafe_make_arrview_cback(_name_, _skip_end_, &auto_arr(__VA_ARGS__))
+#define arrview_cback(_skip_end_, ...) unsafe_arrview_cback(_skip_end_, &auto_arr(__VA_ARGS__))
+
+#define unsafe_make_arrview_cback(_name_, _skip_end_, _arrp_)	\
+	h_av_skip_decl(_name_, _skip_end_, _arrp_) = h_unsafe_arrview_cback(_skip_end_, _arrp_, "make_arrview_cback()")
+
+#define unsafe_arrview_cback(_skip_end_, _arrp_) h_unsafe_arrview_cback(_skip_end_, _arrp_, "arrview_cback()")
+
+#define h_unsafe_arrview_cback(_skip_end_, _arrp_, _macro_name_)	\
+	(h_av_skip_decl(, _skip_end_, _arrp_))&(*_arrp_)[h_av_skip_chk_sel(_arrp_, _skip_end_, _macro_name_)]
+
+/* Arrview cut back/front common declaration and argument checking macros */
+#define h_av_skip_decl(_name_, _skip_, _arrp_) unsafe_make_arrptr(_name_, h_av_skip_size(_arrp_, _skip_), _arrp_)
+#define h_av_skip_size(_arrp_, _skip_) UNSAFE_ARRAY_SIZE(*_arrp_) - _skip_
+
+#define h_av_skip_chk_sel(_arrp_, _skip_, _macro_name_) \
+	POOR_ARR_CHK_SEL(h_av_skip_chk_none, h_av_skip_chk_static, h_av_skip_chk_dyn)(_arrp_, _skip_, _macro_name_)
+
+#define h_av_skip_chk_none(_arrp_, _skip_, _macro_name_) 0
+
+#define h_av_skip_chk_static(_arrp_, _skip_, _macro_name_) _Generic(1,	\
+	int*:  ARR_ASSERT(_skip_ >= 0),					\
+	int**: ARR_ASSERT(_skip_ < UNSAFE_ARRAY_SIZE(*_arrp_)),		\
+	default: 0							\
+	)
+
+#define h_av_skip_chk_dyn(_arrp_, _skip_, _macro_name_) ((					\
+	ARR_ASSERT_MSG(_skip_ >= 0,								\
+		CRED _macro_name_ ": Skipping negative amount of elements"			\
+		" (skipped:", _skip_, ") at " FILE_AND_LINE CRESET),				\
+	ARR_ASSERT_MSG(_skip_ < UNSAFE_ARRAY_SIZE(*_arrp_),					\
+		CRED _macro_name_ ": Skipping the whole array"					\
+		" (skipped:", _skip_,", array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"		\
+		" at " FILE_AND_LINE CRESET)							\
+	), 0)
+
+/* make_arrview_full(name, src):
+ * make a full array view of the array src
+ * example
+
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_full(data_slc, &data);
+	print_array(data_slc); //prints: [0,1,2,3,4,5]
+ */
 #define make_arrview_full(_name_, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ARRAY_SIZE((__VA_ARGS__))] = arrview_full((__VA_ARGS__))
 #define arrview_full(...) &(auto_arr((__VA_ARGS__)))
 
-/* make_arrview_str(name, src): makr arrview without last element, useful for cutting '\0' from C strings */
+/* make_arrview_str(name, src):
+ * make arrview without last element, useful for cutting '\0' from C strings */
 #define make_arrview_str(_name_, ...) make_arrview_cback(_name_, 1, __VA_ARGS__)
 #define arrview_str(...) arrview_cback(1, __VA_ARGS__)
 
