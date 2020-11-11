@@ -570,20 +570,6 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     print_array(dst); //prints: [T,h,i,s, ,I,s, ,a, ,s,t,r,i,n,g]
 
  */
-#if 0
-#define copy_arrays(_dst_arr_, ...) do {                                        \
-    make_array_first_ref(_dst_arr_, _tmp_ptr_);                                 \
-    (                                                                           \
-        MAP_LIST_TWOARG(helper_copy_arrays, _tmp_ptr_, _dst_arr_, __VA_ARGS__)  \
-    );                                                                          \
-} while(0)
-
-#define helper_copy_arrays(_tmp_ptr_, _dst_array_, _src_array_) \
-    static_assert_expr(is_arrays_of_same_types( _dst_array_ , _src_array_), "Source array " #_src_array_ " doesn't have same type as destination array"), \
-    (void)(_tmp_ptr_ = ((typeof(_tmp_ptr_))memcpy(_tmp_ptr_, _src_array_, ARRAY_SIZE_BYTES(_src_array_))) + ARRAY_SIZE(_src_array_))
-
-#endif
-
 #define copy_arrays(_dst_, ...) (							\
 	h_rec_copy_arr_chk_sz(_dst_, __VA_ARGS__),					\
 	(void)RECURSION_ARG(h_rec_copy_arr, _dst_, _dst_, __VA_ARGS__)			\
