@@ -182,7 +182,7 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
  * example:
 
     PRINT_ARRAY_INFO(&(long long[]){1, 2, 3, 4});
-    //prints: Array "&(long long[]){1, 2, 3, 4}" at 0x7fffffffdc40 has size:4 uses 32 bytes, while single element has size:8
+    //prints: Array "&(long long[]){1, 2, 3, 4}" at 0x7fffffffdc40 has size:4 uses 32 bytes, while single element uses 8 bytes
 
 ...
 int main(int argc, char **argv) {
@@ -190,18 +190,19 @@ int main(int argc, char **argv) {
     malloc_array(test);
 
     PRINT_ARRAY_INFO(test);
-    //if argc == 1, prints: VLA "test" at 0x5555555592a0 has size:3 uses 6 bytes, while single element has size:2
+    //if argc == 1, prints: VLA "test" at 0x5555555592a0 has size:3 uses 6 bytes, while single element uses 2 bytes
 
     free(test);
     return 0;
 }
 
  */
-#define PRINT_ARRAY_INFO(...) println(h_print_array_info((__VA_ARGS__), " \"" #__VA_ARGS__ "\" at "),      \
-                                     ((const void*)(__VA_ARGS__)),                                         \
-                                     " has size:", ARRAY_SIZE((__VA_ARGS__)),                              \
-                                     " uses ", ARRAY_SIZE_BYTES((__VA_ARGS__)), " bytes,"                  \
-                                     " while single element has size:", ARRAY_ELEMENT_SIZE((__VA_ARGS__)))
+#define PRINT_ARRAY_INFO(...)									\
+	println(h_print_array_info((__VA_ARGS__), " \"" #__VA_ARGS__ "\" at "),			\
+		((const void*)(__VA_ARGS__)),							\
+		" has size:", ARRAY_SIZE((__VA_ARGS__)),					\
+		" uses ", ARRAY_SIZE_BYTES((__VA_ARGS__)), " bytes,"				\
+		" while single element uses ", ARRAY_ELEMENT_SIZE((__VA_ARGS__)), " bytes")
 
 #define h_print_array_info(arr, append) if_vla_or_vla_ptr(arr, "VLA" append, "Array" append)
 #define if_vla_or_vla_ptr(_arr_, t, f) if_constexpr(sizeof(_arr_) + sizeof(*(_arr_)), f, t)
