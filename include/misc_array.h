@@ -551,49 +551,71 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
                 )
 
 
-/* Copies multiple arrays into single array
- * @dst_ptr: pointer to destination array
- * __VA_ARGS__: pointers to source arrays to copy data from
+/* copy_arrays(_arrm_dst_, _arrm_src_1_, ..., _arrm_src_n_)
+ * Copies multiple arrays into a single array
+ * @_arrm_dst_: destination array or pointer to destination array
+ * @__VA_ARGS__: source arrays and/or pointers to source arrays to copy data from
  *
  * All source arrays must contain same element type as destination array
- * Destination array size must be equal or larger than total size of all source arrays.
+ * Destination array size must be equal or greater than total size of all source arrays.
+ * Source arrays should not overlap with destination array, but may overlap with each other.
  *
  * example:
 
-    make_arrview_str(src1, "This ");
-    make_arrview_str(src2, "Is ");
-    make_arrview_str(src3, "a string");
+	//String concatenation
+	make_arrview_str(src1, "This ");
+	make_arrview_str(src2, "Is ");
+	make_arrview_str(src3, "a string");
 
-    char dst[ARRAYS_SIZE(src1, src2, src3)];
-    copy_arrays(dst, src1, src2, src3);
+	char dst[ARRAYS_SIZE(src1, src2, src3)];
+	copy_arrays(dst, src1, src2, src3);
 
-    print_array(dst); //prints: [T,h,i,s, ,I,s, ,a, ,s,t,r,i,n,g]
+	print_array(dst); //prints: [T,h,i,s, ,I,s, ,a, ,s,t,r,i,n,g]
 
+	//copy integers from various arrays
+	int s1[2] = {1,2};
+	int (*s2)[4] = &(int[4]){3,4,5,6};
+	int s3[(size_t){3}]; s3[0] = 7; s3[1] = 8; s3[2] = 9;
+
+	int (*dst)[ARRAYS_SIZE(s1, s2, s3)] = malloc_array(dst);
+	if(dst) {
+		copy_arrays(dst, s1, s2, s3);
+		print_array(dst); //prints: [1,2,3,4,5,6,7,8,9]
+
+		free(dst);
+	}
  */
-#define copy_arrays(_dst_, ...) (							\
-	h_rec_copy_arr_chk_sz(_dst_, __VA_ARGS__),					\
-	(void)RECURSION_ARG(h_rec_copy_arr, _dst_, _dst_, __VA_ARGS__)			\
+#define copy_arrays(_arrm_dst_, ...) (							\
+	(void)h_copy_arrs_chk_size_sel(_arrm_dst_, __VA_ARGS__),			\
+	(void)RECURSION_ARG(h_copy_arrs, _arrm_dst_, _arrm_dst_, __VA_ARGS__)		\
 )
 
-#define h_rec_copy_arr(_dst_, _prev_, _src_) (								\
-	h_rec_copy_arr_chk_type(_dst_, _src_),								\
-	(unsigned char*)memcpy(_prev_, _src_, ARRAY_SIZE_BYTES(_src_)) + ARRAY_SIZE_BYTES(_src_)	\
+#define h_copy_arrs(_arrm_dst_, _prev_, _arrm_src_) (								\
+	(void)h_copy_arrs_chk_type_sel(_arrm_dst_, _arrm_src_),							\
+	(unsigned char*)memcpy(_prev_, _arrm_src_, ARRAY_SIZE_BYTES(_arrm_src_)) + ARRAY_SIZE_BYTES(_arrm_src_)	\
 )
 
-#define h_rec_copy_arr_chk_type(_dst_, _src_)				\
-	static_assert_expr(is_arrays_of_same_types( _dst_ , _src_),	\
-	"copy_arrays(): source array (" #_src_ ") doesn't have same type as destination array (" #_dst_ ")")
+#define h_copy_arrs_chk_type_sel(_arrm_dst_, _arrm_src_) \
+	POOR_ARR_CHK_SEL(h_copy_arrs_chk_type_none, h_copy_arrs_chk_type_static, h_copy_arrs_chk_type_static)(_arrm_dst_, _arrm_src_)
 
-#ifndef ARRAY_RUNTIME_CHECKS
-#define h_rec_copy_arr_chk_sz(_dst_, ...)							\
-	(void)sizeof(char [ARRAY_SIZE(_dst_) < ARRAYS_SIZE(__VA_ARGS__) ? -1 : 1 ])
+#define h_copy_arrs_chk_type_none(...) 0
+#define h_copy_arrs_chk_type_static(_arrm_dst_, _arrm_src_)			\
+	static_assert_expr(is_arrays_of_same_types(_arrm_dst_ , _arrm_src_),	\
+	"copy_arrays(): source array (" #_arrm_src_ ") doesn't have same type as destination array (" #_arrm_dst_ ")")
 
-#else
-#define h_rec_copy_arr_chk_sz(_dst_, ...)											\
-	(void)(sizeof(char [ARRAY_SIZE(_dst_) < ARRAYS_SIZE(__VA_ARGS__) ? -1 : 1 ]) != 1 ?					\
-	arr_errmsg(CRED "copy_arrays(): Array \"" #_dst_ "\" has incufficient space (", ARRAY_SIZE(_dst_), " element(s))"	\
-	" while size of all sources is ", ARRAYS_SIZE(__VA_ARGS__) ," at " __FILE__ ":" STRINGIFY2(__LINE__) CRESET) : 0)
-#endif
+#define h_copy_arrs_chk_size_sel(_arrm_dst_, ...) \
+	POOR_ARR_CHK_SEL(h_copy_arrs_chk_size_none, h_copy_arrs_chk_size_static, h_copy_arrs_chk_size_dyn)(_arrm_dst_, __VA_ARGS__)
+
+#define h_copy_arrs_chk_size_none(...) 0
+#define h_copy_arrs_chk_size_static(_arrm_dst_, ...)					\
+	ARR_ASSERT(ARRAY_SIZE(_arrm_dst_) >= ARRAYS_SIZE(__VA_ARGS__))
+
+#define h_copy_arrs_chk_size_dyn(_arrm_dst_, ...)					\
+	ARR_ASSERT_MSG(ARRAY_SIZE(_arrm_dst_) >= ARRAYS_SIZE(__VA_ARGS__),		\
+		"copy_arrays(): Array \"" #_arrm_dst_ "\" has incufficient space"	\
+		" (", ARRAY_SIZE(_arrm_dst_), " element(s))"				\
+		" while size of all source arrays is ", ARRAYS_SIZE(__VA_ARGS__),	\
+		" at " FILE_AND_LINE)							\
 
 
 /***** Arrview *****/
