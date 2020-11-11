@@ -475,19 +475,6 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
             println(ref->val, " ", ref->string);
 
  */
-#if 0
-#define copy_array(dst_arr, ...) do {					\
-	make_arrview_full(_tmp_dst_ptr_, dst_arr);			\
-	const make_arrview_full(_tmp_src_ptr_, (__VA_ARGS__));		\
-									\
-	if(unsafe_is_ptas_of_same_types(_tmp_dst_ptr_, _tmp_src_ptr_)){	\
-		unsafe_copy_array_fast(_tmp_dst_ptr_, _tmp_src_ptr_);	\
-	} else {							\
-		unsafe_copy_array_slow(_tmp_dst_ptr_, _tmp_src_ptr_);	\
-	}								\
-} while(0)
-#endif
-
 #define copy_array(_dst_arr_, ...) do {										\
 	make_arrview_full(_tmp_dst_, _dst_arr_);								\
 	const make_arrview_full(_tmp_src_, (__VA_ARGS__));							\
