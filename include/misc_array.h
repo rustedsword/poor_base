@@ -64,8 +64,6 @@ typedef union _dummy_type_ {char a;} _dummy_type_;
 #define if_dummy_true(var, t, f) _Generic(&var, _dummy_type_(*)[1 + true]: t, default: f)
 #define is_dummy_true(var) _Generic(&var, _dummy_type_(*)[1 + true]: true, default: false)
 
-union _not_an_array_type_ {char a;};
-
 typedef struct _is_arr_ {int a;} _is_arr_;
 typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 
