@@ -502,6 +502,66 @@
 #define make_arrview_cback(_name_, _skip_end_, ...) unsafe_make_arrview_cback(_name_, _skip_end_, &auto_arr(__VA_ARGS__))
 #define arrview_cback(_skip_end_, ...) unsafe_arrview_cback(_skip_end_, &auto_arr(__VA_ARGS__))
 
+/* make_arrview_dim(_size_, _arrm_)
+ * Creates an arrview for array by splitting it's top dimension into two dimensions
+ * @_size_: size of second dimension, should not be less than source array size
+ * @_arrm_: source array or a pointer to an array
+ *
+ * int a[40] -> size:4 -> int (*ptr)[10][4];
+ * int a[7]  -> size:3 -> int (*ptr)[2][3]; //Last element won't be part of the view
+ *
+ * example:
+
+	const char *k_v[] = {
+		"1", "Flower",
+		"2", "Blast",
+		"3", "Light"
+	};
+
+	//Reinterpret k_v array as pairs
+	make_arrview_dim(kv_pair_view, 2, k_v);
+	foreach_array_ref(kv_pair_view, pair_ref)
+		print_array(pair_ref);
+
+	//prints:[1,Flower]
+	//	 [2,Blast]
+	//	 [3,Light]
+
+
+	//Reinterpret k_v array as triples
+	make_arrview_dim(kv_triple_view, 3, k_v);
+	foreach_array_ref(kv_triple_view, triple_ref)
+		print_array(triple_ref);
+
+	//prints:[1,Flower,2]
+	//	 [Blast,3,Light]
+
+ */
+#define make_arrview_dim(_name_, _size_, ...) h_make_arrview_dim(_name_, (_size_), (__VA_ARGS__))
+#define arrview_dim(_size_, ...) h_arrview_dim((_size_), (__VA_ARGS__))
+
+/* make_arrview_flat(_arrm_)
+ * Creates an arrview for multi-dimensional array by merging it's first two dimensions into a single dimension
+ * @_arrm_: source array or a pointer to an array. Should contain at least two dimensions
+ *
+ * int a[4][3]    -> int (*ptr)[12]
+ * int a[100][10] -> int (*ptr)[1000]
+ *
+ * example:
+
+	int matrix[3][3] = {
+		{1,2,3},
+		{4,5,6},
+		{7,8,9},
+	};
+
+	make_arrview_flat(matrix_flat, matrix);
+	print_array(matrix_flat);
+	//prints: [1,2,3,4,5,6,7,8,9]
+ */
+#define make_arrview_flat(_name_, ...) h_make_arrview_flat(_name_, (__VA_ARGS__))
+#define arrview_flat(...) h_arrview_flat((__VA_ARGS__))
+
 /* make_arrview_full(name, src):
  * make a full array view of the array src
  * example:
@@ -535,7 +595,7 @@
 	//Dereference to const char* and print
 	println(*str);
 	printf("%s\n", *str);
-	fwrite(*str, 1, P_ARRAY_SIZE(str) - 1, stdout);
+	fwrite(*str, 1, ARRAY_SIZE(str) - 1, stdout);
 
 	//Make slice without '\0' and print it as array of chars
 	make_arrview_str(str_nonull, str);
@@ -546,7 +606,7 @@
 	static string_literal(useful_string, "I am just a string");
 
 	int main() {
-		println(*useful_string, " with size:", P_ARRAY_SIZE(useful_string));
+		println(*useful_string, " with size:", ARRAY_SIZE(useful_string));
 		return 0;
 	}
  */
@@ -597,26 +657,6 @@
 #define make_merged_array(_name_, ...) \
 	ARRAY_ELEMENT_TYPE_NO_QUAL(TAKE_FIRST_ARG(__VA_ARGS__)) _name_ [ ARRAYS_SIZE(__VA_ARGS__) ]; \
 	copy_arrays(_name_, __VA_ARGS__)
-
-/* [make_]arrview_dim(size, src_arr)
- * Creates an arrview for array by splitting it's top dimension into two dimensions
- * int a[12] -> 4 -> int (*ptr)[3][4];
- * int a[7] -> 3 -> int (*ptr)[2][3]; //Last element won't be part of the view
- *
- * @size: size of second dimension, should not be less than source array size
- * @src_arr: source array/pointer to array
- */
-#define make_arrview_dim(_name_, _size_, ...) h_make_arrview_dim(_name_, (_size_), (__VA_ARGS__))
-#define arrview_dim(_size_, ...) h_arrview_dim((_size_), (__VA_ARGS__))
-
-/* [make_]arrview_flat(src_arr)
- * Creates an arrview for multi-dimensional array by merging it's first two dimensions into single dimension
- * int a[4][3] -> int (*ptr)[12]
- *
- * @src_arr: source array/pointer to array. Should contain at least two dimensions
- */
-#define make_arrview_flat(_name_, ...) h_make_arrview_flat(_name_, (__VA_ARGS__))
-#define arrview_flat(...) h_arrview_flat((__VA_ARGS__))
 
 /* make_arrview_ref_ref(name, ref1, ref2):
  *
@@ -1218,6 +1258,43 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 		" at " FILE_AND_LINE CRESET)							\
 	), 0)
 
+/* arrview_dim() implementation */
+#define h_make_arrview_dim(_name_, _size_, _arrm_) \
+	h_av_dim_decl(_name_, _size_, &auto_arr(_arrm_)) = \
+	((typeof(_name_))_arrm_ + h_av_dim_chk_sel(&auto_arr(_arrm_), _size_, "make_arrview_dim()"))
+
+#define h_arrview_dim(_size_, _arrm_) \
+	(h_av_dim_decl(, _size_, &auto_arr(_arrm_)))(_arrm_ + h_av_dim_chk_sel(&auto_arr(_arrm_), _size_, "arrview_dim()"))
+
+#define h_av_dim_decl(_name_, _size_, _arrp_) UNSAFE_ARRAY_ELEMENT_TYPE(*_arrp_)(*_name_)[ UNSAFE_ARRAY_SIZE(*_arrp_) / _size_ ][_size_]
+
+#define h_av_dim_chk_sel(_arrp_, _size_, _macro_name_) \
+	POOR_ARR_CHK_SEL(h_av_dim_chk_none, h_av_dim_chk_static, h_av_dim_chk_dyn)(_arrp_, _size_, _macro_name_)
+
+#define h_av_dim_chk_none(...) 0
+#define h_av_dim_chk_static(_arrp_, _size_, _macro_name_) _Generic(1,		\
+	int*:  ARR_ASSERT(_size_ > 0),						\
+	int**: ARR_ASSERT(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_)),		\
+	default: 0 )
+
+#define h_av_dim_chk_dyn(_arrp_, _size_, _macro_name_) ((						\
+	ARR_ASSERT_MSG(_size_ > 0,									\
+		CRED _macro_name_ ": Size of a new dimension should be greater than 0"			\
+		" (dimension size:", _size_, ")"								\
+		" at " FILE_AND_LINE CRESET),								\
+	ARR_ASSERT_MSG(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),						\
+		CRED _macro_name_ ": Size of a new dimension is less than source array size"		\
+		" (dimension size:", _size_, " source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
+		" at " FILE_AND_LINE CRESET)								\
+    ), 0)
+
+/* arrview_flat() implementation */
+#define h_make_arrview_flat(_name_, _arrm_) h_av_flat_decl(_name_, &auto_arr(_arrm_)) = (typeof(_name_))_arrm_
+#define h_arrview_flat(_arrm_) (h_av_flat_decl(, &auto_arr(_arrm_)))_arrm_
+
+#define h_av_flat_decl(_name_, _arrp_) \
+	UNSAFE_ARRAY_ELEMENT_TYPE((*_arrp_)[0])(*_name_) [UNSAFE_ARRAY_SIZE(*_arrp_) * UNSAFE_ARRAY_SIZE((*_arrp_)[0])]
+
 /* declare_string_literal(name, string_literal)
  *
  * Only declares constant pointer to array of constant chars
@@ -1335,21 +1412,6 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
             (array_last_ref(_arr_) - unsafe_array_last_ref(_to_replace_)) * UNSAFE_ARRAY_ELEMENT_SIZE(*_to_replace_)); \
     copy_array(_to_replace_, _src_arr_);                                                                               \
 } while (0)
-
-
-/* arrview_dim() implementation */
-#define h_make_arrview_dim(_name_, _size_, _arr_) ARRAY_ELEMENT_TYPE(_arr_) (*_name_) [ h_check_arrview_dim(_size_, _arr_) ][_size_] = (void*)_arr_
-#define h_arrview_dim(_size_, _arr_) ((ARRAY_ELEMENT_TYPE(_arr_) (*) [ h_check_arrview_dim(_size_, _arr_) ][_size_])_arr_)
-
-#define h_check_arrview_dim(_size_, _arr_) _Generic(1,           \
-    int*:   sizeof(char [_size_ < 0 ? -1 : 1]),                  \
-    int**:  sizeof(char [_size_ > ARRAY_SIZE(_arr_) ? -1 : 1]),  \
-    default: ARRAY_SIZE(_arr_) / _size_                          \
-    )
-
-/* arrview_flat() implementation */
-#define h_make_arrview_flat(_name_, _arr_) UNSAFE_ARRAY_ELEMENT_TYPE(auto_arr(_arr_)[0])(*_name_) [ARRAY_SIZE(_arr_) * UNSAFE_ARRAY_SIZE(auto_arr(_arr_)[0])] = (void*)_arr_
-#define h_arrview_flat(_arr_) ((UNSAFE_ARRAY_ELEMENT_TYPE(auto_arr(_arr_)[0])(*)[ARRAY_SIZE(_arr_) * UNSAFE_ARRAY_SIZE(auto_arr(_arr_)[0])])_arr_)
 
 /* Array bit operations. Experimental */
 
