@@ -139,19 +139,19 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 #endif
 
 /* Returns number of elements in the array */
-#define ARRAY_SIZE(arr) ( sizeof( auto_arr(arr)) / sizeof (auto_arr(arr)[0]) )
+#define ARRAY_SIZE(...) UNSAFE_ARRAY_SIZE(auto_arr(__VA_ARGS__))
 /* Returns total array size in bytes */
-#define ARRAY_SIZE_BYTES(arr) sizeof( auto_arr(arr) )
-/* Returns size of one element in the array */
-#define ARRAY_ELEMENT_SIZE(arr) sizeof( auto_arr(arr)[0] )
+#define ARRAY_SIZE_BYTES(...) UNSAFE_ARRAY_SIZE_BYTES(auto_arr(__VA_ARGS__))
+/* Returns size in bytes of the one element in the array */
+#define ARRAY_ELEMENT_SIZE(...) UNSAFE_ARRAY_ELEMENT_SIZE(auto_arr(__VA_ARGS__))
 /* Extracts type of array element from array */
-#define ARRAY_ELEMENT_TYPE(arr) typeof( auto_arr(arr)[0] )
+#define ARRAY_ELEMENT_TYPE(...) UNSAFE_ARRAY_ELEMENT_TYPE(auto_arr(__VA_ARGS__))
 
 /* ONLY FOR INTERNAL USE! arr is not validated for arrayness. arr should be an array. */
-#define UNSAFE_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) )
-#define UNSAFE_ARRAY_SIZE_BYTES(arr) (sizeof(arr))
-#define UNSAFE_ARRAY_ELEMENT_SIZE(arr) sizeof( (arr)[0] )
-#define UNSAFE_ARRAY_ELEMENT_TYPE(arr) typeof( (arr)[0] )
+#define UNSAFE_ARRAY_SIZE(_arr_) (sizeof(_arr_) / sizeof((_arr_)[0]) )
+#define UNSAFE_ARRAY_SIZE_BYTES(_arr_) sizeof(_arr_)
+#define UNSAFE_ARRAY_ELEMENT_SIZE(_arr_) sizeof((_arr_)[0])
+#define UNSAFE_ARRAY_ELEMENT_TYPE(_arr_) typeof((_arr_)[0])
 
 /* Get sum of array sizes
  * @__VA_ARGS__: arrays or pointer to arrays
