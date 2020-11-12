@@ -38,6 +38,795 @@
 #define arr_errmsg(...) ((void)printerrln(__VA_ARGS__), (void)abort(), 0)
 #endif
 
+/***** Main API ******/
+
+/* auto_arr(_arrm_)
+ * @_arrm_: an array or a pointer to an array
+ *
+ * This macro returns (_arrm_) if (_arrm_) is an array, or (*_arrm_) if (_arrm_) is a pointer to an array
+ * Basically, this macro automatically dereferences pointers to arrays.
+ * Stops compilation if (_arrm_) is not an array or a pointer to array.
+ *
+ * Provides base for checking arrays and hides complexity when
+ * working with fixed or variable arrays and pointers to them.
+ *
+ * for direct usage it is reccomended to use arr() macro alias to type less.
+ *
+ * example:
+
+	char str[] = "String";
+	char (*str_ptr) [ARRAY_SIZE(str)] = &str;
+
+	//These two operations are the same:
+	arr(str)[1] = 'p';
+	arr(str_ptr)[1] = 'r';
+
+	//Works with multi-dimensional arrays too:
+	char   array [2][5][4] = {0};
+	char (*arptr)[2][5][4] = &array;
+
+	arr(array)[0][0][1] = 'R';
+	arr(arptr)[0][1][0] = 'F';
+
+	println( arr(arptr)[0][0][1] ); //Prints 'R'
+	println( arr(array)[0][1][0] ); //Prints 'F'
+*/
+#define auto_arr(...) h_auto_arr((__VA_ARGS__))
+
+/* Macro alias for auto_arr() */
+#if !defined(arr)
+#define arr(...) auto_arr(__VA_ARGS__)
+#endif
+
+/*** Array informational macros ***/
+
+/* Returns number of elements in the array */
+#define ARRAY_SIZE(...) UNSAFE_ARRAY_SIZE(auto_arr(__VA_ARGS__))
+/* Returns total array size in bytes */
+#define ARRAY_SIZE_BYTES(...) UNSAFE_ARRAY_SIZE_BYTES(auto_arr(__VA_ARGS__))
+/* Returns size in bytes of the one element in the array */
+#define ARRAY_ELEMENT_SIZE(...) UNSAFE_ARRAY_ELEMENT_SIZE(auto_arr(__VA_ARGS__))
+/* Extracts type of array element from array */
+#define ARRAY_ELEMENT_TYPE(...) UNSAFE_ARRAY_ELEMENT_TYPE(auto_arr(__VA_ARGS__))
+
+/* ARRAYS_SIZE(_arrm_1_, ..., _arrm_n_)
+ * Get sum of array sizes
+ * Arguments should be arrays or pointers to arrays
+ * example:
+
+	char te[] = {1, 2, 3};
+	long (*me)[2] = &(long[]){5, 6};
+	println(ARRAYS_SIZE(te, me)); //prints: 5
+ */
+#define ARRAYS_SIZE(...) ( MAP_SEP((+), ARRAY_SIZE, __VA_ARGS__) )
+
+/* ARRAYS_SIZE_BYTES(_arrm_1_, ..., _arrm_n_)
+ * Get total size in bytes for all arrays
+ * Arguments should be arrays or pointers to arrays
+ * example:
+
+	uint8_t te[] = {1, 2, 3};
+	long (*me)[2] = &(long[]){5, 6};
+	println(ARRAYS_SIZE_BYTES(te, me)); //prints: 19  (if sizeof(long) == 8, then (8 * 2) + 3 )
+ */
+#define ARRAYS_SIZE_BYTES(...) ( MAP_SEP((+), ARRAY_SIZE_BYTES, __VA_ARGS__) )
+
+/* PRINT_ARRAY_INFO(_arrm_): Prints information about array
+ * @_arrm_: an array or a pointer to an array
+ * example:
+
+	PRINT_ARRAY_INFO(&(long long[]){1, 2, 3, 4});
+	//prints: Array "&(long long[]){1, 2, 3, 4}" at 0x7fffffffdc40 has size:4 uses 32 bytes, while single element uses 8 bytes
+
+	...
+	int main(int argc, char **argv) {
+		short (*test)[argc * 3];
+		malloc_array(test);
+
+		PRINT_ARRAY_INFO(test);
+		//if argc == 1, prints: VLA "test" at 0x5555555592a0 has size:3 uses 6 bytes, while single element uses 2 bytes
+
+		free(test);
+		return 0;
+	}
+ */
+#define PRINT_ARRAY_INFO(...)									\
+	println(h_print_array_info((__VA_ARGS__), " \"" #__VA_ARGS__ "\" at "),			\
+		((const void*)(__VA_ARGS__)),							\
+		" has size:", ARRAY_SIZE((__VA_ARGS__)),					\
+		" uses ", ARRAY_SIZE_BYTES((__VA_ARGS__)), " bytes,"				\
+		" while single element uses ", ARRAY_ELEMENT_SIZE((__VA_ARGS__)), " bytes")
+
+/* print_array(_arrm_)
+ * Prints array as formatted output [x,y,z,...]
+ * @_arrm_: an array or a pointer to an array
+ * Type of array elements should be one of standard C types. See println() for more info.
+ * example:
+
+	print_array((int[]){1,2,3,4}); //prints: [1,2,3,4];
+
+	const char * strings[4] = {
+		"First",
+		"Second",
+		"Third",
+		"Fourth",
+	};
+	print_array(strings); //prints: [First,Second,Third,Fourth]
+ */
+#define print_array(...) do {						\
+	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);		\
+	unsafe_make_array_first_ref(_tmp_arr_ptr_, _ref_);		\
+										\
+	print((char)'[', *_ref_);						\
+	for(_ref_++; _ref_ != unsafe_array_end_ref(_tmp_arr_ptr_); _ref_++)	\
+		print((char)',', *_ref_);					\
+										\
+	println("]");								\
+} while (0)
+
+/*** Basic array manipulation ***/
+
+/* make_array_ptr(name, pointer, size)
+ *
+ * Declares a pointer to an array with specified name and sets it's value to (pointer)
+ * This macro is useful to tie together pointer and size in the form of pointer to array.
+ *
+ * @pointer: pointer to the first array element
+ * @size: size of the array, should be greater than zero.
+ *
+ * example:
+
+	//Wraping pointer and size returned from function
+	size_t size;
+	int *ptr = function_which_returns_pointer_and_size(&size);
+	if(!ptr || !size)
+		return;
+
+	make_array_ptr(data, ptr, size);
+	print_array(data);
+
+	...
+	//Simple program:
+
+	int main(int argc, char **argv) {
+		make_array_ptr(args, argv, argc);
+		print_array(args);
+		return 0;
+	}
+
+ */
+#define make_array_ptr(_name_, _pointer_, _size_) typeof(*(_pointer_)) (* _name_)[(_size_)]  = (void*)(_pointer_)
+
+/* malloc_array(_arrp_)
+ * Allocates memory for pointer to an array.
+ * @_arrp_: a pointer to an array
+ * Provide pointer to an array, to allocate memory. Pointer can be pointer to VLA.
+ * Size of allocation will be deduced from pointer type;
+ *
+ * returns newly allocated pointer if allocation successful, or NULL on failure;
+ *
+ * usage example:
+
+	int (*some_ints)[ rand() % 10 + 1 ]; //Create pointer to VLA with random size from 1 to 10
+
+	if(!malloc_array(some_ints)) {
+		printerrln("Failed to alloc array");
+		exit(EXIT_FAILURE);
+	}
+
+	for(unsigned i = 0; i < P_ARRAY_SIZE(some_ints); i++) {
+		(*some_ints)[i] = ((int)i + 1) * 2;
+	}
+	println("index 0 has value:", (*some_ints)[0]);
+
+	free(some_ints);
+
+*/
+#define malloc_array(_arrp_) (( _arrp_ = malloc( ARRAY_SIZE_BYTES(_arrp_) ) ))
+
+/* Same as malloc_array, but with calloc */
+#define calloc_array(_arrp_) (( _arrp_ = calloc( 1, ARRAY_SIZE_BYTES(_arrp_) ) ))
+
+/* memset_array(_arrm_, _symbol_)
+ * Fills array with specified byte by using memset
+ * @_arrm_: an array or a pointer to an array
+ * @_symbol_: a byte for array filling
+ * WARNING: It is better and safer to use fill_array() instead!
+ * example:
+
+	char (*data)[5];
+	malloc_array(data);
+	memset_array(data, 'L');
+
+	foreach_array_ref(data, ref)
+		print(*ref); //Will print: LLLLL
+
+*/
+#define memset_array(_arrm_, _symbol_) memset((_arrm_), _symbol_, ARRAY_SIZE_BYTES(_arrm_))
+
+/* fill_array(_arrm_, _value_)
+ * Fills array with specified value
+ * @_arrm_: an array or a pointer to an array
+ * example:
+
+	int (*ty)[5];
+	malloc_array(ty);
+
+	fill_array(ty, 50);
+	print_array(ty); //Will print [50,50,50,50,50]
+
+	free(ty);
+*/
+#define fill_array(_arrm_, ...)  \
+	foreach_array_ref(_arrm_, _ref_) \
+		*(_ref_) = (__VA_ARGS__)
+
+/*** Array iterators ***/
+
+/* Iterate over an array.
+ * @_arr_ptr_: array or pta
+ * @_ref_ptr_name_: name of pointer which will be used as reference to each array element
+ * example:
+
+	uint16_t test[] = {1, 2, 3, 4};
+	foreach_array_ref(&test, val)
+		print(*val);  //prints: 1234
+
+ *
+ * NOTE: if _arr_ptr_ contains const data, then _ref_ptr_name_ also will be const
+ */
+#define foreach_array_ref(_arr_, _ref_ptr_name_) foreach_array_ref_base(,(_arr_), _ref_ptr_name_)
+
+/* same as foreach_array_ref(), but _ref_ptr_name_ is always const */
+#define foreach_array_const_ref(_arr_, _ref_ptr_name_) foreach_array_ref_base(const, (_arr_), _ref_ptr_name_)
+
+/*
+ * Iterate backwards over an array. Same as foreach_array_ref(), but backwards.
+ * example:
+ *
+	uint16_t test[] = {1, 2, 3, 4};
+	foreach_array_ref_bw(&test, val)
+		print(*val);  //prints: 4321
+ */
+#define foreach_array_ref_bw(_arr_, _ref_ptr_name_) foreach_array_ref_bw_base(,(_arr_), _ref_ptr_name_)
+
+/* same as foreach_array_ref_bw(), but _ref_ptr_name_ is always const */
+#define foreach_array_const_ref_bw(_arr_, _ref_ptr_name_) foreach_array_ref_bw_base(const, (_arr_), _ref_ptr_name_)
+
+/*** Array accessors ***/
+
+/* get pointer to the first, to the last and to the one past the last element of the array  */
+#define array_first_ref(_array_ptr_) (& auto_arr((_array_ptr_))[0])
+#define array_last_ref(_array_ptr_)  (& auto_arr((_array_ptr_))[ARRAY_SIZE(_array_ptr_) - 1])
+#define array_end_ref(_array_ptr_)   (& auto_arr((_array_ptr_))[ARRAY_SIZE(_array_ptr_)])
+
+/* returns true if ref points to the first, to the last or the one past the last elemenet of ther array */
+#define is_first_array_ref(_arr_ptr_, _ref_) ((_ref_) == array_first_ref((_arr_ptr_)))
+#define is_last_array_ref(_arr_ptr_, _ref_)  ((_ref_) == array_last_ref((_arr_ptr_)))
+#define is_end_array_ref(_arr_ptr_, _ref_)   ((_ref_) == array_end_ref((_arr_ptr_)))
+#define is_first_or_last_array_ref(_arr_ptr_, _ref_) ( is_first_array_ref((_arr_ptr_), (_ref_)) || is_last_array_ref((_arr_ptr_), (_ref_))  )
+
+/* Get index of an array element where _ref_ is pointing.
+ * @_arrm_: array or pointer to array
+ * @_ref_: pointer to an element inside that array
+ * example:
+
+	int a[] = {10, 20, 30};
+	foreach_array_ref(a, ref)
+		println("array index:", array_ref_index(a, ref), " value:", *ref);
+
+	//prints:
+	//array index:0 value:10
+	//array index:1 value:20
+	//array index:2 value:30
+
+*/
+#define array_ref_index(_arrm_, _ref_) ((_ref_) - array_first_ref(_arrm_))
+
+/*** Array Copy ***/
+
+/* copy_array(_arrm_dst_, _arrm_src_)
+ * @_arrm_dst_: destination array or a pointer to an array
+ * @_arrm_src_: source array or a pointer to an array
+ * Copies data from src array or pta to dst array or pta per element
+ * if dst array is larger or equal than source array, then entire source array will be copied to dst.
+ * excess bytes in dst won't be touched.
+ *
+ * if dst array is smaller than src array, then only part of source will be copied from src with size equals dst array.
+ *
+ * dst and src arrays can be of different type. i.e. it is valid to copy data from array of ints to array of longs.
+ * But compiler may complain if losing precision.
+ *
+ * @dst_ptr: destination array or pta
+ * @__VA_ARGS__: source array or pta
+ *
+ * examples:
+
+	//Destination is larger than source:
+
+	int dst[5] = {1,2,3,4,5};
+	int src[3] = {9,8,7};
+	copy_array(dst, src);
+	print_array(dst); //prints: [9,8,7,4,5]
+	...
+	//Source and Destination have different, but compatible types
+	//Source is larger than Destination
+
+	long dst[]  = {1,2};
+	short src[] = {9,8,7};
+	copy_array(dst, src);
+	print_array(dst); //prints: [9,8]
+	...
+	//Dynamic array initialization:
+
+	char (*string)[40];
+	malloc_array(string);
+	copy_array(string, "Hello!");
+	println(*string);
+	free(string);
+	...
+	//VLA Initialization and array of structs
+
+	struct toto {
+		int val;
+		char *string;
+	};
+
+	size_t len = 10;
+	struct toto values[len];
+	fill_array(values, (const struct toto){.val = -1, .string = "None"});
+	copy_array(values, (const struct toto[]){
+				   {.val = 1,  .string = "First"},
+				   {.val = 10, .string = "Second"},
+				   {.val = 30, .string = "Third"},
+				   });
+
+	foreach_array_const_ref(values, ref)
+		println(ref->val, " ", ref->string);
+
+ */
+#define copy_array(_arrp_dst_, ...) do {			\
+	make_arrview_full(_tmp_dst_full_, _arrp_dst_);		\
+	const make_arrview_full(_tmp_src_full_, (__VA_ARGS__));	\
+	unsafe_copy_array(_tmp_dst_full_, _tmp_src_full_);	\
+} while(0)
+
+/* copy_arrays(_arrm_dst_, _arrm_src_1_, ..., _arrm_src_n_)
+ * Copies multiple arrays into a single array
+ * @_arrm_dst_: destination array or pointer to destination array
+ * @_arrm_src_: source arrays and/or pointers to source arrays to copy data from
+ *
+ * All source arrays must contain same element type as destination array
+ * Destination array size must be equal or greater than total size of all source arrays.
+ * Source arrays should not overlap with destination array, but may overlap with each other.
+ *
+ * example:
+
+	//String concatenation
+	make_arrview_str(src1, "This ");
+	make_arrview_str(src2, "Is ");
+	make_arrview_str(src3, "a string");
+
+	char dst[ARRAYS_SIZE(src1, src2, src3)];
+	copy_arrays(dst, src1, src2, src3);
+
+	print_array(dst); //prints: [T,h,i,s, ,I,s, ,a, ,s,t,r,i,n,g]
+
+	//copy integers from various arrays
+	int s1[2] = {1,2};
+	int (*s2)[4] = &(int[4]){3,4,5,6};
+	int s3[(size_t){3}]; s3[0] = 7; s3[1] = 8; s3[2] = 9;
+
+	int (*dst)[ARRAYS_SIZE(s1, s2, s3)] = malloc_array(dst);
+	if(dst) {
+		copy_arrays(dst, s1, s2, s3);
+		print_array(dst); //prints: [1,2,3,4,5,6,7,8,9]
+
+		free(dst);
+	}
+*/
+#define copy_arrays(_arrm_dst_, ...) (							\
+	(void)h_copy_arrs_chk_size_sel(_arrm_dst_, __VA_ARGS__),			\
+	(void)RECURSION_ARG(h_copy_arrs, _arrm_dst_, _arrm_dst_, __VA_ARGS__)		\
+)
+
+/*** Arrview ***/
+
+/* make_arrview(name, start, size, src):
+ * make an array view of the array src with size (size) starting from (start) position.
+ * example:
+
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview(data_slc, 2, 3, &data); //Start index: 2 and size: 3
+	print_array(data_slc); //prints: [2,3,4]
+ */
+#define make_arrview(_name_, _idx_, _size_, ...) make_unsafe_arrview(_name_, (_idx_), (_size_), &auto_arr(__VA_ARGS__))
+#define arrview(_idx_, _size_, ...) unsafe_arrview((_idx_), (_size_), &auto_arr(__VA_ARGS__))
+
+/* make_arrview_first(name, size, src):
+ * create arrview of the first (size) elements of the array src
+ * example:
+
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_first(data_slc, 2, &data);
+	print_array(data_slc); //prints: [0,1]
+ */
+#define make_arrview_first(_name_, _size_, ...) unsafe_make_arrview_first(_name_, (_size_), &auto_arr(__VA_ARGS__))
+#define arrview_first(_size_, ...) unsafe_arrview_first((_size_), &auto_arr(__VA_ARGS__))
+
+/* make_arrview_last(name, size, src):
+ * create arrview of the last (size) elements of the array src
+ * example:
+
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_last(data_slc, 2, &data);
+	print_array(data_slc); //prints: [4,5]
+ */
+#define make_arrview_last(_name_, _size_, ...) unsafe_make_arrview_last(_name_, (_size_), &auto_arr(__VA_ARGS__))
+#define arrview_last(_size_, ...) unsafe_arrview_last((_size_), &auto_arr(__VA_ARGS__))
+
+/* make_arrview_shrink(name, skip_start, skip_end, src):
+ * Make an array view without first (skip_start) elements
+ * and without last (skip_end) elements of the array (src)
+ *
+ * example:
+
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_shrink(data_slc, 2, 1, &data);
+	print_array(data_slc); //prints: [2,3,4]
+*/
+#define make_arrview_shrink(_name_, _skip_start_, _skip_end_, ...) \
+	unsafe_make_arrview_shrink(_name_, (_skip_start_), (_skip_end_), &auto_arr(__VA_ARGS__))
+#define arrview_shrink(_skip_start_, _skip_end_, ...) \
+	unsafe_arrview_shrink((_skip_start_), (_skip_end_), &auto_arr(__VA_ARGS__))
+
+/* make_arrview_cfront(name, skip_start, src):
+ * make an arrview without first (skip_start) elements of the array src
+ * example:
+
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_cfront(data_slc, 3, &data);
+	print_array(data_slc); //prints: [3,4,5]
+*/
+#define make_arrview_cfront(_name_, _skip_start_, ...) unsafe_make_arrview_cfront(_name_, (_skip_start_), &auto_arr(__VA_ARGS__))
+#define arrview_cfront(_skip_start_, ...) unsafe_arrview_cfront((_skip_start_), &auto_arr(__VA_ARGS__))
+
+/* make_arrview_cback(name, skip_end, src):
+ * make an arrview without last (skip_end) elements of the array src
+ * example:
+
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_cback(data_slc, 3, &data);
+	print_array(data_slc); //prints: [0,1,2]
+*/
+#define make_arrview_cback(_name_, _skip_end_, ...) unsafe_make_arrview_cback(_name_, _skip_end_, &auto_arr(__VA_ARGS__))
+#define arrview_cback(_skip_end_, ...) unsafe_arrview_cback(_skip_end_, &auto_arr(__VA_ARGS__))
+
+/* make_arrview_full(name, src):
+ * make a full array view of the array src
+ * example:
+
+	uint8_t data[] = {0,1,2,3,4,5};
+	make_arrview_full(data_slc, &data);
+	print_array(data_slc); //prints: [0,1,2,3,4,5]
+*/
+#define make_arrview_full(_name_, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ARRAY_SIZE((__VA_ARGS__))] = arrview_full((__VA_ARGS__))
+#define arrview_full(...) &(auto_arr((__VA_ARGS__)))
+
+/* make_arrview_str(name, src):
+ * make arrview without last element, useful for cutting '\0' from C strings */
+#define make_arrview_str(_name_, ...) make_arrview_cback(_name_, 1, __VA_ARGS__)
+#define arrview_str(...) arrview_cback(1, __VA_ARGS__)
+
+/* string_literal(_name_, string_literal)
+ * @_name_: variable name for new array pointer
+ * @string_literal: string literal, e.g "Some String"
+ *
+ * Special macro for string literals.
+ * Declares constant pointer to array of constant chars and sets it's value to provided string literal
+ * array size includes '\0'
+ *
+ * example:
+
+	string_literal(str, "String Literal");
+	//str = NULL; // <--Error
+	//(*str)[0] = '1'; // <--Error
+
+	//Dereference to const char* and print
+	println(*str);
+	printf("%s\n", *str);
+	fwrite(*str, 1, P_ARRAY_SIZE(str) - 1, stdout);
+
+	//Make slice without '\0' and print it as array of chars
+	make_arrview_str(str_nonull, str);
+	print_array(str_nonull);
+
+* Also, you can declare string literals at global scope with static keyword (or without)
+
+	static string_literal(useful_string, "I am just a string");
+
+	int main() {
+		println(*useful_string, " with size:", P_ARRAY_SIZE(useful_string));
+		return 0;
+	}
+ */
+#define string_literal(_name_, _string_) \
+    declare_string_literal(_name_, _string_) = (const typeof( (_string_)[0] ) (*)[])( (_string_) )
+
+/*** Experimental array macros. These macros need more testing ***/
+
+/* make_merged_array(_name_, _arrm_src1_, ..., _arrm_srcn_)
+ * @_name_: name of new array to create
+ * @_arrm_src: source arrays and/or pointers to arrays to copy data from
+ *
+ * This macro creates an array with name _name_ with size
+ * of all provided arrays and copies all these arrays' data into it.
+ *
+ * All provided arrays should be of same type(excluding qualifiers)
+ *
+ * If at least one of provided source arrays is VLA, then resulting array will be variable length too.
+ *
+ * Doesn't work with multi-dimensional arrays for now =\
+ *
+ * examples:
+
+	make_merged_array(data,
+			  ((int[]){0,1,2,3}),
+			  ((int[]){4,5,6}),
+			  ((int[]){7,8,9,10,11}));
+
+	print_array(data); //prints: [0,1,2,3,4,5,6,7,8,9,10,11]
+
+	...
+
+	make_arrview_str(str_this,   "This");
+	make_arrview_str(str_are,    "are");
+	make_arrview_str(str_arrays, "ARRAYS");
+	make_arrview_str(str_space,  " ");
+	make_arrview_str(str_dot,    ".");
+	make_arrview_str(str_null,   "\0");
+
+	make_merged_array(data,
+			  str_this, str_space,
+			  str_are, str_space,
+			  str_arrays, str_dot,
+			  str_null);
+	println(data);
+
+ */
+#define make_merged_array(_name_, ...) \
+	ARRAY_ELEMENT_TYPE_NO_QUAL(TAKE_FIRST_ARG(__VA_ARGS__)) _name_ [ ARRAYS_SIZE(__VA_ARGS__) ]; \
+	copy_arrays(_name_, __VA_ARGS__)
+
+/* [make_]arrview_dim(size, src_arr)
+ * Creates an arrview for array by splitting it's top dimension into two dimensions
+ * int a[12] -> 4 -> int (*ptr)[3][4];
+ * int a[7] -> 3 -> int (*ptr)[2][3]; //Last element won't be part of the view
+ *
+ * @size: size of second dimension, should not be less than source array size
+ * @src_arr: source array/pointer to array
+ */
+#define make_arrview_dim(_name_, _size_, ...) h_make_arrview_dim(_name_, (_size_), (__VA_ARGS__))
+#define arrview_dim(_size_, ...) h_arrview_dim((_size_), (__VA_ARGS__))
+
+/* [make_]arrview_flat(src_arr)
+ * Creates an arrview for multi-dimensional array by merging it's first two dimensions into single dimension
+ * int a[4][3] -> int (*ptr)[12]
+ *
+ * @src_arr: source array/pointer to array. Should contain at least two dimensions
+ */
+#define make_arrview_flat(_name_, ...) h_make_arrview_flat(_name_, (__VA_ARGS__))
+#define arrview_flat(...) h_arrview_flat((__VA_ARGS__))
+
+/* make_arrview_ref_ref(name, ref1, ref2):
+ *
+ * Create arrview from two pointers to some elements of the same array
+ *
+ * ref2 must be equal or greater than ref1
+ *
+ * created view will always be a pointer to VLA.
+ *
+ * | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+ *           ^       ^
+ * ref1------|       |
+ * ref2--------------|
+ *
+ *           ^   ^   ^
+ * view----| 2 | 3 | 4 |
+ */
+#define arrview_ref_ref(_ref1_, _ref2_ ) \
+    (h_decl_arrview_ref_ref(,_ref1_, _ref2_))(_ref1_)
+
+#define make_arrview_ref_ref(_name_, _ref1_, _ref2_) \
+    h_decl_arrview_ref_ref(_name_, _ref1_, _ref2_) = (void*)(_ref1_)
+
+#define h_decl_arrview_ref_ref(_name_, _ref1_, _ref2_) \
+    typeof(*(_ref1_))(*_name_)[ (_ref2_) - (_ref1_) + 1]
+
+/*** Experimental Vector-like array macros ***/
+
+/* array_insert(arr, ref, val)
+ * Moves backwards all data from the position where (ref) points
+ * and writes value (val) at that position
+ *
+ * | 0 | 1 | 2 | 3 | 4 |
+ *           ^
+ * ref-------|
+ *
+ *         | 2 | 3 |
+ *             \
+ *              -->
+ *                 \
+ *             | 2 | 3 |
+ *
+ * | 0 | 1 | v | 2 | 3 |
+ *           ^
+ * val ------|
+ *
+ */
+#define array_insert(_arr_, _ref_, _val_) (				\
+	(void)memmove((_ref_) + 1,					\
+		(_ref_),						\
+		(array_last_ref(_arr_) - (_ref_)) * sizeof(*(_ref_))),	\
+	(void)(*(_ref_) = (_val_))					\
+	)
+
+/* array_insert_array(arr, idx, src_arr)
+ * Inserts data from array (src_arr) to array (arr) at specified position (idx)
+ *
+ * | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+ *           ^
+ * idx-------|
+ * src_arr | 7 | 8 | 9 |
+ *
+ *         | 2 | 3 |
+ *             \
+ *              ---------->
+ *                         \
+ *                     | 2 | 3 |
+ *
+ * | 0 | 1 | 7 | 8 | 9 | 2 | 3 |
+ *           ^   ^   ^
+ * src_arr | 7 | 8 | 9 |
+ *
+ * example:
+ *
+    long v[] = {0,1,2,3,4,5,6};
+    array_insert_array(v, 2, (long[]){7,8,9});
+    print_array(v); //prints: [0,1,7,8,9,2,3]
+
+ */
+#define array_insert_array(_arr_, _idx_, ...) h_array_insert_array(_arr_, _idx_, (__VA_ARGS__))
+
+/* array_remove_view(array, view)
+ * Erases a range elements from the provided array
+ * by moving forward all data in the array from
+ * the position after the view end to the position where the view begins.
+ *
+ * (view) must be a pointer to an array which points to some range in the array
+ * and it's range should not span behind the array.
+ *
+ * if view spans to the end of the array,
+ * then this macro does nothing (since nothing to move forward)
+ *
+ * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+ *           ^   ^   ^
+ * view ---|   |   |   |
+ *
+ *                     | 5 | 6 | 7 |
+ *                          /
+ *                <---------
+ *               /
+ *         | 5 | 6 | 7 |
+ *
+ * | 0 | 1 | 5 | 6 | 7 | 5 | 6 | 7 |
+ */
+#define array_remove_view(_arr_ptr_, _view_)							\
+	memmove(_view_, array_end_ref(_view_),							\
+	(array_last_ref(_arr_ptr_) - array_last_ref(_view_)) * ARRAY_ELEMENT_SIZE(_arr_ptr_))	\
+
+/* array_remove_view_fill(array, view, val)
+ * works exactly same as array_remove_view()
+ * while addititionaly fills last 'free' elements of the array with value (val)
+ *
+ * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+ *           ^   ^   ^
+ * view ---|   |   |   |
+ *
+ *                     | 5 | 6 | 7 | 8 |
+ *                             /
+ *                  <----------
+ *                 /
+ *         | 5 | 6 | 7 | 8 |
+ *
+ * | 0 | 1 | 5 | 6 | 7 | 8 | v | v | v |
+ *                           ^   ^   ^
+ * val -------------------------------
+ *
+ * example:
+ *
+    int v[] = {0,1,2,3,4,5,6,7,8};
+    make_arrview(v_view, 2, 3, v); //pointer to elements '2', '3', '4'
+    array_remove_view_fill(v, v_view, 9);
+    print_array(v); //prints: [0,1,5,6,7,8,9,9,9]
+
+*/
+#define array_remove_view_fill(_arr_ptr_, _view_, _val_) do {		\
+	array_remove_view(_arr_ptr_, _view_);				\
+	make_arrview_last(_to_replace_, ARRAY_SIZE(_view_), _arr_ptr_);	\
+	unsafe_fill_array(_to_replace_, _val_);				\
+} while(0)
+
+/* array_remove_ref(array, ref)
+ * Erases a single element from the array by moving all data after (ref) towards front
+ * of the array.
+ *
+ * ref should be a pointer to some element inside the array.
+ *
+ * if ref is a pointer to the last element of the array,
+ * then this macro does nothing(since nothing to move forward)
+ *
+ * basically, this macro is the same as array_remove_view() with the view of size 1
+ *
+ * | 0 | 1 | 2 | 3 | 4 |
+ *           ^
+ * ref ------|
+ *
+ *             | 3 | 4 |
+ *                 /
+ *              <--
+ *             /
+ *         | 3 | 4 |
+ *
+ * | 0 | 1 | 3 | 4 | 4 |
+ *
+ * example:
+
+	int v[] = {0,1,2,3,4};
+	int *ptr = &v[2]; //pointer to value '2'
+	array_remove_ref(v, ptr);
+	print_array(v); //prints: [0,1,3,4,4]
+
+*/
+#define array_remove_ref(_arr_ptr_, _ref_)				\
+	memmove((_ref_),						\
+		(_ref_) + 1,						\
+	(array_last_ref(_arr_ptr_) - (_ref_)) * sizeof(*(_ref_)))
+
+/* array_remove_ref_fill(array, ref, val)
+ * works same as array_remove_ref() while additionally sets
+ * the last value of the array with value (val)
+ *
+ * | 0 | 1 | 2 | 3 | 4 |
+ *           ^
+ * ref ------|
+ *
+ *             | 3 | 4 |
+ *                 /
+ *              <--
+ *             /
+ *         | 3 | 4 |
+ *
+ * | 0 | 1 | 3 | 4 | v |
+ *                   ^
+ * val --------------|
+ *
+ * example:
+
+	int v[] = {0,1,2,3,4};
+	int *ptr = &v[2]; //pointer to value '2'
+	array_remove_ref_fill(v, ptr, 9);
+	print_array(v); //prints: [0,1,3,4,9]
+
+ */
+#define array_remove_ref_fill(_arr_ptr_, _ref_, _val_)	\
+	((void) array_remove_ref(_arr_ptr_, _ref_),	\
+	(void)(*array_last_ref(_arr_ptr_) = (_val_)))
+
+/****** ------------------------------------------------------------------------------ *******/
+/*** Implementation macros. Everything below should not be used and can be changed anytime ***/
+/****** ------------------------------------------------------------------------------ *******/
+
 /* expands one of three provided macros by checking current POOR_ARRAY_CHECK setting */
 #define POOR_ARR_CHK_SEL(_no_check_, _static_check_, _runtime_check_) \
 	TOKEN_CAT_2(CHECK_SELECT_, POOR_ARRAY_CHECK)(_no_check_, _static_check_, _runtime_check_)
@@ -46,6 +835,14 @@
 #define CHECK_SELECT_1(_0, _macro_, _2)	_macro_
 #define CHECK_SELECT_2(_0, _1, _macro_)	_macro_
 #define CHECK_SELECT_POOR_ARRAY_CHECK(_0, _macro_, _2)	_macro_
+
+#define TAKE_FIRST_ARG(var, ...) var
+
+/* Typeof with stripped qualifiers */
+#define TYPEOF_NO_QUAL(var) typeof( (typeof(var) (*)(void) ){0}() )
+
+/* Returns type of array element without qualifiers, works only on single-dimensional arrays */
+#define ARRAY_ELEMENT_TYPE_NO_QUAL(var) TYPEOF_NO_QUAL(ARRAY_ELEMENT_TYPE(var))
 
 /* Expands to string literal with file:line. example: /home/user/cool_program.c:56 */
 #define FILE_AND_LINE __FILE__ ":" STRINGIFY2(__LINE__)
@@ -67,6 +864,7 @@ typedef union _dummy_type_ {char a;} _dummy_type_;
 typedef struct _is_arr_ {int a;} _is_arr_;
 typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 
+/**** auto_arr() implementation ****/
 /* returns _is_arr_ if var is VLA
  * returns _is_p_arr if var is a pointer to VLA
  * or returns var as is */
@@ -98,209 +896,24 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 		int(*)[1]: var,				\
 		int(*)[2]: *var)
 
-/* auto_arr(var)
- * @var: array or pointer to an array
- *
- * This macro returns (var) if (var) is an array, or (*var) if (var) is a pointer to an array
- * Basically, this macro automatically dereferences pointers to arrays.
- * Stops compilation if var is not an array or a pointer to array.
- *
- * Provides base for checking arrays and hides complexity when
- * working with fixed or variable arrays and pointers to them.
- *
- * for direct usage it is reccomended to use arr() macro alias to type less.
- *
- * example:
-
-    char str[] = "String";
-    char (*str_ptr) [ARRAY_SIZE(str)] = &str;
-
-    //These two operations are the same:
-    arr(str)[1] = 'p';
-    arr(str_ptr)[1] = 'r';
-
-    //Works with multi-dimensional arrays too:
-    char   array [2][5][4] = {0};
-    char (*arptr)[2][5][4] = &array;
-
-    arr(array)[0][0][1] = 'R';
-    arr(arptr)[0][1][0] = 'F';
-
-    println( arr(arptr)[0][0][1] ); //Prints 'R'
-    println( arr(array)[0][1][0] ); //Prints 'F'
- */
-#define auto_arr(...) h_auto_arr((__VA_ARGS__))
-
-/* Macro alias for auto_arr() */
-#if !defined(arr)
-#define arr(...) auto_arr(__VA_ARGS__)
-#endif
-
-/* Returns number of elements in the array */
-#define ARRAY_SIZE(...) UNSAFE_ARRAY_SIZE(auto_arr(__VA_ARGS__))
-/* Returns total array size in bytes */
-#define ARRAY_SIZE_BYTES(...) UNSAFE_ARRAY_SIZE_BYTES(auto_arr(__VA_ARGS__))
-/* Returns size in bytes of the one element in the array */
-#define ARRAY_ELEMENT_SIZE(...) UNSAFE_ARRAY_ELEMENT_SIZE(auto_arr(__VA_ARGS__))
-/* Extracts type of array element from array */
-#define ARRAY_ELEMENT_TYPE(...) UNSAFE_ARRAY_ELEMENT_TYPE(auto_arr(__VA_ARGS__))
-
 /* ONLY FOR INTERNAL USE! arr is not validated for arrayness. arr should be an array. */
 #define UNSAFE_ARRAY_SIZE(_arr_) (sizeof(_arr_) / sizeof((_arr_)[0]) )
 #define UNSAFE_ARRAY_SIZE_BYTES(_arr_) sizeof(_arr_)
 #define UNSAFE_ARRAY_ELEMENT_SIZE(_arr_) sizeof((_arr_)[0])
 #define UNSAFE_ARRAY_ELEMENT_TYPE(_arr_) typeof((_arr_)[0])
 
-/* Get sum of array sizes
- * @__VA_ARGS__: arrays or pointer to arrays
- * example:
-
-    char te[] = {1, 2, 3};
-    long (*me)[2] = &(long[]){5, 6};
-    println(ARRAYS_SIZE(te, me)); //prints: 5
-*/
-#define ARRAYS_SIZE(...) ( MAP_SEP((+), ARRAY_SIZE, __VA_ARGS__) )
-
-/* Get total size in bytes for all arrays
- * @__VA_ARGS__: arrays or pointer to arrays
- * example:
-
-    uint8_t te[] = {1, 2, 3};
-    long (*me)[2] = &(long[]){5, 6};
-    println(ARRAYS_SIZE_BYTES(te, me)); //prints: 19  (if sizeof(long) == 8, then (8 * 2) + 3 )
- */
-#define ARRAYS_SIZE_BYTES(...) ( MAP_SEP((+), ARRAY_SIZE_BYTES, __VA_ARGS__) )
-
 /* is_ptr_to_vla(_arr_ptr_)
  * Returns true if _arr_ptr_ is pointer to VLA. */
 #define is_ptr_to_vla(_arr_ptr_) is_vla(*(_arr_ptr_))
 
-/* PRINT_ARRAY_INFO(arr_ptr): Prints information about array
- * @__VA_ARGS__: pointer to an array
- * example:
-
-    PRINT_ARRAY_INFO(&(long long[]){1, 2, 3, 4});
-    //prints: Array "&(long long[]){1, 2, 3, 4}" at 0x7fffffffdc40 has size:4 uses 32 bytes, while single element uses 8 bytes
-
-...
-int main(int argc, char **argv) {
-    short (*test)[argc * 3];
-    malloc_array(test);
-
-    PRINT_ARRAY_INFO(test);
-    //if argc == 1, prints: VLA "test" at 0x5555555592a0 has size:3 uses 6 bytes, while single element uses 2 bytes
-
-    free(test);
-    return 0;
-}
-
- */
-#define PRINT_ARRAY_INFO(...)									\
-	println(h_print_array_info((__VA_ARGS__), " \"" #__VA_ARGS__ "\" at "),			\
-		((const void*)(__VA_ARGS__)),							\
-		" has size:", ARRAY_SIZE((__VA_ARGS__)),					\
-		" uses ", ARRAY_SIZE_BYTES((__VA_ARGS__)), " bytes,"				\
-		" while single element uses ", ARRAY_ELEMENT_SIZE((__VA_ARGS__)), " bytes")
-
+/* PRINT_ARRAY_INFO helpers */
 #define h_print_array_info(arr, append) if_vla_or_vla_ptr(arr, "VLA" append, "Array" append)
 #define if_vla_or_vla_ptr(_arr_, t, f) if_constexpr(sizeof(_arr_) + sizeof(*(_arr_)), f, t)
 
-
-/* make_array_ptr(name, pointer, size)
- *
- * Declares a pointer to an array with specified name and sets it's value to (pointer)
- * This macro is useful to tie together pointer and size in the form of pointer to array.
- *
- * @pointer: pointer to the first array element
- * @size: size of the array, should be greater than zero.
- *
- * example:
-
-    //Wraping pointer and size returned from function
-
-    size_t size;
-    int *ptr = function_which_returns_pointer_and_size(&size);
-    if(!ptr || !size)
-        return;
-
-    make_array_ptr(data, ptr, size);
-
-    foreach_array_const_ref(data, ref)
-        println("value:", *ref);
-...
-    //Simple program:
-
-    int main(int argc, char **argv) {
-	make_array_ptr(args, argv, argc);
-	print_array(args);
-	return 0;
-    }
-
- */
-#define make_array_ptr(_name_, _pointer_, _size_) typeof(*(_pointer_)) (* _name_)[(_size_)]  = (void*)(_pointer_)
-
-/* Allocates memory for pointer to an array.
- * Provide pointer to an array, to allocate memory. Pointer can be pointer to VLA.
- * Size of allocation will be deduced from pointer type;
- *
- * return true if allocation successful, or false on failure;
- *
- * usage example:
-
- int (*some_ints)[ rand() % 10 + 1 ]; //Create pointer to VLA with random size from 1 to 10
-
- if(!malloc_array(some_ints)) {
-    printerrln("Failed to alloc array");
-    exit(EXIT_FAILURE);
- }
-
- for(unsigned i = 0; i < P_ARRAY_SIZE(some_ints); i++) {
-    (*some_ints)[i] = ((int)i + 1) * 2;
- }
- println("index 0 has value:", (*some_ints)[0]);
-
- free(some_ints);
-
- */
-#define malloc_array(_arr_ptr_) (( _arr_ptr_ = malloc( ARRAY_SIZE_BYTES(_arr_ptr_) ) ))
-
-/* Same as malloc_array, but with calloc */
-#define calloc_array(_arr_ptr_) (( _arr_ptr_ = calloc( 1, ARRAY_SIZE_BYTES(_arr_ptr_) ) ))
-
-/* Fills array with specified byte by using memset
- * WARNING: It is better and safer to use fill_array() instead!
- * example:
-
-    char (*data)[5];
-    malloc_array(data);
-    memset_array(data, 'L');
-
-    foreach_array_ref(data, ref)
-        print(*ref); //Will print: LLLLL
-
-*/
-#define memset_array(_arr_ptr_, symbol) memset((_arr_ptr_), symbol, ARRAY_SIZE_BYTES(_arr_ptr_))
-
-/* Fills array with specified value
- * example:
-
-    int (*ty)[5];
-    malloc_array(ty);
-
-    fill_array(ty, 50);
-    print_array(ty); //Will print [50,50,50,50,50]
-
-    free(ty);
-
- */
-#define fill_array(_arr_, ...)  \
-    foreach_array_ref(_arr_, _ref_) \
-        *(_ref_) = (__VA_ARGS__)
-
 /* Unsafe variant of fill_array(),
- * Should be used only with pta, arguments are not checked for arrayness */
-#define unsafe_fill_array(_pta_, ...) \
-    unsafe_foreach_array_ref(_pta_, _ref_) \
+ * Should be used only with pointer to array, arguments are not checked for arrayness */
+#define unsafe_fill_array(_arrp_, ...) \
+    unsafe_foreach_array_ref(_arrp_, _ref_) \
         *(_ref_) = (__VA_ARGS__)
 
 
@@ -309,23 +922,7 @@ int main(int argc, char **argv) {
 for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     for(unsigned bit_index = 0; bit_index < (P_ARRAY_ELEMENT_SIZE(_array_) * 8); bit_index++)
 
-/* Iterate over an array.
- * @_arr_ptr_: array or pta
- * @_ref_ptr_name_: name of pointer which will be used as reference to each array element
- * example:
- *
-    uint16_t test[] = {1, 2, 3, 4};
-    foreach_array_ref(&test, val)
-        print(*val);  //prints: 1234
-
- *
- * NOTE: if _arr_ptr_ contains const data, then _ref_ptr_name_ also will be const
- */
-#define foreach_array_ref(_arr_, _ref_ptr_name_) foreach_array_ref_base(,(_arr_), _ref_ptr_name_)
-
-/* same as foreach_array_ref(), but _ref_ptr_name_ is always const */
-#define foreach_array_const_ref(_arr_, _ref_ptr_name_) foreach_array_ref_base(const, (_arr_), _ref_ptr_name_)
-
+/* base macro for foreach_array_ref() */
 #define foreach_array_ref_base(prefix, _arr_, _ref_ptr_name_)                           \
         for(prefix ARRAY_ELEMENT_TYPE(_arr_)                                            \
                 (*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),          \
@@ -336,7 +933,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
                 (_ref_ptr_name_)++)
 
 /* unsafe_foreach_array_ref(), unsafe_foreach_array_const_ref():
- *   unsafe iteration over pta. pta is not checked for being pointer to array. not safe for compound literals. only for internal usage.
+ * unsafe iteration over pta. pta is not checked for being pointer to array. not safe for compound literals. only for internal usage.
  * @_array_ptr: pta
  * @_ref_ptr_name_: name of new pointer for iteration
  */
@@ -346,20 +943,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define unsafe_foreach_array_const_ref(_array_ptr_, _ref_ptr_name_) \
     for(const unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != unsafe_array_end_ref(_array_ptr_); _ref_ptr_name_++)
 
-
-/*
- * Iterate backwards over an array. Same as foreach_array_ref(), but backwards.
- * example:
- *
-    uint16_t test[] = {1, 2, 3, 4};
-    foreach_array_ref_bw(&test, val)
-        print(*val);  //prints: 4321
- */
-#define foreach_array_ref_bw(_arr_, _ref_ptr_name_) foreach_array_ref_bw_base(,(_arr_), _ref_ptr_name_)
-
-/* same as foreach_array_ref_bw(), but _ref_ptr_name_ is always const */
-#define foreach_array_const_ref_bw(_arr_, _ref_ptr_name_) foreach_array_ref_bw_base(const, (_arr_), _ref_ptr_name_)
-
+/* base macro for foreach_array_ref_bw() */
 #define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)		\
 	for(prefix ARRAY_ELEMENT_TYPE(_arr_)					\
 		(*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),	\
@@ -369,153 +953,49 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 										\
 		(_ref_ptr_name_)--)
 
-/* Get index of an array element where _ref_ is pointing.
- * @_array_ptr_: array or pointer to array
- * @_ref_: pointer to an element inside that array
- * example:
-
-    uint64_t test[] = {0x2000, 100, 200, 300};
-    foreach_array_ref(&test, val) {
-        println("Array index:", array_ref_index(test, val), " Array value:0x", to_hex(*val, 8));
-
-        if(array_ref_index(test, val) == 2)
-            println("Magic index 2 detected, value at index 1 is ", *(val-1) , " and value at index 3 is ", test[3]);
-    }
-
-*/
-#define array_ref_index(_array_ptr_, _ref_) ((_ref_) - array_first_ref(_array_ptr_))
 
 /* Declares pointer to first array element */
 #define make_array_first_ref(_array_ptr_, _ref_ptr_name_) ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_first_ref(_array_ptr_)
+/* Declares pointer to last array element */
+#define make_array_last_ref(_array_ptr_, _ref_ptr_name_) ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_last_ref(_array_ptr_)
 
 /* unsafe_make_array_first_ref(): creates a pointer to first array element. pta is not checked for arrayness. only for internal usage.
  * @_array_ptr_: pta
  * @_ref_ptr_name: name of new pointer */
 #define unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_) UNSAFE_ARRAY_ELEMENT_TYPE(*(_array_ptr_)) *(_ref_ptr_name_) = &(*(_array_ptr_))[0]
 
-/* Declares pointer to last array element */
-#define make_array_last_ref(_array_ptr_, _ref_ptr_name_) ARRAY_ELEMENT_TYPE(_array_ptr_) *(_ref_ptr_name_) = array_last_ref(_array_ptr_)
-
-/* get pointer to the first, to the last and to the one past the last element of the array  */
-#define array_first_ref(_array_ptr_) (& auto_arr((_array_ptr_))[0])
-#define array_last_ref(_array_ptr_)  (& auto_arr((_array_ptr_))[ARRAY_SIZE(_array_ptr_) - 1])
-#define array_end_ref(_array_ptr_)   (& auto_arr((_array_ptr_))[ARRAY_SIZE(_array_ptr_)])
-
 /* Unsafe variants, _array_ptr_ should be a pta */
 #define unsafe_array_first_ref(_array_ptr_) (&(*(_array_ptr_))[0])
 #define unsafe_array_last_ref(_array_ptr_)  (&(*(_array_ptr_))[UNSAFE_ARRAY_SIZE(*(_array_ptr_)) - 1])
 #define unsafe_array_end_ref(_array_ptr_)   (&(*(_array_ptr_))[UNSAFE_ARRAY_SIZE(*(_array_ptr_))])
-
-/* returns true if ref points to the first, to the last or the one past the last elemenet of ther array */
-#define is_first_array_ref(_arr_ptr_, _ref_) ((_ref_) == array_first_ref((_arr_ptr_)))
-#define is_last_array_ref(_arr_ptr_, _ref_)  ((_ref_) == array_last_ref((_arr_ptr_)))
-#define is_end_array_ref(_arr_ptr_, _ref_)   ((_ref_) == array_end_ref((_arr_ptr_)))
-#define is_first_or_last_array_ref(_arr_ptr_, _ref_) ( is_first_array_ref((_arr_ptr_), (_ref_)) || is_last_array_ref((_arr_ptr_), (_ref_))  )
 
 /* Unsafe variants, _array_ptr_ should be a pta */
 #define unsafe_is_first_array_ref(_arr_ptr_, _ref_) ((_ref_) == unsafe_array_first_ref((_arr_ptr_)))
 #define unsafe_is_last_array_ref(_arr_ptr_, _ref_)  ((_ref_) == unsafe_array_last_ref((_arr_ptr_)))
 #define unsafe_is_end_array_ref(_arr_ptr_, _ref_)   ((_ref_) == unsafe_array_end_ref((_arr_ptr_)))
 
-/* Copies data from src array or pta to dst array or pta per element
- * if dst array is larger or equal than source array, then entire source array will be copied to dst.
- * excess bytes in dst won't be touched.
- *
- * if dst array is smaller than src array, then only part of source will be copied from src with size equals dst array.
- *
- * dst and src arrays can be of different type. i.e. it is valid to copy data from array of ints to array of longs. But compiler may complain if losing precision.
- *
- * @dst_ptr: destination array or pta
- * @__VA_ARGS__: source array or pta
- *
- * examples:
-
-    //Destination is larger than source:
-
-    int dst[5] = {1,2,3,4,5};
-    int src[3] = {9,8,7};
-    copy_array(dst, src);
-    print_array(dst); //prints: [9,8,7,4,5]
-...
-    //Source and Destination have different, but compatible types
-    //Source is larger than Destination
-
-    long dst[]  = {1,2};
-    short src[] = {9,8,7};
-    copy_array(dst, src);
-    print_array(dst); //prints: [9,8]
-...
-    //Dynamic array initialization:
-
-    char (*string)[40];
-    malloc_array(string);
-    copy_array(string, "Hello!");
-    println(*string);
-    free(string);
-...
-    //VLA Initialization and array of structs
-
-    struct toto {
-        int val;
-        char *string;
-    };
-
-    size_t len = 10;
-    struct toto values[len];
-    fill_array(values, (const struct toto){.val = -1, .string = "None"});
-    copy_array(values, (const struct toto[]){
-                   {.val = 1,  .string = "First"},
-                   {.val = 10, .string = "Second"},
-                   {.val = 30, .string = "Third"},
-               });
-
-    foreach_array_const_ref(values, ref)
-            println(ref->val, " ", ref->string);
-
- */
-#define copy_array(_dst_arr_, ...) do {										\
-	make_arrview_full(_tmp_dst_, _dst_arr_);								\
-	const make_arrview_full(_tmp_src_, (__VA_ARGS__));							\
+/* copy_array() implementation */
+#define unsafe_copy_array(_arrp_dst_, _arrp_src_) do {								\
+	unsafe_nc_make_arrview_first(_tmp_dst_, h_copy_arr_min_size(_arrp_dst_, _arrp_src_), _arrp_dst_);	\
 														\
-	_dummy_type_ _same_[1 + unsafe_is_ptas_of_same_types(_tmp_dst_, _tmp_src_)];				\
+	_dummy_type_ _same_[1 + unsafe_is_ptas_of_same_types(_tmp_dst_, _arrp_src_)];				\
 														\
 	if(is_dummy_true(_same_)) {										\
-		unsafe_copy_array_fast(_tmp_dst_, _tmp_src_);							\
+		memcpy(_tmp_dst_, _arrp_src_, UNSAFE_ARRAY_SIZE_BYTES(*_tmp_dst_));				\
 	} else {												\
 		__typeof__( if_dummy_true(_same_, &(char[]){0}, _tmp_dst_)) _s_dst_ = (void*)_tmp_dst_;		\
-		__typeof__( if_dummy_true(_same_, &(const char[]){0}, _tmp_src_)) _s_src_ = (void*)_tmp_src_;	\
-		unsafe_copy_array_slow(_s_dst_, _s_src_);							\
+		__typeof__( if_dummy_true(_same_, &(const char[]){0}, _arrp_src_)) _s_src_ = (void*)_arrp_src_;	\
+														\
+		const unsafe_make_array_first_ref(_s_src_, _src_ref_);						\
+		unsafe_foreach_array_ref(_s_dst_, _dst_ref_)							\
+		    *_dst_ref_ = *_src_ref_++;									\
 	}													\
 } while(0)
 
-/* unsafe_copy_array_fast(): copies data from src_ptr pta to dst_ptr pta. types of pta are not checked for arrayness.
- * Use only if you guarantee that dst_ptr and src_ptr are ptas and have same underlying type.
- * @dst_ptr: destination pta
- * @src_ptr: source pta to copy from */
-#define unsafe_copy_array_fast(_dst_ptr_, _src_ptr_)                                    \
-    memcpy(_dst_ptr_, _src_ptr_,                                                        \
-           UNSAFE_ARRAY_SIZE_BYTES(*_dst_ptr_) >= UNSAFE_ARRAY_SIZE_BYTES(*_src_ptr_) ? \
-            UNSAFE_ARRAY_SIZE_BYTES(*_src_ptr_) :                                       \
-            UNSAFE_ARRAY_SIZE_BYTES(*_dst_ptr_)                                         \
-    )
+#define h_copy_arr_min_size(_arrp_dst_, _arrp_src_) \
+	h_copy_min(UNSAFE_ARRAY_SIZE(*_arrp_dst_), UNSAFE_ARRAY_SIZE(*_arrp_src_))
 
-/* unsafe_copy_array_slow(): copies data from src_ptr pta to dst_ptr pta. types of pta are not checked for arrayness.
- * Use only if you guarantee that dst_ptr and src_ptr are ptas and have compatible underlying type.
- * @dst_ptr: destination pta
- * @src_ptr: source pta to copy from */
-#define unsafe_copy_array_slow(_dst_ptr_, _src_ptr_) do {                    \
-    if(UNSAFE_ARRAY_SIZE((*_dst_ptr_)) >= UNSAFE_ARRAY_SIZE((*_src_ptr_))) { \
-        unsafe_make_array_first_ref(_dst_ptr_, _dst_ref_);                   \
-        unsafe_foreach_array_const_ref(_src_ptr_, _src_ref_) {               \
-            *_dst_ref_++ = *_src_ref_;                                       \
-        }                                                                    \
-    } else {                                                                 \
-        const unsafe_make_array_first_ref(_src_ptr_, _src_ref_);             \
-        unsafe_foreach_array_ref(_dst_ptr_, _dst_ref_) {                     \
-            *_dst_ref_ = *_src_ref_++;                                       \
-        }                                                                    \
-    }                                                                        \
-} while(0)
+#define h_copy_min(a, b) a > b ? b : a
 
 /* is_arrays_of_same_types(dst_ptr, src_ptr)
  * checks if two pointers to arrays contain same type, ignoring type constness
@@ -548,46 +1028,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
                         )                                                       \
                 )
 
-
-/* copy_arrays(_arrm_dst_, _arrm_src_1_, ..., _arrm_src_n_)
- * Copies multiple arrays into a single array
- * @_arrm_dst_: destination array or pointer to destination array
- * @__VA_ARGS__: source arrays and/or pointers to source arrays to copy data from
- *
- * All source arrays must contain same element type as destination array
- * Destination array size must be equal or greater than total size of all source arrays.
- * Source arrays should not overlap with destination array, but may overlap with each other.
- *
- * example:
-
-	//String concatenation
-	make_arrview_str(src1, "This ");
-	make_arrview_str(src2, "Is ");
-	make_arrview_str(src3, "a string");
-
-	char dst[ARRAYS_SIZE(src1, src2, src3)];
-	copy_arrays(dst, src1, src2, src3);
-
-	print_array(dst); //prints: [T,h,i,s, ,I,s, ,a, ,s,t,r,i,n,g]
-
-	//copy integers from various arrays
-	int s1[2] = {1,2};
-	int (*s2)[4] = &(int[4]){3,4,5,6};
-	int s3[(size_t){3}]; s3[0] = 7; s3[1] = 8; s3[2] = 9;
-
-	int (*dst)[ARRAYS_SIZE(s1, s2, s3)] = malloc_array(dst);
-	if(dst) {
-		copy_arrays(dst, s1, s2, s3);
-		print_array(dst); //prints: [1,2,3,4,5,6,7,8,9]
-
-		free(dst);
-	}
- */
-#define copy_arrays(_arrm_dst_, ...) (							\
-	(void)h_copy_arrs_chk_size_sel(_arrm_dst_, __VA_ARGS__),			\
-	(void)RECURSION_ARG(h_copy_arrs, _arrm_dst_, _arrm_dst_, __VA_ARGS__)		\
-)
-
+/* copy_arrays() implementation */
 #define h_copy_arrs(_arrm_dst_, _prev_, _arrm_src_) (								\
 	(void)h_copy_arrs_chk_type_sel(_arrm_dst_, _arrm_src_),							\
 	(unsigned char*)memcpy(_prev_, _arrm_src_, ARRAY_SIZE_BYTES(_arrm_src_)) + ARRAY_SIZE_BYTES(_arrm_src_)	\
@@ -616,24 +1057,15 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 		" at " FILE_AND_LINE)							\
 
 
-/***** Arrview *****/
-/* make_arrview(name, start, size, src):
- * make an array view of the array src with size (size) starting from (start) position.
- * example:
-
-	uint8_t data[] = {0,1,2,3,4,5};
-	make_arrview(data_slc, 2, 3, &data); //Start index: 2 and size: 3
-	print_array(data_slc); //prints: [2,3,4]
-*/
-#define make_arrview(_name_, _idx_, _size_, ...) make_unsafe_arrview(_name_, (_idx_), (_size_), &auto_arr(__VA_ARGS__))
-#define arrview(_idx_, _size_, ...) unsafe_arrview((_idx_), (_size_), &auto_arr(__VA_ARGS__))
-
+/***** Arrview helpers *****/
+/* arrview() implemenmtation */
 #define make_unsafe_arrview(_name_, _idx_, _size_, _arrp_) \
-	unsafe_make_arrptr(_name_, _size_, _arrp_) = h_unsafe_arrview(_idx_, _size_, _arrp_, "make_arrview()")
-#define unsafe_arrview(_idx_, _size_, _arrp_)  h_unsafe_arrview(_idx_, _size_, _arrp_, "arrview()")
+	unsafe_make_arrptr(_name_, _size_, _arrp_) = (typeof(_name_))h_unsafe_arrview(_idx_, _size_, _arrp_, "make_arrview()")
+
+#define unsafe_arrview(_idx_, _size_, _arrp_)  (unsafe_make_arrptr(, _size_, _arrp_))h_unsafe_arrview(_idx_, _size_, _arrp_, "arrview()")
 
 #define h_unsafe_arrview(_idx_, _size_, _arrp_, _macro_name_) \
-	(unsafe_make_arrptr(, _size_, _arrp_))&(*_arrp_)[_idx_ + h_av_chk_sel(_arrp_, _idx_, _size_, _macro_name_)]
+	&(*_arrp_)[_idx_ + h_av_chk_sel(_arrp_, _idx_, _size_, _macro_name_)]
 
 #define h_av_chk_sel(_arrp_, _idx_, _size_, _macro_name_) \
 	POOR_ARR_CHK_SEL(h_av_chk_none, h_av_chk_static, h_av_chk_dyn)(_arrp_, _idx_, _size_, _macro_name_)
@@ -661,41 +1093,26 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 		" at " FILE_AND_LINE CRESET)					\
     ), 0)
 
-/* make_arrview_first(name, size, src):
- * create arrview of the first (size) elements of the array src
- * example:
-
-	uint8_t data[] = {0,1,2,3,4,5};
-	make_arrview_first(data_slc, 2, &data);
-	print_array(data_slc); //prints: [0,1]
- */
-#define make_arrview_first(_name_, _size_, ...) unsafe_make_arrview_first(_name_, (_size_), &auto_arr(__VA_ARGS__))
-#define arrview_first(_size_, ...) unsafe_arrview_first((_size_), &auto_arr(__VA_ARGS__))
-
+/* arrview_first() implemenetation */
 #define unsafe_make_arrview_first(_name_, _size_, _arrp_) \
-	unsafe_make_arrptr(_name_, _size_, _arrp_) = h_unsafe_arrview_first(_size_, _arrp_, "make_arrview_first()")
-#define unsafe_arrview_first(_size_, _arrp_) h_unsafe_arrview_first(_size_, _arrp_, "arrview_first()")
+	unsafe_make_arrptr(_name_, _size_, _arrp_) = (typeof(_name_))h_unsafe_arrview_first(_size_, _arrp_, "make_arrview_first()")
 
-#define h_unsafe_arrview_first(_size_, _arrp_, _macro_name_) \
-	(unsafe_make_arrptr(, _size_, _arrp_))&(*_arrp_)[h_av_size_chk_sel(_arrp_, _size_, _macro_name_)]
+#define unsafe_arrview_first(_size_, _arrp_) (unsafe_make_arrptr(, _size_, _arrp_))h_unsafe_arrview_first(_size_, _arrp_, "arrview_first()")
 
-/* make_arrview_last(name, size, src):
- * create arrview of the last (size) elements of the array src
- * example:
+#define h_unsafe_arrview_first(_size_, _arrp_, _macro_name_) &(*_arrp_)[h_av_size_chk_sel(_arrp_, _size_, _macro_name_)]
 
-	uint8_t data[] = {0,1,2,3,4,5};
-	make_arrview_last(data_slc, 2, &data);
-	print_array(data_slc); //prints: [4,5]
- */
-#define make_arrview_last(_name_, _size_, ...) unsafe_make_arrview_last(_name_, (_size_), &auto_arr(__VA_ARGS__))
-#define arrview_last(_size_, ...) unsafe_arrview_last((_size_), &auto_arr(__VA_ARGS__))
+/* unsafe_nc_make_arrview_first(): same as make_arrview_first without checks at all */
+#define unsafe_nc_make_arrview_first(_name_, _size_, _arrp_) \
+	unsafe_make_arrptr(_name_, _size_, _arrp_) = (unsafe_make_arrptr(, _size_, _arrp_))&(*_arrp_)[0]
 
+/* arrview_last() implementation */
 #define unsafe_make_arrview_last(_name_, _size_, _arrp_) \
-	unsafe_make_arrptr(_name_, _size_, _arrp_) = h_unsafe_arrview_last(_size_, _arrp_, "make_arrview_last()")
-#define unsafe_arrview_last(_size_, _arrp_) h_unsafe_arrview_last(_size_, _arrp_, "arrview_last()")
+	unsafe_make_arrptr(_name_, _size_, _arrp_) =  (typeof(_name_))h_unsafe_arrview_last(_size_, _arrp_, "make_arrview_last()")
+
+#define unsafe_arrview_last(_size_, _arrp_) (unsafe_make_arrptr(, _size_, _arrp_))h_unsafe_arrview_last(_size_, _arrp_, "arrview_last()")
 
 #define h_unsafe_arrview_last(_size_, _arrp_, _macro_name_) \
-	(unsafe_make_arrptr(, _size_, _arrp_))&(*_arrp_)[UNSAFE_ARRAY_SIZE(*_arrp_) - _size_ + h_av_size_chk_sel(_arrp_, _size_, _macro_name_)]
+	&(*_arrp_)[UNSAFE_ARRAY_SIZE(*_arrp_) - _size_ + h_av_size_chk_sel(_arrp_, _size_, _macro_name_)]
 
 /* arrview first/last checks */
 #define h_av_size_chk_sel(_arrp_, _size_, _macro_name_) \
@@ -718,28 +1135,16 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 		" at " FILE_AND_LINE CRESET)							\
     ), 0)
 
-/* make_arrview_shrink(name, skip_start, skip_end, src):
- * Make an array view without first (skip_start) elements
- * and without last (skip_end) elements of the array (src)
- *
- * example:
+/* arrview_shrink() implementation */
+#define unsafe_make_arrview_shrink(_name_, _skip_start_, _skip_end_, _arrp_)	\
+	h_av_shrnk_decl(_name_, _skip_start_, _skip_end_, _arrp_) =		\
+	(typeof(_name_))h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, "make_arrview_shrink()")
 
-	uint8_t data[] = {0,1,2,3,4,5};
-	make_arrview_shrink(data_slc, 2, 1, &data);
-	print_array(data_slc); //prints: [2,3,4]
-*/
-#define make_arrview_shrink(_name_, _skip_start_, _skip_end_, ...) \
-	unsafe_make_arrview_shrink(_name_, (_skip_start_), (_skip_end_), &auto_arr(__VA_ARGS__))
-#define arrview_shrink(_skip_start_, _skip_end_, ...) \
-	unsafe_arrview_shrink((_skip_start_), (_skip_end_), &auto_arr(__VA_ARGS__))
-
-#define unsafe_make_arrview_shrink(_name_, _skip_start_, _skip_end_, _arrp_) \
-	h_av_shrnk_decl(_name_, _skip_start_, _skip_end_, _arrp_) = h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, "make_arrview_shrink()")
-
-#define unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_) h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, "arrview_shrink()")
+#define unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_) \
+	(h_av_shrnk_decl(,_skip_start_, _skip_end_, _arrp_))h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, "arrview_shrink()")
 
 #define h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, _macro_name_)	\
-	(h_av_shrnk_decl(,_skip_start_, _skip_end_, _arrp_))&(*_arrp_)[_skip_start_ + h_av_shrink_chk_sel(_arrp_, _skip_start_, _skip_end_, _macro_name_)]
+	&(*_arrp_)[_skip_start_ + h_av_shrink_chk_sel(_arrp_, _skip_start_, _skip_end_, _macro_name_)]
 
 /* arrview shrink args check macros */
 #define h_av_shrnk_decl(_name_, _skip_start_, _skip_end_, _arrp_) unsafe_make_arrptr(_name_, h_av_shrink_size(_arrp_, _skip_start_, _skip_end_), _arrp_)
@@ -768,43 +1173,25 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 		" at " FILE_AND_LINE CRESET)									\
 	), 0)
 
-
-/* make_arrview_cfront(name, skip_start, src):
- * make an arrview without first (skip_start) elements of the array src
- * example:
-
-	uint8_t data[] = {0,1,2,3,4,5};
-	make_arrview_cfront(data_slc, 3, &data);
-	print_array(data_slc); //prints: [3,4,5]
- */
-#define make_arrview_cfront(_name_, _skip_start_, ...) unsafe_make_arrview_cfront(_name_, (_skip_start_), &auto_arr(__VA_ARGS__))
-#define arrview_cfront(_skip_start_, ...) unsafe_arrview_cfront((_skip_start_), &auto_arr(__VA_ARGS__))
-
+/* arrview cfront() implementation */
 #define unsafe_make_arrview_cfront(_name_, _skip_start_, _arrp_) \
-	h_av_skip_decl(_name_, _skip_start_, _arrp_) = h_unsafe_arrview_cfront(_skip_start_, _arrp_, "make_arrview_cfront()")
-#define unsafe_arrview_cfront(_skip_start_, _arrp_) h_unsafe_arrview_cfront(_skip_start_, _arrp_, "arrview_cfront()")
+	h_av_skip_decl(_name_, _skip_start_, _arrp_) = (typeof(_name_))h_unsafe_arrview_cfront(_skip_start_, _arrp_, "make_arrview_cfront()")
+
+#define unsafe_arrview_cfront(_skip_start_, _arrp_) \
+	(h_av_skip_decl(, _skip_start_, _arrp_))h_unsafe_arrview_cfront(_skip_start_, _arrp_, "arrview_cfront()")
 
 #define h_unsafe_arrview_cfront(_skip_start_, _arrp_, _macro_name_) \
-	(h_av_skip_decl(, _skip_start_, _arrp_))&(*_arrp_)[_skip_start_ + h_av_skip_chk_sel(_arrp_, _skip_start_, _macro_name_)]
+	&(*_arrp_)[_skip_start_ + h_av_skip_chk_sel(_arrp_, _skip_start_, _macro_name_)]
 
-/* make_arrview_cback(name, skip_end, src):
- * make an arrview without last (skip_end) elements of the array src
- * example:
-
-	uint8_t data[] = {0,1,2,3,4,5};
-	make_arrview_cback(data_slc, 3, &data);
-	print_array(data_slc); //prints: [0,1,2]
-*/
-#define make_arrview_cback(_name_, _skip_end_, ...) unsafe_make_arrview_cback(_name_, _skip_end_, &auto_arr(__VA_ARGS__))
-#define arrview_cback(_skip_end_, ...) unsafe_arrview_cback(_skip_end_, &auto_arr(__VA_ARGS__))
-
+/* arrview_cback() implementation */
 #define unsafe_make_arrview_cback(_name_, _skip_end_, _arrp_)	\
-	h_av_skip_decl(_name_, _skip_end_, _arrp_) = h_unsafe_arrview_cback(_skip_end_, _arrp_, "make_arrview_cback()")
+	h_av_skip_decl(_name_, _skip_end_, _arrp_) = (typeof(_name_))h_unsafe_arrview_cback(_skip_end_, _arrp_, "make_arrview_cback()")
 
-#define unsafe_arrview_cback(_skip_end_, _arrp_) h_unsafe_arrview_cback(_skip_end_, _arrp_, "arrview_cback()")
+#define unsafe_arrview_cback(_skip_end_, _arrp_) \
+	(h_av_skip_decl(, _skip_end_, _arrp_))h_unsafe_arrview_cback(_skip_end_, _arrp_, "arrview_cback()")
 
-#define h_unsafe_arrview_cback(_skip_end_, _arrp_, _macro_name_)	\
-	(h_av_skip_decl(, _skip_end_, _arrp_))&(*_arrp_)[h_av_skip_chk_sel(_arrp_, _skip_end_, _macro_name_)]
+#define h_unsafe_arrview_cback(_skip_end_, _arrp_, _macro_name_) \
+	&(*_arrp_)[h_av_skip_chk_sel(_arrp_, _skip_end_, _macro_name_)]
 
 /* Arrview cut back/front common declaration and argument checking macros */
 #define h_av_skip_decl(_name_, _skip_, _arrp_) unsafe_make_arrptr(_name_, h_av_skip_size(_arrp_, _skip_), _arrp_)
@@ -830,67 +1217,6 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 		" (skipped:", _skip_,", array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"		\
 		" at " FILE_AND_LINE CRESET)							\
 	), 0)
-
-/* make_arrview_full(name, src):
- * make a full array view of the array src
- * example
-
-	uint8_t data[] = {0,1,2,3,4,5};
-	make_arrview_full(data_slc, &data);
-	print_array(data_slc); //prints: [0,1,2,3,4,5]
- */
-#define make_arrview_full(_name_, ...) ARRAY_ELEMENT_TYPE((__VA_ARGS__)) (* _name_) [ARRAY_SIZE((__VA_ARGS__))] = arrview_full((__VA_ARGS__))
-#define arrview_full(...) &(auto_arr((__VA_ARGS__)))
-
-/* make_arrview_str(name, src):
- * make arrview without last element, useful for cutting '\0' from C strings */
-#define make_arrview_str(_name_, ...) make_arrview_cback(_name_, 1, __VA_ARGS__)
-#define arrview_str(...) arrview_cback(1, __VA_ARGS__)
-
-/* string_literal(_name_, string_literal)
- * @_name_: variable name for new array pointer
- * @_string_: string literal, e.g "Some String"
- *
- * Special macro for string literals.
- * Declares constant pointer to array of constant chars and sets it's value to provided string literal
- * array size includes '\0'
- *
- * example:
-
-    string_literal(str, "String Literal");
-    //str = NULL; // <--Error
-    //(*str)[0] = '1'; // <--Error
-
-    //Dereference to const char* and print
-    println(*str);
-    printf("%s\n", *str);
-    fwrite(*str, 1, P_ARRAY_SIZE(str) - 1, stdout);
-
-    //Make slice without '\0' and print it as array of chars
-    make_array_slice_string(str_nonull, str);
-    print_array(str_nonull);
-
- * Also, you can declare string literals at global scope with static keyword (or without)
-
-    static string_literal(useful_string, "I am just a string");
-
-    int main() {
-        println(*useful_string, " with size:", P_ARRAY_SIZE(useful_string));
-        return 0;
-    }
-
- * compilers optimizes string literals even at -O0 optimization, but do not rely on it.
-
-    string_literal(str1, "Text ");
-    string_literal(str2, "Text ");
-    string_literal(str3, "Text2");
-
-    println("str1 equals str2? ", (bool)(str1 == str2)); //true
-    println("str1 equals str3? ", (bool)(str1 == str3)); //false
-
- */
-#define string_literal(_name_, _string_) \
-    declare_string_literal(_name_, _string_) = (const typeof( (_string_)[0] ) (*)[])( (_string_) )
 
 /* declare_string_literal(name, string_literal)
  *
@@ -943,33 +1269,6 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 	foreach_array_ref((__VA_ARGS__), ref) {	\
 		print(*ref);			\
 	}					\
-} while (0)
-
-/* Prints array as formatted output [x,y,z,...]
- * Type of array elements should be one of standard C types. See println() for more info.
- * @__VA_ARGS__: array or pointer to an array
- * example:
-
-	print_array((int[]){1,2,3,4}); //prints: [1,2,3,4];
-
-	const char * strings[4] = {
-		"First",
-		"Second",
-		"Third",
-		"Fourth",
-	};
-	print_array(strings); //prints: [First,Second,Third,Fourth]
-
- */
-#define print_array(...) do {						\
-	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);		\
-	unsafe_make_array_first_ref(_tmp_arr_ptr_, _ref_);		\
-										\
-	print((char)'[', *_ref_);						\
-	for(_ref_++; _ref_ != unsafe_array_end_ref(_tmp_arr_ptr_); _ref_++)	\
-		print((char)',', *_ref_);					\
-										\
-	println("]");								\
 } while (0)
 
 /* Prints array as formatted output with custom print function for each element
@@ -1028,240 +1327,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 	println("]");								\
 } while (0)
 
-/*** Beta features ****/
-
-#define TAKE_FIRST_ARG(var, ...) var
-
-/* Typeof with stripped qualifiers */
-#define TYPEOF_NO_QUAL(var) typeof( (typeof(var) (*)(void) ){0}() )
-
-/* Returns type of array element without qualifiers, works only on single-dimensional arrays */
-#define ARRAY_ELEMENT_TYPE_NO_QUAL(var) TYPEOF_NO_QUAL(ARRAY_ELEMENT_TYPE(var))
-
-/* make_merged_array(_name_, arr1, arr2, ..., arrn)
- * @_name_: name of new array to create
- * @__VA_ARGS__: source arrays to copy data from
- *
- * This macro creates an array with name _name_ with size
- * of all provided arrays and copies all these arrays' data into it.
- *
- * All provided arrays should be of same type(excluding qualifiers)
- *
- * If at least one of provided source arrays is VLA, then resulting array will be variable length too.
- *
- * Doesn't work with multi-dimensional arrays for now =\
- *
- * examples:
-
-    make_merged_array(data,
-                      ((int[]){0,1,2,3}),
-                      ((int[]){4,5,6}),
-                      ((int[]){7,8,9,10,11}));
-
-    print_array(data); //prints: [0,1,2,3,4,5,6,7,8,9,10,11]
-
-...
-
-    make_arrview_str(str_this,   "This");
-    make_arrview_str(str_are,    "are");
-    make_arrview_str(str_arrays, "ARRAYS");
-    make_arrview_str(str_space,  " ");
-    make_arrview_str(str_dot,    ".");
-    make_arrview_str(str_null,   "\0");
-
-    make_merged_array(data,
-                      str_this, str_space,
-                      str_are, str_space,
-                      str_arrays, str_dot,
-                      str_null);
-    println(data);
-
- */
-#define make_merged_array(_name_, ...) \
-	ARRAY_ELEMENT_TYPE_NO_QUAL(TAKE_FIRST_ARG(__VA_ARGS__)) _name_ [ ARRAYS_SIZE(__VA_ARGS__) ]; \
-	copy_arrays(_name_, __VA_ARGS__)
-
-
-/* array_remove_view(array, view)
- * Erases a range elements from the provided array
- * by moving forward all data in the array from
- * the position after the view end to the position where the view begins.
- *
- * (view) must be a pointer to an array which points to some range in the array
- * and it's range should not span behind the array.
- *
- * if view spans to the end of the array,
- * then this macro does nothing (since nothing to move forward)
- *
- * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
- *           ^   ^   ^
- * view ---|   |   |   |
- *
- *                     | 5 | 6 | 7 |
- *                          /
- *                <---------
- *               /
- *         | 5 | 6 | 7 |
- *
- * | 0 | 1 | 5 | 6 | 7 | 5 | 6 | 7 |
- */
-#define array_remove_view(_arr_ptr_, _view_)                                               \
-    memmove(_view_, array_end_ref(_view_),                                                 \
-    (array_last_ref(_arr_ptr_) - array_last_ref(_view_)) * ARRAY_ELEMENT_SIZE(_arr_ptr_))  \
-
-/* array_remove_view_fill(array, view, val)
- * works exactly same as array_remove_view()
- * while addititionaly fills last 'free' elements of the array with value (val)
- *
- * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
- *           ^   ^   ^
- * view ---|   |   |   |
- *
- *                     | 5 | 6 | 7 | 8 |
- *                             /
- *                  <----------
- *                 /
- *         | 5 | 6 | 7 | 8 |
- *
- * | 0 | 1 | 5 | 6 | 7 | 8 | v | v | v |
- *                           ^   ^   ^
- * val -------------------------------
- *
- * example:
- *
-    int v[] = {0,1,2,3,4,5,6,7,8};
-    make_arrview(v_view, 2, 3, v); //pointer to elements '2', '3', '4'
-    array_remove_view_fill(v, v_view, 9);
-    print_array(v); //prints: [0,1,5,6,7,8,9,9,9]
-
- */
-#define array_remove_view_fill(_arr_ptr_, _view_, _val_)  do {     \
-    array_remove_view(_arr_ptr_, _view_);                          \
-    make_arrview_last(_to_replace_, ARRAY_SIZE(_view_), _arr_ptr_);\
-    unsafe_fill_array(_to_replace_, _val_);                        \
-} while(0)
-
-/* array_remove_ref(array, ref)
- * Erases a single element from the array by moving all data after (ref) towards front
- * of the array.
- *
- * ref should be a pointer to some element inside the array.
- *
- * if ref is a pointer to the last element of the array,
- * then this macro does nothing(since nothing to move forward)
- *
- * basically, this macro is the same as array_remove_view() with the view of size 1
- *
- * | 0 | 1 | 2 | 3 | 4 |
- *           ^
- * ref ------|
- *
- *             | 3 | 4 |
- *                 /
- *              <--
- *             /
- *         | 3 | 4 |
- *
- * | 0 | 1 | 3 | 4 | 4 |
- *
- * example:
-
-    int v[] = {0,1,2,3,4};
-    int *ptr = &v[2]; //pointer to value '2'
-    array_remove_ref(v, ptr);
-    print_array(v); //prints: [0,1,3,4,4]
-
- */
-#define array_remove_ref(_arr_ptr_, _ref_)                                       \
-    memmove((_ref_),                                                             \
-            (_ref_) + 1,                                                         \
-            (array_last_ref(_arr_ptr_) - (_ref_)) * sizeof(*(_ref_)))            \
-
-/* array_remove_ref_fill(array, ref, val)
- * works same as array_remove_ref() while additionally sets
- * the last value of the array with value (val)
- *
- * | 0 | 1 | 2 | 3 | 4 |
- *           ^
- * ref ------|
- *
- *             | 3 | 4 |
- *                 /
- *              <--
- *             /
- *         | 3 | 4 |
- *
- * | 0 | 1 | 3 | 4 | v |
- *                   ^
- * val --------------|
- *
- * example:
-
-    int v[] = {0,1,2,3,4};
-    int *ptr = &v[2]; //pointer to value '2'
-    array_remove_ref_fill(v, ptr, 9);
-    print_array(v); //prints: [0,1,3,4,9]
-
- */
-#define array_remove_ref_fill(_arr_ptr_, _ref_, _val_) \
-    ((void) array_remove_ref(_arr_ptr_, _ref_),        \
-     (void)(*array_last_ref(_arr_ptr_) = (_val_)))
-
-
-/* array_insert(arr, ref, val)
- * Moves backwards all data from the position where (ref) points
- * and writes value (val) at that position
- *
- * | 0 | 1 | 2 | 3 | 4 |
- *           ^
- * ref-------|
- *
- *         | 2 | 3 |
- *             \
- *              -->
- *                 \
- *             | 2 | 3 |
- *
- * | 0 | 1 | v | 2 | 3 |
- *           ^
- * val ------|
- *
- */
-#define array_insert(_arr_, _ref_, _val_)                                   \
-    (                                                                       \
-    (void)memmove((_ref_) + 1,                                              \
-                 (_ref_),                                                   \
-                 (array_last_ref(_arr_) - (_ref_)) * sizeof(*(_ref_))),     \
-    (void)(*(_ref_) = (_val_))                                              \
-    )
-
-/* array_insert_array(arr, idx, src_arr)
- * Inserts data from array (src_arr) to array (arr) at specified position (idx)
- *
- * | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
- *           ^
- * idx-------|
- * src_arr | 7 | 8 | 9 |
- *
- *         | 2 | 3 |
- *             \
- *              ---------->
- *                         \
- *                     | 2 | 3 |
- *
- * | 0 | 1 | 7 | 8 | 9 | 2 | 3 |
- *           ^   ^   ^
- * src_arr | 7 | 8 | 9 |
- *
- * example:
- *
-    long v[] = {0,1,2,3,4,5,6};
-    array_insert_array(v, 2, (long[]){7,8,9});
-    print_array(v); //prints: [0,1,7,8,9,2,3]
-
- */
-#define array_insert_array(_arr_, _idx_, ...) h_array_insert_array(_arr_, _idx_, (__VA_ARGS__))
-
+/* array_inseret_array() implementation */
 #define h_array_insert_array(_arr_, _idx_, _src_arr_) do {                                                             \
     make_arrview(_to_replace_, _idx_, ARRAY_SIZE(_src_arr_), _arr_);                                                   \
     memmove(unsafe_array_end_ref(_to_replace_),                                                                        \
@@ -1270,43 +1336,9 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     copy_array(_to_replace_, _src_arr_);                                                                               \
 } while (0)
 
-/* make_arrview_ref_ref(name, ref1, ref2):
- *
- * Create arrview from two pointers to some elements of the same array
- *
- * ref2 must be equal or greater than ref1
- *
- * created view will always be a pointer to VLA.
- *
- * | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
- *           ^       ^
- * ref1------|       |
- * ref2--------------|
- *
- *           ^   ^   ^
- * view----| 2 | 3 | 4 |
- */
-#define arrview_ref_ref(_ref1_, _ref2_ ) \
-    (h_decl_arrview_ref_ref(,_ref1_, _ref2_))(_ref1_)
 
-#define make_arrview_ref_ref(_name_, _ref1_, _ref2_) \
-    h_decl_arrview_ref_ref(_name_, _ref1_, _ref2_) = (void*)(_ref1_)
-
-#define h_decl_arrview_ref_ref(_name_, _ref1_, _ref2_) \
-    typeof(*(_ref1_))(*_name_)[ (_ref2_) - (_ref1_) + 1]
-
-/* [make_]arrview_dim(size, src_arr)
- * Creates an arrview for array by splitting it's top dimension into two dimensions
- * int a[12] -> 4 -> int (*ptr)[3][4];
- * int a[7] -> 3 -> int (*ptr)[2][3]; //Last element won't be part of the view
- *
- * @size: size of second dimension, should not be less than source array size
- * @src_arr: source array/pointer to array
- */
-#define make_arrview_dim(_name_, _size_, ...) h_make_arrview_dim(_name_, (_size_), (__VA_ARGS__))
+/* arrview_dim() implementation */
 #define h_make_arrview_dim(_name_, _size_, _arr_) ARRAY_ELEMENT_TYPE(_arr_) (*_name_) [ h_check_arrview_dim(_size_, _arr_) ][_size_] = (void*)_arr_
-
-#define arrview_dim(_size_, ...) h_arrview_dim((_size_), (__VA_ARGS__))
 #define h_arrview_dim(_size_, _arr_) ((ARRAY_ELEMENT_TYPE(_arr_) (*) [ h_check_arrview_dim(_size_, _arr_) ][_size_])_arr_)
 
 #define h_check_arrview_dim(_size_, _arr_) _Generic(1,           \
@@ -1315,18 +1347,11 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     default: ARRAY_SIZE(_arr_) / _size_                          \
     )
 
-/* [make_]arrview_flat(src_arr)
- * Creates an arrview for multi-dimensional array by merging it's first two dimensions into single dimension
- * int a[4][3] -> int (*ptr)[12]
- *
- * @src_arr: source array/pointer to array. Should contain at least two dimensions
- */
-#define make_arrview_flat(_name_, ...) h_make_arrview_flat(_name_, (__VA_ARGS__))
+/* arrview_flat() implementation */
 #define h_make_arrview_flat(_name_, _arr_) UNSAFE_ARRAY_ELEMENT_TYPE(auto_arr(_arr_)[0])(*_name_) [ARRAY_SIZE(_arr_) * UNSAFE_ARRAY_SIZE(auto_arr(_arr_)[0])] = (void*)_arr_
-#define arrview_flat(...) h_arrview_flat((__VA_ARGS__))
 #define h_arrview_flat(_arr_) ((UNSAFE_ARRAY_ELEMENT_TYPE(auto_arr(_arr_)[0])(*)[ARRAY_SIZE(_arr_) * UNSAFE_ARRAY_SIZE(auto_arr(_arr_)[0])])_arr_)
 
-/* Array bit operations */
+/* Array bit operations. Experimental */
 
 #define ARRAY_SIZE_BITS(arr) (ARRAYS_SIZE_BYTES(arr) * 8)
 
