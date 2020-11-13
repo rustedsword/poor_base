@@ -259,6 +259,31 @@ static int fmt_hex_fmt_test(void) {
 	return 0;
 }
 
+static inline int h_fprint_test(FILE *f) {
+	if(fprint(f, "L", 1, true, "0x", fmt_hex_p(0xDEAD, 6)) <= 0)
+		return printerrln("Failed to write to file"), -1;
+
+	rewind(f);
+
+	char tmp[20] = {0};
+	size_t nread = fread(tmp, 1, 20, f);
+	if(nread == 0 || nread == 20)
+		return printerrln("Failed to read file:", nread), -1;
+
+	assert(!strcmp("L1true0x00dead", tmp));
+	return 0;
+}
+
+static int fprint_test(void) {
+	FILE *f = tmpfile();
+	if(!f)
+		return printerrln("Failed to open file"), -1;
+
+	int rc = h_fprint_test(f);
+	fclose(f);
+	return rc;
+}
+
 typedef int test_fn (void) ;
 
 #define TEST_FN(fn) {STRINGIFY2(fn), fn}
@@ -287,6 +312,8 @@ static struct tests_struct {
 	TEST_FN(fmt_zw_test),
 	TEST_FN(fmt_zwp_test),
 	TEST_FN(fmt_hex_fmt_test),
+
+	TEST_FN(fprint_test),
 };
 
 static void usage(void) {
