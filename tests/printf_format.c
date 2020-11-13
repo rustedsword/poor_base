@@ -1,6 +1,5 @@
 #include <poor_stdio.h>
 #include <string.h>
-#include <assert.h>
 
 static int printf_fmt_char(void) {
 	unsigned char uc = 1;
@@ -13,6 +12,7 @@ static int printf_fmt_char(void) {
 	fmt = printf_specifier_string(1, uc, sc, c);
 	assert(strcmp("%hhu%hhd%c\n", fmt) == 0);
 
+	(void)uc, (void)sc, (void)c;
 	return 0;
 }
 
@@ -26,6 +26,7 @@ static int printf_fmt_short(void) {
 	fmt = printf_specifier_string(1, us, ss);
 	assert(strcmp("%hu%hd\n", fmt) == 0);
 
+	(void)us, (void)ss;
 	return 0;
 }
 
@@ -39,6 +40,7 @@ static int printf_fmt_int(void) {
 	fmt = printf_specifier_string(1, ui, si, 2, 3U);
 	assert(strcmp("%u%d%d%u\n", fmt) == 0);
 
+	(void)ui, (void)si;
 	return 0;
 }
 
@@ -52,6 +54,7 @@ static int printf_fmt_long_int(void) {
 	fmt = printf_specifier_string(1, ul, sl, 2L, 2UL);
 	assert(strcmp("%lu%ld%ld%lu\n", fmt) == 0);
 
+	(void)ul, (void)sl;
 	return 0;
 }
 
@@ -65,6 +68,7 @@ static int printf_fmt_llong_int(void) {
 	fmt = printf_specifier_string(1, ull, sll, 1LL, 1ULL);
 	assert(strcmp("%llu%lld%lld%llu\n", fmt) == 0);
 
+	(void)ull, (void)sll;
 	return 0;
 }
 
@@ -80,6 +84,7 @@ static int printf_fmt_str(void) {
 	fmt = printf_specifier_string(1, s1, s1c, s2, s2c, "literal");
 	assert(strcmp("%s%s%s%s%s\n", fmt) == 0);
 
+	(void)s1, (void)s1c, (void)s2, (void)s2c;
 	return 0;
 }
 
@@ -94,6 +99,7 @@ static int printf_fmt_real(void) {
 	fmt = printf_specifier_string(1, f, d, ld, 1.0f, 1.0, 1.0L);
 	assert(strcmp("%f%lf%Lf%f%lf%Lf\n", fmt) == 0);
 
+	(void)f, (void)d, (void)ld;
 	return 0;
 }
 
