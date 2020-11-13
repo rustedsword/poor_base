@@ -818,26 +818,4 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 	string;										\
 })
 
-/* Obsolete */
-static inline void printf_bool(const char *fmt, bool val) {
-    (void)fmt;
-    printf(val ? "true" : "false");
-}
-/*
- * Prints any standard varable
- */
-#define print_var(x) _Generic((x),  \
-    bool: printf_bool,              \
-    default: printf                 \
-)(printf_dec_format(x), x)
-
-#define print_var_nl(x) print_var(x); printf("\n")
-
-/* Compatibility */
-
-#define to_hex(var, ...) fmt_hex_p(var, __VA_ARGS__)
-#define to_hex_p(var, ...) IF(PP_NARG(__VA_ARGS__))(to_hex_p_multi, to_hex_p_single)(var, __VA_ARGS__)
-#define to_hex_p_single(var, ...) fmt_p(fmt_hex(var), 1)
-#define to_hex_p_multi(var, prcsn) fmt_p(fmt_hex(var), prcsn)
-
 #endif // MISC_H
