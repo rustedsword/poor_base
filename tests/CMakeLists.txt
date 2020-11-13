@@ -5,6 +5,7 @@ add_test(poor_map_test poor_map_test)
 
 add_executable(printf_format printf_format.c )
 target_link_libraries(printf_format poor_base)
+target_compile_options(printf_format PUBLIC -Wall -Wextra -Werror)
 
 add_test(NAME printf_fmt_char COMMAND printf_format printf_fmt_char)
 add_test(NAME printf_fmt_short COMMAND printf_format printf_fmt_short)
@@ -35,6 +36,9 @@ add_test(NAME fprint_test COMMAND printf_format fprint_test)
 
 add_executable(poor_array_tests poor_array_tests.c )
 target_link_libraries(poor_array_tests poor_base)
+#no-ignored-qualifiers is for TYPEOF_NO_QUAL()
+target_compile_options(poor_array_tests PUBLIC -Wall -Wextra -Werror -Wno-ignored-qualifiers)
+
 add_test(NAME auto_arr_test COMMAND poor_array_tests auto_arr_test)
 add_test(NAME array_size COMMAND poor_array_tests array_size)
 add_test(NAME arrays_size COMMAND poor_array_tests arrays_size)
