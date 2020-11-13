@@ -1,5 +1,65 @@
 # poor_base
-Header only macro library
+Header only macro library for type-generic printing and advanced C array operations.
+
+# <poor_stdio.h>
+This header contains macros for various functions found in stdio.h
+
+### print() family macros
+Type-generic wrappers around standard printing functions, with formatting support(width, precision, hexademical integers).
+
+These macros automatically generate string with format specifiers at compile time.
+
+ln() versions append '\n' at the end of printed line.
+
+wrapped function | macro                    | description
+-----------------|--------------------------|------------------
+printf()         | print(), println()       | Print to stdout
+fprintf(stderr)  | printerr(), printerrln() | Print to stderr
+fprintf()        | fprint(), fprintln()     | Print to FILE
+sprintf()        | sprint()                 | Print to buffer
+
+Supported format modifiers:
+
+format_modifier                | description
+-------------------------------|--------------------------------
+fmt_p(var, precision)          | prints variable with specified precision
+fmt_w(var, width)              | prints variable with field width
+fmt_zw(var, width)             | prints variable with field width, filled with zeros
+fmt_wp(var, width, prcsn)      | prints variable with field width and precision
+fmt_zwp(var, width, prcsn)     | prints floats with zero-field width and precision
+fmt_hex(var)                   | prints integer as hexademical
+fmt_hex_p(var)                 | prints integer as hexademical with specified precision
+
+```c
+println("int:", 3, " float:", 5.6f, " bool:", true);
+//int:3 float:5.600000 bool:true
+
+printerrln("0x", fmt_hex(0xae), " 0x", fmt_hex_p(300, 10));
+//0xae 0x000000012c
+
+fprintln(stderr, "Offset is ", fmt_wp(13.449, 10, 2));
+//Offset is      13.45
+```
+
+### concat()
+Concatenation macro family. Supports same features as print() macro family.
+
+macro           | description
+----------------|---------------
+concat()        | dynamically allocates memory for concatenated string
+concat_vla()    | creates variable length array for concatenated string
+concat_alloca() | uses alloca() for concatenated string
+
+```c
+char *string = concat("First:", 5, " Second:", fmt_zw(10, 6));
+if(string) {
+    println(string); //First:5 Second:000010
+    free(string);
+}
+
+concat_vla(vla_string, "Five plus Six:", 5 + 6);
+println(vla_string); //Five plus Six:11
+```
 
 # <poor_array.h>
 This header contains useful macros to work with arrays.
