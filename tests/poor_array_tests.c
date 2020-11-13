@@ -498,6 +498,33 @@ static int arrview_shrink_test(void) {
 	return 0;
 }
 
+static int array_dim_flat_test(void) {
+	int a[] = {1,2,3,4,5,6,7,8,9,10};
+
+	make_arrview_dim(a_pair, 2, a);
+	static_assert(ARRAY_SIZE(a) == ARRAY_SIZE(a_pair) * ARRAY_SIZE(**a_pair));
+	assert(auto_arr(a)[0] == auto_arr(a_pair)[0][0]);
+	assert(auto_arr(a)[9] == auto_arr(a_pair)[4][1]);
+
+	make_arrview_dim(a_all, 10, a);
+	static_assert(ARRAY_SIZE(a) == ARRAY_SIZE(a_all) * ARRAY_SIZE(**a_all));
+	assert(auto_arr(a)[0] == auto_arr(a_all)[0][0]);
+	assert(auto_arr(a)[9] == auto_arr(a_all)[0][9]);
+
+	make_arrview_dim(a_uneven, 3, a);
+	static_assert(ARRAY_SIZE(a) == 1 + ARRAY_SIZE(a_uneven) * ARRAY_SIZE(**a_uneven));
+	assert(auto_arr(a)[0] == auto_arr(a_uneven)[0][0]);
+	assert(auto_arr(a)[8] == auto_arr(a_uneven)[2][2]);
+
+	make_arrview_flat(a2, a_pair);
+	static_assert(ARRAY_SIZE(a2) == ARRAY_SIZE(a));
+	assert(&a == a2);
+
+	make_arrview_flat(a2_u, a_uneven);
+	static_assert(ARRAY_SIZE(a2_u) + 1 == ARRAY_SIZE(a));
+
+	return 0;
+}
 
 typedef int test_fn (void);
 
@@ -520,6 +547,8 @@ static struct tests_struct {
 	TEST_FN(arrview_first_test),
 	TEST_FN(arrview_last_test),
 	TEST_FN(arrview_shrink_test),
+
+	TEST_FN(array_dim_flat_test),
 };
 
 static void usage(void) {

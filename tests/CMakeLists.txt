@@ -45,6 +45,7 @@ add_test(NAME arrview_simple COMMAND poor_array_tests arrview_simple)
 add_test(NAME arrview_first_test COMMAND poor_array_tests arrview_first_test)
 add_test(NAME arrview_last_test COMMAND poor_array_tests arrview_last_test)
 add_test(NAME arrview_shrink_test COMMAND poor_array_tests arrview_shrink_test)
+add_test(NAME array_dim_flat_test COMMAND poor_array_tests array_dim_flat_test)
 
 #These tests should fail
 add_library(auto_arr_compile_ptr OBJECT EXCLUDE_FROM_ALL auto_arr_compile_ptr.c)
