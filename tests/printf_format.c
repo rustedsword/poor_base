@@ -1,6 +1,8 @@
 #include <poor_stdio.h>
 #include <string.h>
 
+#undef NDEBUG
+
 static int printf_fmt_char(void) {
 	unsigned char uc = 1;
 	signed char sc = 2;

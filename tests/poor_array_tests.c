@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#undef NDEBUG
+
 #if defined __STDC_VERSION__ && __STDC_VERSION__ <= 201710L
 
 #undef static_assert
@@ -23,6 +25,8 @@ static int auto_arr_test(void) {
 	unsigned char ar_v[(size_t){2}]; //vla
 	ar_v[0] = 8; ar_v[1] = 13;
 	unsigned char (*ar_v_p)[(size_t){2}] = &ar_v; //pointer to vla
+
+	(void)ar, (void)ar_p, (void)ar_v, (void)ar_v_p;
 
 	assert( auto_arr(ar)[0] == 3); //array
 	assert( auto_arr(ar)[1] == 5);
@@ -91,6 +95,11 @@ static int auto_arr_test(void) {
 	assert(auto_arr(pv3)[0][0] == 1);
 	assert(auto_arr(pv3)[1][0] == 2);
 
+	(void)md_v0, (void)pv0;
+	(void)md_v1, (void)pv1;
+	(void)md_v2, (void)pv2;
+	(void)md_v3, (void)pv3;
+
 	return 0;
 }
 
@@ -111,6 +120,7 @@ static int array_size(void) {
 	assert( ARRAY_SIZE(d) == 7);
 	assert( ARRAY_SIZE_BYTES(d) == 7 * sizeof(uint64_t));
 
+	(void)a, (void)b, (void)c, (void)d;
 	return 0;
 }
 
@@ -126,6 +136,7 @@ static int arrays_size(void) {
 	static_assert(ARRAYS_SIZE(a, c) == ARRAY_SIZE(a) + ARRAY_SIZE(c));
 	static_assert(ARRAYS_SIZE_BYTES(a, c) == ARRAY_SIZE_BYTES(a) + ARRAY_SIZE_BYTES(c));
 
+	(void)a, (void)b, (void)c, (void)d;
 	return 0;
 }
 

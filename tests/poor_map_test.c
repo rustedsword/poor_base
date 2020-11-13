@@ -1,6 +1,8 @@
 #include <poor_map.h>
 #include <assert.h>
 
+#undef NDEBUG
+
 #if defined __STDC_VERSION__ && __STDC_VERSION__ <= 201710L
 
 #undef static_assert
