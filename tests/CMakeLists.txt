@@ -37,7 +37,7 @@ add_test(NAME fprint_test COMMAND printf_format fprint_test)
 add_executable(poor_array_tests poor_array_tests.c )
 target_link_libraries(poor_array_tests poor_base)
 #no-ignored-qualifiers is for TYPEOF_NO_QUAL()
-target_compile_options(poor_array_tests PUBLIC -Wall -Wextra -Werror -Wno-ignored-qualifiers)
+target_compile_options(poor_array_tests PUBLIC -Wall -Wextra -Werror -Wno-ignored-qualifiers -Wno-unused-variable -Wno-unused-but-set-variable)
 
 add_test(NAME auto_arr_test COMMAND poor_array_tests auto_arr_test)
 add_test(NAME array_size COMMAND poor_array_tests array_size)
