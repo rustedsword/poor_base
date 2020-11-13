@@ -5,7 +5,7 @@ add_test(poor_map_test poor_map_test)
 
 add_executable(printf_format printf_format.c )
 target_link_libraries(printf_format poor_base)
-target_compile_options(printf_format PUBLIC -Wall -Wextra -Werror)
+target_compile_options(printf_format PUBLIC -Wall -Wextra -Werror -Wno-unused-variable -Wno-unused-but-set-variable)
 
 add_test(NAME printf_fmt_char COMMAND printf_format printf_fmt_char)
 add_test(NAME printf_fmt_short COMMAND printf_format printf_fmt_short)
