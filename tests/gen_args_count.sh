@@ -6,7 +6,7 @@ for i in $(seq 1, 210); do
 	for l in $(seq 2, $i); do
 		cnt+=", $l"
 	done
-	echo "_Static_assert(ARGS_COUNT( $cnt  ) == $i);"
+	echo "_Static_assert(ARGS_COUNT( $cnt  ) == $i, \"1\");"
 done
 
 echo
@@ -17,5 +17,5 @@ for i in $(seq 0, 209); do
 	for l in $(seq 1, $i); do
 		cnt+=", $l"
 	done
-	echo "_Static_assert(ARGS_COUNT_ZERO( $cnt  ) == $i);"
+	echo "_Static_assert(ARGS_COUNT_ZERO( $cnt  ) == $i, \"1\");"
 done
