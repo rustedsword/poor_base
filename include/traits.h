@@ -1,5 +1,33 @@
 #ifndef TRAITS_H
 #define TRAITS_H
+#include <inttypes.h>
+#include <assert.h>
+#include <stdbool.h>
+
+/* Redefine true and false so they will be really bools, not ints.
+ * This is the same as in C23 Standard */
+#ifndef __cplusplus
+
+#if defined __STDC_VERSION__ && __STDC_VERSION__ <= 201710L
+
+#ifdef true
+#undef true
+#define true ((_Bool)+1u)
+#endif //true
+
+#ifdef false
+#undef false
+#define false ((_Bool)+0u)
+#endif //false
+
+#endif //__STDC_VERSION__
+#endif //__cplusplus
+
+/* assert.h on windows have no static_assert define =\ */
+#if defined WIN32 && !defined static_assert && !defined __cplusplus && defined _MSC_VER
+# undef static_assert
+# define static_assert _Static_assert
+#endif
 
 /* static_assert that can be used inside other expressions
  * example:
