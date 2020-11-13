@@ -1,5 +1,20 @@
 #include <poor_array.h>
 #include <stdio.h>
+#include <assert.h>
+
+#if defined __STDC_VERSION__ && __STDC_VERSION__ <= 201710L
+
+#undef static_assert
+#define static_assert_m(_expr_, _string_) _Static_assert(_expr_, _string_)
+#define static_assert_s(_expr_) _Static_assert(_expr_, "static_assert")
+#define static_assert(...) IF_SINGLE_ARG(static_assert_s ,static_assert_m ,__VA_ARGS__)(__VA_ARGS__)
+
+#else
+
+#undef static_assert
+#define static_assert(_expr_, ...) assert(_expr_)
+
+#endif //__STDC_VERSION__
 
 static int auto_arr_test(void) {
 	unsigned char ar[2] = {3, 5}; //array
