@@ -4,33 +4,11 @@
 #include <poor_map.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
-#include <assert.h>
-
-/* assert.h on windows have no static_assert define =\ */
-#if defined WIN32 && !defined static_assert && !defined __cplusplus && defined _MSC_VER
-# undef static_assert
-# define static_assert _Static_assert
-#endif
-
-/* Redefine true and false so they will be really bools, not ints */
-#ifndef __cplusplus
-#ifdef true
-#undef true
-#define true ((bool)+1)
-#endif
-
-#ifdef false
-#undef false
-#define false ((bool)+0)
-#endif
-#endif //__cplusplus
+#include <traits.h>
+#include <poor_array.h>
 
 #define CAT(a, ...) PRIMITIVE_CAT(a, __VA_ARGS__)
 #define PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
-
-#define STRINGIFY_(var) #var
-#define STRINGIFY2(var) STRINGIFY_(var)
 
 #define COMPL(b) PRIMITIVE_CAT(COMPL_, b)
 #define COMPL_0 1

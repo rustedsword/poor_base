@@ -2,8 +2,8 @@
 #define MISC_ARRAY_H
 
 #include <poor_stdio.h>
+#include <map.h>
 #include <traits.h>
-#include <inttypes.h>
 #include <string.h>
 
 /* Some colors */
