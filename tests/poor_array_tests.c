@@ -1,4 +1,5 @@
 #include <poor_array.h>
+#include <stdio.h>
 
 static int auto_arr_test(void) {
 	unsigned char ar[2] = {3, 5}; //array
@@ -528,7 +529,7 @@ static int array_dim_flat_test(void) {
 
 typedef int test_fn (void);
 
-#define TEST_FN(fn) {STRINGIFY2(fn), fn}
+#define TEST_FN(fn) {#fn, fn}
 static struct tests_struct {
 	const char *test_name;
 	test_fn *fn;
@@ -552,17 +553,17 @@ static struct tests_struct {
 };
 
 static void usage(void) {
-	printerrln("usage: this_program [test_name]\n\n"
-		   "available tests:");
+	fprintf(stderr, "usage: this_program [test_name]\n\n"
+		   "available tests:\n");
 
 	for(struct tests_struct *cur = &tests[0]; cur != &tests[sizeof(tests) / sizeof(tests[0])]; cur++ ){
-		printerrln("\t", cur->test_name);
+		fprintf(stderr, "\t%s\n", cur->test_name);
 	}
 }
 
 int main(int argc, char **argv) {
 	if(argc != 2)
-		return usage(), EXIT_FAILURE;
+		return usage(), 1;
 
 	for(struct tests_struct *cur = &tests[0]; cur != &tests[sizeof(tests) / sizeof(tests[0])]; cur++ ){
 		if(!strcmp(argv[1], cur->test_name)) {
@@ -570,5 +571,5 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	return printerrln("No test found with name: \"", argv[1], "\""), EXIT_FAILURE;
+	return fprintf(stderr, "No test found with name: \"%s\"\n", argv[1]), 1;
 }
