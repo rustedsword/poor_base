@@ -65,22 +65,6 @@
                                          default: helper_container_of(ptr, type, member) )
 #define helper_container_of(ptr, type, member) (type *)( (uintptr_t)(ptr) - offsetof(type, member) )
 
-/* Test macro helpers for single or multiple arguments in variadic argument list */
-#define ARG_TST_END2(...) 0, 0
-#define ARG_TST_END1(...) ARG_TST_END2
-#define ARG_TST_END(...) ARG_TST_END1
-
-#define ARG_TEST3(test, t, f, ...) f
-#define ARG_TEST2(test, t, f) ARG_TEST3(test, t, f, 0)
-#define ARG_TEST1(test, t, f) ARG_TEST2(ARG_TST_END test, t, f )
-
-#define SINGLE_ARG_TEST(t, f, _1, test, ...) ARG_TEST1(test, t, f)
-
-/* Returns 1 if single argument passed in variadic argument list, or 0 if more than one argument passed */
-#define IS_SINGLE_ARG(...) SINGLE_ARG_TEST(1, 0, __VA_ARGS__, (0)(0)(0), 0)
-/* Expands t if single argument passed in variadic argument list, or f if more than one argument passed */
-#define IF_SINGLE_ARG(t, f, ...) SINGLE_ARG_TEST(t, f, __VA_ARGS__, (0)(0)(0), 0)
-
 
 /**** ---- printf format specifiers helper functions ****/
 /* unpack basic types */
