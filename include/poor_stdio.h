@@ -725,53 +725,70 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 /* sprint(buf, ...): print to buffer. buffer should be large enough for string to fit */
 #define sprint(buf, ...) sprintf(buf, printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
-/* concat(...) / concat_vla(var_name, ...) / concat_alloca(...)
- * Concatenates any number of variables of any standard types into buffer
- * allocated with variable length array, alloca or malloc
+/* concat_vla(_name_, var1, ..., varn)
+ * Creates variable length array (_name_) and
+ * writes concatenated string into it with '\0' at the end.
  *
- * note: concat_vla() will always create VLA.
- *	 concat() uses malloc, so it can fail.
+ * @_name_: name of a new VLA to declare.
+ * @_var_: standard C types variables that supported by print() macro family
  *
  * Examples:
 
-	int num = 2; uint64_t l = 500; const char *str = "some string";
+	int num = 2; uint64_t l = 500;
+	concat_vla(vla, "num is:", num, " var l is:", l);
 
-	concat_vla(str_vla, "num is:", num, " var l is:", l, " string:", str);
-	println("VLA string: ", str_vla, " it's size:", sizeof(str_vla));
+	println("VLA string: ", vla, ". it's size:", sizeof(vla));
+	prints: //VLA string: num is:2 var l is:500. it's size:22
+*/
+#define concat_vla(_name_, ...)										\
+	const char * const fmt___ ## _name_ = printf_specifier_string(0, __VA_ARGS__);			\
+	char _name_[1 + snprintf(NULL, 0, fmt___ ## _name_, printf_args_pre_process(__VA_ARGS__))];	\
+	sprintf(_name_, fmt___ ## _name_, printf_args_pre_process(__VA_ARGS__))
 
-	char *abuf = concat_alloca("num is:", num, " var l is:", l, " string:", str);
-	println("Stack string: ", abuf);
+/* concat_malloc_array(_name_, var1, ..., varn):
+ * Creates a pointer (_name_) to a variable length array,
+ * allocates memory for it and writes concatenated string into that memory with '\0' at the end.
+ *
+ * if memory allocation fails (_name_) will be a NULL pointer.
+ *
+ * @_name_: name of new pointer to array to declare.
+ * @_var_: standard C types variables that supported by print() macro family
+ * example:
 
-	char *buf = concat("num is:", num, " var l is:", l, " string:", str);
+	concat_malloc_array(string, "One:", 1L, " Two:", 2ULL);
+	if(string) {
+		println("result:", string, ". size of that string:", sizeof(*string));
+		//result:One:1 Two:2. size of that string:12
+
+		free(string);
+	}
+ */
+#define concat_malloc_array(_name_, ...) \
+	const char * const fmt___ ## _name_ = printf_specifier_string(0, __VA_ARGS__);				\
+	char (*_name_)[1 + snprintf(NULL, 0, fmt___ ## _name_, printf_args_pre_process(__VA_ARGS__))];		\
+	((_name_ = malloc(sizeof(*_name_))) ? sprintf(*_name_, fmt___ ## _name_, printf_args_pre_process(__VA_ARGS__)) : (void)0)
+
+/* concat(var1, ..., varn):
+ * Returns a pointer to char with memory allocated by malloc with concatenated string within.
+ * Returned string is null-terminated.
+ *
+ * returns NULL pointer if memory allocation fails.
+ *
+ * @_var_: standard C types variables that supported by print() macro family
+ * example:
+
+	char *buf = concat(1, 2U, 3L, "?");
 	if(buf) {
-		println("Heap string: ", buf);
+		println(buf);
+		//prints: 123?
+
 		free(buf);
 	}
  */
-#define concat_vla(var_name, ...)									\
-	const char * const fmt___ ## var_name = printf_specifier_string(0, __VA_ARGS__);		\
-	char var_name[snprintf(NULL, 0, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__)) + 1];	\
-	sprintf(var_name, fmt___ ## var_name, printf_args_pre_process(__VA_ARGS__));			\
-	var_name[ sizeof(var_name) - 1  ] = '\0'
-
-#define concat_alloca(...) ({ \
-	const char * const fmt = printf_specifier_string(0, __VA_ARGS__);		\
-	size_t size = snprintf(NULL, 0, fmt, printf_args_pre_process(__VA_ARGS__));	\
-	char * string = alloca(size + 1);						\
-	sprintf(string, fmt, printf_args_pre_process(__VA_ARGS__));			\
-	string[size] = '\0';								\
-	string;										\
+#define concat(...) __extension__ ({					\
+	concat_malloc_array(_tmp_s_array_, __VA_ARGS__);		\
+	(char *)_tmp_s_array_;						\
 })
 
-#define concat(...) ({									\
-	const char * const fmt = printf_specifier_string(0, __VA_ARGS__);		\
-	size_t size = snprintf(NULL, 0, fmt, printf_args_pre_process(__VA_ARGS__));	\
-	char * string = malloc(size + 1);						\
-	if(!string)									\
-		NULL;									\
-	sprintf(string, fmt, printf_args_pre_process(__VA_ARGS__));			\
-	string[size] = '\0';								\
-	string;										\
-})
 
 #endif // POOR_STDIO_H
