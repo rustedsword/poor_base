@@ -6,7 +6,7 @@ Header only macro library for type-generic printing and advanced C array operati
 #include <poor_stdio.h>
 
 #define do_something(data) _do_something(ARRAY_SIZE(data), &auto_arr(data))
-int _do_something(size_t len, int (*d)[len]) {
+static int _do_something(size_t len, int (*d)[len]) {
     if(!d || ARRAY_SIZE(d) < 6)
         return printerrln("Too small array"), -1;
 
@@ -15,9 +15,7 @@ int _do_something(size_t len, int (*d)[len]) {
     make_arrview_last(d_last, 3, d);
 
     copy_array(d_first, (const int[]){-3, -4});
-
     fill_array(d_middle, 0);
-
     foreach_array_ref(d_last, ref)
         *ref = array_ref_index(d, ref) + 1;
 
@@ -28,9 +26,7 @@ int _do_something(size_t len, int (*d)[len]) {
             "d_first:", ARRAY_SIZE(d_first), " "
             "d_middle:", ARRAY_SIZE(d_middle), " "
             "d_last:", ARRAY_SIZE(d_last));
-
     println(info);
-
     return 0;
 }
 
