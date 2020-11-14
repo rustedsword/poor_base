@@ -16,7 +16,8 @@ wrapped function | macro                    | description
 printf()         | print(), println()       | Print to stdout
 fprintf(stderr)  | printerr(), printerrln() | Print to stderr
 fprintf()        | fprint(), fprintln()     | Print to FILE
-sprintf()        | sprint()                 | Print to buffer
+sprintf()        | sprint(), sprintln()     | Print to buffer
+snprintf()       | sprint_array()           | Print to array
 
 Supported format modifiers:
 
@@ -39,22 +40,33 @@ printerrln("0x", fmt_hex(0xae), " 0x", fmt_hex_p(300, 10));
 
 fprintln(stderr, "Offset is ", fmt_wp(13.449, 10, 2));
 //Offset is      13.45
+
+char buf[5];
+sprint_array(buf, 1,2,3,4,5);
+println(buf);
+//1234
 ```
 
 ### concat()
 Concatenation macro family. Supports same features as print() macro family.
 
-macro           | description
-----------------|---------------
-concat()        | dynamically allocates memory for concatenated string
-concat_vla()    | creates variable length array for concatenated string
-concat_alloca() | uses alloca() for concatenated string
+macro                 | description
+----------------------|---------------
+concat()              | dynamically allocates memory for concatenated string
+concat_malloc_array() | same as concat() but declares a pointer to an array with a new string
+concat_vla()          | creates variable length array for concatenated string
 
 ```c
 char *string = concat("First:", 5, " Second:", fmt_zw(10, 6));
 if(string) {
     println(string); //First:5 Second:000010
     free(string);
+}
+
+concat_malloc_array(s, 1L, 2U, 3LL, "4", fmt_p(5.0, 0));
+if(s) {
+    println("result:", s, " size in bytes:", sizeof(*s)); //result:12345 size in bytes:6
+    free(s);
 }
 
 concat_vla(vla_string, "Five plus Six:", 5 + 6);
