@@ -1,6 +1,60 @@
 # poor_base
 Header only macro library for type-generic printing and advanced C array operations.
 
+```c
+#include <poor_array.h>
+#include <poor_stdio.h>
+
+#define do_something(data) _do_something(ARRAY_SIZE(data), &auto_arr(data))
+int _do_something(size_t len, int (*d)[len]) {
+    if(!d || ARRAY_SIZE(d) < 6)
+        return printerrln("Too small array"), -1;
+
+    make_arrview_first(d_first, 2, d);
+    make_arrview_shrink(d_middle, 2, 3, d);
+    make_arrview_last(d_last, 3, d);
+
+    copy_array(d_first, (const int[]){-3, -4});
+
+    fill_array(d_middle, 5);
+
+    foreach_array_ref(d_last, ref)
+        *ref = array_ref_index(d_last, ref) + 1;
+
+    print_array(d);
+
+    concat_vla(info,
+            "d:", ARRAY_SIZE(d), " "
+            "d_first:", ARRAY_SIZE(d_first), " "
+            "d_middle:", ARRAY_SIZE(d_middle), " "
+            "d_last:", ARRAY_SIZE(d_last));
+
+    println(info);
+
+    return 0;
+}
+
+int main(int argc, char **argv) {
+    int (*data)[6 + argc] = malloc_array(data);
+    if(!data)
+        return printerrln("Failed to allocate memory"), EXIT_FAILURE;
+
+    int rc = do_something(data);
+    free(data);
+    return rc;
+}
+```
+Compile and run it:
+```
+# ./test 
+[-3,-4,5,5,1,2,3]
+d:7 d_first:2 d_middle:2 d_last:3
+
+# ./test 1 1
+[-3,-4,5,5,5,5,1,2,3]
+d:9 d_first:2 d_middle:4 d_last:3
+
+```
 # <poor_stdio.h>
 This header contains macros for various functions found in stdio.h
 
