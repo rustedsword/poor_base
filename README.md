@@ -17,7 +17,7 @@ printf()         | print(), println()       | Print to stdout
 fprintf(stderr)  | printerr(), printerrln() | Print to stderr
 fprintf()        | fprint(), fprintln()     | Print to FILE
 sprintf()        | sprint(), sprintln()     | Print to buffer
-snprintf()       | sprint_array()           | Print to array
+snprintf()       | sprint_array()           | Print to array/pointer to array
 
 Supported format modifiers:
 
@@ -42,7 +42,7 @@ fprintln(stderr, "Offset is ", fmt_wp(13.449, 10, 2));
 //Offset is      13.45
 
 char buf[5];
-sprint_array(buf, 1,2,3,4,5);
+sprint_array(buf,1,2,3,4,5);
 println(buf);
 //1234
 ```
