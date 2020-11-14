@@ -16,10 +16,10 @@ int _do_something(size_t len, int (*d)[len]) {
 
     copy_array(d_first, (const int[]){-3, -4});
 
-    fill_array(d_middle, 5);
+    fill_array(d_middle, 0);
 
     foreach_array_ref(d_last, ref)
-        *ref = array_ref_index(d_last, ref) + 1;
+        *ref = array_ref_index(d, ref) + 1;
 
     print_array(d);
 
@@ -44,14 +44,17 @@ int main(int argc, char **argv) {
     return rc;
 }
 ```
-Compile and run it:
+Copy paste this example into test.c and compile
 ```
+# git clone http://192.168.180.151:3000/rustedsword/poor_base.git
+# gcc test.c -o test -I poor_base/include/
+
 # ./test 
-[-3,-4,5,5,1,2,3]
+[-3,-4,0,0,5,6,7]
 d:7 d_first:2 d_middle:2 d_last:3
 
 # ./test 1 1
-[-3,-4,5,5,5,5,1,2,3]
+[-3,-4,0,0,0,0,7,8,9]
 d:9 d_first:2 d_middle:4 d_last:3
 
 ```
