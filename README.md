@@ -1,8 +1,13 @@
 # poor_base
-Header only macro library for type-generic printing and advanced C array operations.
-1. [poor_stdio.h](#<poor_stdio.h>)
-2. [poor_array.h](#<poor_array.h>)
+Header-only library for C with macros for type-generic printing and advanced array operations.
+1. [Basic Example](#basic-example)
+2. [Headers]
+   1. [poor_stdio.h](#poor-stdio-h)
+   2. [poor_array.h](#poor-array-h)
+4. [Arrays in C Language](#arrays-in-c-language)
 
+
+# Basic Example
 ```c
 #include <poor_array.h>
 #include <poor_stdio.h>
@@ -44,9 +49,10 @@ int main(int argc, char **argv) {
 ```
 Copy paste this example into test.c and compile
 ```
-# git clone http://192.168.180.151:3000/rustedsword/poor_base.git
-# gcc test.c -o test -I poor_base/include/
-
+git clone http://192.168.180.151:3000/rustedsword/poor_base.git
+gcc test.c -o test -I poor_base/include/
+```
+```
 # ./test 
 [-3,-4,0,0,5,6,7]
 d:7 d_first:2 d_middle:2 d_last:3
@@ -56,7 +62,7 @@ d:7 d_first:2 d_middle:2 d_last:3
 d:9 d_first:2 d_middle:4 d_last:3
 
 ```
-# <poor_stdio.h>
+# poor_stdio.h
 This header contains macros for various functions found in stdio.h
 
 ### print() family macros
@@ -128,7 +134,7 @@ concat_vla(vla_string, "Five plus Six:", 5 + 6);
 println(vla_string); //Five plus Six:11
 ```
 
-# <poor_array.h>
+# poor_array.h
 This header contains useful macros to work with arrays.
 All macros here can operate on arrays or pointers to arrays by auto-dereferencing them using auto_arr() macro,
 while checking that arguments are really arrays.
@@ -302,7 +308,7 @@ array_remove_ref_fill(arrm, ref, val)   | removes single element from array and 
 array_remove_view(arrm, view)           | removes view from array
 array_remove_view_fill(arrm, view, val) | removes view from array, and fills free space with value
 
-### Info
+### Arrays in C Language
 
 Before even considering to use this library you should completely understand how arrays work.
 
