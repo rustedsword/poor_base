@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+/*
+ * Copyright (C) 2020 Alexandrov Stanislav <lightofmysoul@gmail.com>
+ */
 #ifndef POOR_ARRAY_H
 #define POOR_ARRAY_H
 

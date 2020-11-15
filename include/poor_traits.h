@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+/*
+ * Copyright (C) 2020 Alexandrov Stanislav <lightofmysoul@gmail.com>
+ */
 #ifndef POOR_TRAITS_H
 #define POOR_TRAITS_H
 #include <inttypes.h>
