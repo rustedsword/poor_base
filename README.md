@@ -2,8 +2,8 @@
 Header-only library for C with macros for type-generic printing and advanced array operations.
 1. [Basic Example](#basic-example)
 2. [Headers]
-   1. [poor_stdio.h](#poor-stdio)
-   2. [poor_array.h](#poor-array)
+   1. [poor_stdio.h](#i-poor-stdio)
+   2. [poor_array.h](#i-poor-array)
 4. [Arrays in C Language](#arrays-in-c-language)
 
 
@@ -56,8 +56,8 @@ This is poor ** array! And it's size is 14.
 # ./test 1 1 1
 This is poor ***** array! And it's size is 17.
 ```
-# poor_stdio
-**poor_stdio.h** header contains macros for various functions found in stdio.h
+# <h3 id="i-poor-stdio"><poor_stdio.h></h3>
+This header contains macros for various functions found in stdio.h
 
 ### print() family macros
 Type-generic wrappers around standard printing functions, with formatting support(width, precision, hexademical integers).
@@ -127,8 +127,8 @@ if(s) {
 concat_vla(vla_string, "Five plus Six:", 5 + 6);
 println(vla_string); //Five plus Six:11
 ```
-# poor_array
-**poor_array.h** header contains useful macros to work with arrays.
+# <h3 id="i-poor-array"><poor_array.h></h3>
+This header contains useful macros to work with arrays.
 All macros here can operate on arrays or pointers to arrays by auto-dereferencing them using auto_arr() macro,
 while checking that arguments are really arrays.
 
