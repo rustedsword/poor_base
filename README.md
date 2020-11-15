@@ -173,7 +173,6 @@ println(ARRAYS_SIZE(b, c)); //8
 PRINT_ARRAY_INFO(c); //VLA "c" at 0x7ffe9a90b4a0 has size:3 uses 12 bytes, while single element uses 4 bytes
 
 print_array(b); //[1,2,3,4,5]
-
 ```
 
 ### Array allocation
@@ -193,17 +192,24 @@ if(data) {
     print_array(data); //[-1,-1,-1]
     free(data);
 }
+
+const char *n = "string";
+make_array_ptr(n_arr, n, 6);
+print_array(n_arr); //[s,t,r,i,n,g]
 ```
 
 ### Array iterators and accessors
 
 macro                                | description
 -------------------------------------|-----------------------
-foreach_array_ref(arrm, ref_name)    | Array iterator
-foreach_array_ref_bw(arrm, ref_name) | Array reverse iterator
+foreach_array_ref(arrm, ref_name)    | array iterator
+foreach_array_ref_bw(arrm, ref_name) | array reverse iterator
 array_first_ref(arrm)                | returns a pointer to the first array element
 array_last_ref(arrm)                 | returns a pointer to the last array element
 array_end_ref(arrm)                  | returns a pointer to the one past-the-last array element
+is_first_array_ref(arrm, ref)        | returns true if ref points to the first array element
+is_last_array_ref(arrm, ref)         | returns true if ref points to the last array element
+is_end_array_ref(arrm, ref)          | returns true if ref points to the one past-the-last array element
 array_ref_index(arrm, ref)           | returns index of array element
 
 ```c
@@ -224,7 +230,7 @@ foreach_array_ref(x, x_ref) {
 macro                                | description
 -------------------------------------|-----------------------
 copy_array(arrm_dst, arrm_src)       | non-overflowing array copy
-copy_arrays(arrm_dst, arrm_src, ...) | copies data from multiple arrays into a single one
+copy_arrays(arrm_dst, arrm_src, ...) | copies data from multiple arrays into a single one, but may overflow
 
 ```c
 int a1[3] = {1,2,3};
