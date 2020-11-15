@@ -1,9 +1,9 @@
 #ifndef POOR_ARRAY_H
 #define POOR_ARRAY_H
 
+#include <poor_map.h>
 #include <poor_stdio.h>
-#include <map.h>
-#include <traits.h>
+#include <poor_traits.h>
 #include <string.h>
 
 /* Some colors */

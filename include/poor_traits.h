@@ -1,5 +1,5 @@
-#ifndef TRAITS_H
-#define TRAITS_H
+#ifndef POOR_TRAITS_H
+#define POOR_TRAITS_H
 #include <inttypes.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -85,4 +85,4 @@
  */
 #define is_promotable(var) _Generic( (void (*)(__typeof__(var)) ){0}, void (*)(): false, default: true)
 
-#endif // TRAITS_H
+#endif // POOR_TRAITS_H

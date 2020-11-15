@@ -1,11 +1,11 @@
 #ifndef POOR_STDIO_H
 #define POOR_STDIO_H
 
+#include <poor_array.h>
 #include <poor_map.h>
+#include <poor_traits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <traits.h>
-#include <poor_array.h>
 
 #define CAT(a, ...) PRIMITIVE_CAT(a, __VA_ARGS__)
 #define PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
