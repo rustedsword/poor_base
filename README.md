@@ -131,6 +131,171 @@ This header contains useful macros to work with arrays.
 All macros here can operate on arrays or pointers to arrays by auto-dereferencing them using auto_arr() macro,
 while checking that arguments are really arrays.
 
+
+### auto_arr(arrm) / arr(arrm) macro
+Allows to work with pointers to arrays in the same way as with ordinary arrays
+
+If argument is a pointer to an array then this macro will dereference it.  
+If argument is an array, then this macro does nothing at all, returning array as is.  
+If argument is not an array or a pointer to an array then compilation will be stopped.  
+
+```c
+int a[2] = {1,2};  
+int (*b)[2] = &a;  
+auto_arr(a)[0] = 5;   
+auto_arr(b)[1] = 6; 
+print_array(a); //[5,6]
+print_array(b); //[5,6]
+```
+### Array informational macros
+
+macro                        | description
+-----------------------------|-------------------------------------------
+ARRAY_SIZE(arrm)             | returns number of elements in the single array
+ARRAYS_SIZE(arrm, ...)       | returns total number of elements in all arrays
+ARRAY_SIZE_BYTES(arrm)       | returns number of bytes in the array
+ARRAYS_SIZE_BYTES(arrm, ...) | returns total number of bytes in all arrays
+ARRAY_ELEMENT_SIZE(arrm)     | returns number of bytes in a single array element
+ARRAY_ELEMENT_TYPE(arrm)     | returns a type of array element
+PRINT_ARRAY_INFO(arrm)       | prints information about array
+print_array(arrm)            | prints array in form of [1,2,3,4]
+
+```c
+int32_t a[5] = {1,2,3,4,5};
+println(ARRAY_SIZE(a)); //5
+
+int32_t (*b)[5] = &a;
+println(ARRAY_SIZE_BYTES(b)); //20
+
+long c[(size_t){3}];
+println(ARRAYS_SIZE(b, c)); //8
+
+PRINT_ARRAY_INFO(c); //VLA "c" at 0x7ffe9a90b4a0 has size:3 uses 12 bytes, while single element uses 4 bytes
+
+print_array(b); //[1,2,3,4,5]
+
+```
+
+### Array allocation
+
+macro                  | description
+-----------------------|-------
+make_array_ptr(name, ptr, size) | declares a pointer to array by using a pointer to single element and size
+malloc_array(arrp)     | allocates memory for a pointer to an array
+calloc_array(arrp)     | allocates zero initialized memory for a pointer to an array
+memset_array(arrm, sym)| fills entire array with specified symbol
+fill_array(arrm, val)  | fills entire array with specified value
+
+```c
+short (*data)[3] = malloc_array(data);
+if(data) {
+    fill_array(data, -1);
+    print_array(data); //[-1,-1,-1]
+    free(data);
+}
+```
+
+### Array iterators and accessors
+
+macro                                | description
+-------------------------------------|-----------------------
+foreach_array_ref(arrm, ref_name)    | Array iterator
+foreach_array_ref_bw(arrm, ref_name) | Array reverse iterator
+array_first_ref(arrm)                | returns a pointer to the first array element
+array_last_ref(arrm)                 | returns a pointer to the last array element
+array_end_ref(arrm)                  | returns a pointer to the one past-the-last array element
+array_ref_index(arrm, ref)           | returns index of array element
+
+```c
+int x[] = {1,2,3};
+*array_first_ref(x) = 9;
+*array_last_ref(x) = 6;
+
+foreach_array_ref(x, x_ref) {
+    println("index:", array_ref_index(x, x_ref), " value:", *x_ref);
+    //index:0 value:9
+    //index:1 value:2
+    //index:2 value:6
+}
+```
+
+### Array copy
+
+macro                                | description
+-------------------------------------|-----------------------
+copy_array(arrm_dst, arrm_src)       | non-overflowing array copy
+copy_arrays(arrm_dst, arrm_src, ...) | copies data from multiple arrays into a single one
+
+```c
+int a1[3] = {1,2,3};
+int a2[2] = {5,6};
+
+copy_array(a1, a2);
+print_array(a1); //[5,6,3]
+
+int aa[5];
+copy_arrays(aa, a1, a2);
+print_array(aa); //[5,6,3,5,6]
+```
+
+### Array View
+
+macro                                        | description
+---------------------------------------------|-----------------------
+make_arrview(name, idx, size, arrm)          | creates an arrview by using index and size
+make_arrview_first(name, size, arrm)         | creates an arrview of the first n elements in the array
+make_arrview_last(name, size, arrm)          | creates an arrview of the last n elements in the array
+make_arrview_shrink(name, skip_start, skip_end, arrm)  | creates an arrview without n first and n last elements of the array
+make_arrview_cfront(name, skip_start, arrm)  | creates an arrview without n first elements of the array
+make_arrview_cback(name, skip_end, arrm)     | creates an arrview without n last elements of the array
+make_arrview_dim(name, size, arrm)           | creates an arrview by splitting top dimentsion into two dimensions
+make_arrview_flat(name, arrm)                | creates an arview by merging two top dimensions into one dimension
+
+```c
+    const int e[] = {10,20,30,40,50};
+    make_arrview(e_view, 1, 3, e);
+    make_arrview_first(e_view_first, 2, e);
+    make_arrview_last(e_view_last, 2, e);
+    make_arrview_shrink(e_view_shrink, 2, 2, e);
+    make_arrview_cfront(e_view_cut_front, 2, e);
+    make_arrview_cback(e_view_cut_back, 2, e);
+
+    print_array(e_view); //[20,30,40]
+    print_array(e_view_first); //[10,20]
+    print_array(e_view_last); //[40,50]
+    print_array(e_view_shrink); //[30]
+    print_array(e_view_cut_front); //[30,40,50]
+    print_array(e_view_cut_back); //[10,20,30]
+```
+
+### Experimental
+
+These macros are unstable and can be changed anytime
+
+macro                                   | description
+----------------------------------------|-----------------------
+make_merged_array(name, arrm_src, ...)  | creates a new array and copies data from multiple arrays into it 
+
+```c
+int t1[] = {1,2};
+int t2[] = {3,4};
+make_merged_array(tall, t1, t2);
+print_array(tall) //[1,2,3,4]
+```
+
+Vector-like array macros
+
+macro                                   | description
+----------------------------------------|-----------------------
+array_insert(arrm, ref, val)            | inserts value into array
+array_insert_array(arrm, ref, arrm_src) | inserts array into array
+array_remove_ref(arrm, ref)             | removes single element from array
+array_remove_ref_fill(arrm, ref, val)   | removes single element from array and fills free space with value
+array_remove_view(arrm, view)           | removes view from array
+array_remove_view_fill(arrm, view, val) | removes view from array, and fills free space with value
+
+### Info
+
 Before even considering to use this library you should completely understand how arrays work.
 
 Arrays are not pointers. But in most operations they decay to pointer to it's first element.
@@ -197,234 +362,3 @@ fn(z);
 ```
 
 By keeping arrays' arrayness you can use all features of this library: array views, generic array iterators, information macros, and even treat arrays as static vectors.
-
-## Generic Array Macros
-
-### auto_arr(var) / arr(var)
-Allows to work with pointers to arrays in the same way as with ordinary arrays
-
-If argument is a pointer to an array then this macro will dereference it.  
-If argument is an array, then this macro does nothing at all, returning array as is.  
-If argument is not an array or a pointer to an array then compilation will be stopped.  
-
-```c
-int a[2] = {1,2};  
-int (*b)[2] = &a;  
-arr(a)[0] = 5;   
-arr(b)[1] = 6; 
-```
-Used by other macros, so they can operate on arrays or pointers to arrays at the same time.
-
-### ARRAY_SIZE(var)
-Returns count of elements in the array.
-```c
-int a[5];   
-int (*b)[2];  
-ARRAY_SIZE(a); //5  
-ARRAY_SIZE(b); //2  
-```
-### ARRAYS_SIZE(arr1, arr2, ..., arrn)
-Returns sum of all arrays sizes;
-```c
-int a[4];
-int b[3];
-int c[6];
-
-ARRAYS_SIZE(a, b, c); //13
-```
-### ARRAY_SIZE_BYTES(var)
-Returns total array size in bytes
-```c
-uint16_t (*e)[20];
-ARRAY_SIZE_BYTES(e); //40
-```
-### ARRAYS_SIZE_BYTES(arr1, arr2, ..., arrn)
-Returns sum of all arrays sizes in bytes
-```c
-uint8_t a[4];
-uint16_t b[3];
-uint32_t c[6];
-
-ARRAYS_SIZE_BYTES(a, b, c); //34
-```
-### ARRAY_ELEMENT_SIZE(var)
-Returns size of one array element
-```c
-uint32_t x[5];
-ARRAY_ELEMENT_SIZE(x); //4: sizeof(uint32_t)
-
-uint16_t a[2][5];
-ARRAY_ELEMENT_SIZE(a); //10: sizeof(uint16_t [5])
-```
-### PRINT_ARRAY_INFO(var)
-Prints information about array
-```c
-int a[2];   
-PRINT_ARRAY_INFO(a); //Array "a" at 0x0 has size:2 uses 8 bytes, while single element has size:4  
-
-size_t len = 5;   
-short b[len];   
-PRINT_ARRAY_INFO(b); //VLA "b" at 0x0 has size:5 uses 10 bytes, while single element has size:2 
-```
-### malloc_array(var)
-Allocates memory for pointer to array (var) by using malloc()
-```c
-size_t len = 5000;
-int (*a)[len];
-if(!malloc_array(a)) {
-    /* Failed to allocate memory */
-}
-
-fill_array(a, 0);
-...
-```
-### calloc_array(var)
-Allocates memory for pointer to array (var) by using calloc()
-```c
-int (*a)[2048];
-if(!calloc_array(a)) {
-    /* Failed to allocate memory */
-}
-
-/* Use array a ... */
-```
-### fill_array(var, value)
-Fills array (var) with (value).
-```c
-size_t len = 5;
-int x[len];
-fill_array(x, 50);
-print_array(x); //Will print 5050505050
-```
-### copy_array(dst_arr, src_arr)
-Copies data from array (src_arr) to array (dst_arr)  
-Type of array elements may be compatible.  
-If destination array is not long enough then only part of source array will be copied.  
-Source and destination arrays should not overlap.
-```c
-unsigned char a[4] = {0,1,2,3};
-int (*b)[4];
-malloc_array(b);
-copy_array(b, a); 
-print_array(b); //0123
-```
-### copy_arrays(dst_arr, src_arr0, src_arr1, ..., src_arrn)
-Copies data from all source arrays into destination array.
-Type of all arrays' elements should be same.  
-Destination array should be long enough to fit all data from source arrays.
-```c
-int a1[] = {0,1,2,3};
-int a2[] = {4,5,6,7};
-
-int b[ ARRAYS_SIZE(a1, a2) ];
-copy_arrays(b, a1, a2);
-
-print_array(b); //01234567
-```
-### make_merged_array(var_name, arr1, arr2, ..., arrn)
-Creates an array with name (var_name) with size of all provided arrays and copies all these arrays' data into it.
-All source arrays should have same type.
-If at least one of source arrays is VLA or pointer to VLA, then merged array will be VLA too.
-```c
-make_merged_array(data,
-                 ((int[]){0,1,2,3}),
-                 ((int[]){4,5,6}),
-                 ((int[]){7,8,9,10,11}));
-
-print_array(data); //prints: 01234567891011
-```
-## Array Iterators
-### foreach_array_ref(var, ref_name)
-Iterate over an array (var) by declaring variable (ref_name) as a pointer to current array element.
-```c
-uint16_t test[] = {1, 2, 3, 4};
-foreach_array_ref(test, val)
-    print(*val);  //prints: 1234
-```
-### foreach_array_ref_bw(var, ref_name)
-Iterate over an array (var) backwards by declaring variable (ref_name) as a pointer to current array element.
-```c
-uint16_t test[] = {1, 2, 3, 4};
-foreach_array_ref_bw(test, val)
-    print(*val);  //prints: 4321
-```
-## ArrayView
-A view of an array. It is just a pointer to array pointing into some part of another array.   
-Arguments are statically validated by default, prohibiting creating out-of-bounds views at compile time.  
-it is somewhat similar to C++ std::span and rust slices.
-
-### (make_)arrview(idx, len, var)
-Creates a view of array var, starting from position (idx) with len (len)
-```c
-uint8_t data[] = {0,1,2,3,4,5};  
-make_arrview(data_slc, 2, 3, data); //Start index: 2 and size: 3  
-print_array(data_slc); //prints: 234
-```  
-### (make_)arrview_first(len, var)
-Create a view of the first (len) elements of the array (var)
-```c
-uint8_t data[] = {0,1,2,3,4,5};  
-make_arrview_first(data_slc, 3, data);  
-print_array(data_slc); //prints: 012
-```
-### (make_)arrview_last(len, var)
-Create a view of the last (len) elements of the array (var)
-```c
-uint8_t data[] = {0,1,2,3,4,5};  
-make_arrview(data_slc, 2, data);  
-print_array(data_slc); //prints: 45
-```
-### (make_)arrview_shrink(start, end, var)
-Create a view by skipping (start) elements from the begining and (end) elements from the end of the array (var)
-```c
-uint8_t data[] = {0,1,2,3,4,5};  
-make_arrview_shrink(data_slc, 1, 2, data);  
-print_array(data_slc); //prints: 123
-```
-### (make_)arrview_cfront(start, var)
-Create a view by skipping (start) elements from the begining of the array (var)
-```c
-uint8_t data[] = {0,1,2,3,4,5};  
-make_arrview_cfront(data_slc, 2, data);  
-print_array(data_slc); //prints: 2345
-```
-### (make_)arrview_cback(end, var)
-Create a view by skipping (end) elements from the end of the array (var)
-```c
-uint8_t data[] = {0,1,2,3,4,5};  
-make_arrview_cback(data_slc, 2, data);  
-print_array(data_slc); //prints: 0123
-```
-### (make_)arrview_full(var)
-Create a full view of the array (var)
-```c
-uint8_t data[] = {0,1,2,3,4,5};  
-make_arrview_full(data_slc, data);  
-print_array(data_slc); //prints: 012345
-```
-### (make_)arrview_str(var)
-Create a view of the array (var) without last element. Useful for null-terminated strings.
-```c
-make_arrview_str(hello, "Hello");
-const char space[1] = {' '};
-make_arrview_str(world, "World");
-const char null[1] = {0};
-
-make_merged_array(str, hello, space, world, null);
-println(str); //Hello World
-```
-## Array Access helpers
-### array_first_ref(var)
-Returns a pointer to first array element
-### array_last_ref(var)
-Returns a pointer to last array element
-### array_end_ref(var)
-Returns a pointer to past the last array element. It is valid pointer, but it should not be dereferenced
-### array_ref_index(var, ref)
-Returns index of array element where (ref) points 
-### is_first_array_ref(var, ref)
-Returns true if (ref) points to the first element of the array (var)
-### is_last_array_ref(var, ref)
-Returns true if (ref) points to the last element of the array (var)
-### is_end_array_ref(var, ref)
-Returns true if (ref) points to the past the last element of the array (var)
