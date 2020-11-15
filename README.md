@@ -13,32 +13,29 @@ Header-only library for C with macros for type-generic printing and advanced arr
 #include <poor_stdio.h>
 
 #define do_something(data) _do_something(ARRAY_SIZE(data), &auto_arr(data))
-static int _do_something(size_t len, int (*d)[len]) {
-    if(!d || ARRAY_SIZE(d) < 6)
-        return printerrln("Too small array"), -1;
+int _do_something(size_t len, char (*d)[len]) {
+    if(!d || ARRAY_SIZE(d) < 11)
+        return printerrln("Too small array"), EXIT_FAILURE;
 
-    make_arrview_first(d_first, 2, d);
-    make_arrview_shrink(d_middle, 2, 3, d);
-    make_arrview_last(d_last, 3, d);
+    make_arrview_first(d_first, 4, d);
+    make_arrview_shrink(d_middle, 4, 6, d);
+    make_arrview_last(d_last, 6, d);
 
-    copy_array(d_first, (const int[]){-3, -4});
-    fill_array(d_middle, 0);
-    foreach_array_ref(d_last, ref)
-        *ref = array_ref_index(d, ref) + 1;
+    copy_array(d_first, "poor");
 
-    print_array(d);
+    foreach_array_ref(d_middle, ref) {
+        *ref = is_first_or_last_array_ref(d_middle, ref) ? ' ' : '*';
+    }
 
-    concat_vla(info,
-            "d:", ARRAY_SIZE(d), " "
-            "d_first:", ARRAY_SIZE(d_first), " "
-            "d_middle:", ARRAY_SIZE(d_middle), " "
-            "d_last:", ARRAY_SIZE(d_last));
-    println(info);
+    copy_array(d_last, "array");
+
+    concat_vla(size_str, "And it's size is ", ARRAY_SIZE(d), (char)'.');
+    println("This is ", d, "! ", size_str);
     return 0;
 }
 
 int main(int argc, char **argv) {
-    int (*data)[6 + argc] = malloc_array(data);
+    char (*data)[13 + argc] = malloc_array(data);
     if(!data)
         return printerrln("Failed to allocate memory"), EXIT_FAILURE;
 
@@ -54,13 +51,10 @@ gcc test.c -o test -I poor_base/include/
 ```
 ```
 # ./test 
-[-3,-4,0,0,5,6,7]
-d:7 d_first:2 d_middle:2 d_last:3
+This is poor ** array! And it's size is 14.
 
-# ./test 1 1
-[-3,-4,0,0,0,0,7,8,9]
-d:9 d_first:2 d_middle:4 d_last:3
-
+# ./test 1 1 1
+This is poor ***** array! And it's size is 17.
 ```
 # poor_stdio.h
 This header contains macros for various functions found in stdio.h
