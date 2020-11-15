@@ -1,5 +1,7 @@
 # poor_base
 Header only macro library for type-generic printing and advanced C array operations.
+1. [poor_stdio.h](#<poor_stdio.h>)
+2. [poor_array.h](#<poor_array.h>)
 
 ```c
 #include <poor_array.h>
