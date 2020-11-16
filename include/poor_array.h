@@ -444,7 +444,7 @@
 	make_arrview(data_slc, 2, 3, &data); //Start index: 2 and size: 3
 	print_array(data_slc); //prints: [2,3,4]
  */
-#define make_arrview(_name_, _idx_, _size_, ...) make_unsafe_arrview(_name_, (_idx_), (_size_), &auto_arr(__VA_ARGS__))
+#define make_arrview(_name_, _idx_, _size_, ...) unsafe_make_arrview(_name_, (_idx_), (_size_), &auto_arr(__VA_ARGS__))
 #define arrview(_idx_, _size_, ...) unsafe_arrview((_idx_), (_size_), &auto_arr(__VA_ARGS__))
 
 /* make_arrview_first(name, size, src):
@@ -1103,7 +1103,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 /***** Arrview helpers *****/
 /* arrview() implemenmtation */
-#define make_unsafe_arrview(_name_, _idx_, _size_, _arrp_) \
+#define unsafe_make_arrview(_name_, _idx_, _size_, _arrp_) \
 	unsafe_make_arrptr(_name_, _size_, _arrp_) = (typeof(_name_))h_unsafe_arrview(_idx_, _size_, _arrp_, "make_arrview()")
 
 #define unsafe_arrview(_idx_, _size_, _arrp_)  (unsafe_make_arrptr(, _size_, _arrp_))h_unsafe_arrview(_idx_, _size_, _arrp_, "arrview()")
