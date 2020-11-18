@@ -882,7 +882,9 @@
 
 #define TAKE_FIRST_ARG(var, ...) var
 
-/* Typeof with stripped qualifiers */
+/* Typeof with stripped qualifiers
+ * This requires gcc 9.1 or greater
+ * Won't work with arrays, since functions can't return them */
 #define TYPEOF_NO_QUAL(var) typeof( (typeof(var) (*)(void) ){0}() )
 
 /* Returns type of array element without qualifiers, works only on single-dimensional arrays */
