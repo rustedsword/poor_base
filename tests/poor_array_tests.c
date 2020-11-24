@@ -553,6 +553,35 @@ static int array_dim_flat_test(void) {
 	return 0;
 }
 
+static int array_insert_test(void) {
+	{
+		int x[] = {0,1,2,3,4,5};
+		make_arrview_shrink(xv,1,1,x);
+		array_insert(xv, 0, 99);
+		assert(auto_arr(xv)[0] == 99);
+		assert(*array_last_ref(xv) == 3);
+
+		assert(*array_first_ref(x) == 0);
+		assert(*array_last_ref(x) == 5);
+		assert(auto_arr(x)[1] == 99);
+		assert(auto_arr(x)[2] == 1);
+	}
+	{
+		int x[] = {0,1,2,3,4,5};
+		make_arrview_shrink(xv,1,1,x);
+		array_insert(xv, 3, 99);
+		assert(*array_last_ref(xv) == 99);
+
+		assert(*array_first_ref(x) == 0);
+		assert(*array_last_ref(x) == 5);
+
+		assert(auto_arr(x)[4] == 99);
+		assert(auto_arr(x)[3] == 3);
+	}
+
+	return 0;
+}
+
 typedef int test_fn (void);
 
 #define TEST_FN(fn) {#fn, fn}
@@ -576,6 +605,8 @@ static struct tests_struct {
 	TEST_FN(arrview_shrink_test),
 
 	TEST_FN(array_dim_flat_test),
+
+	TEST_FN(array_insert_test),
 };
 
 static void usage(void) {

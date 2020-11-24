@@ -689,13 +689,14 @@
 
 /*** Experimental Vector-like array macros ***/
 
-/* array_insert(arr, ref, val)
- * Moves backwards all data from the position where (ref) points
- * and writes value (val) at that position
+/* array_insert(arrm, idx, val)
+ * Moves backwards all data in the array starting at (idx) element,
+ * erasing last array element in the process.
+ * Then writes value (val) at index (idx)
  *
  * | 0 | 1 | 2 | 3 | 4 |
  *           ^
- * ref-------|
+ * idx-------|
  *
  *         | 2 | 3 |
  *             \
@@ -707,8 +708,22 @@
  *           ^
  * val ------|
  *
+ * example:
+
+	int a[] = {0,1,2,3,4};
+	array_insert(a, 2, 9);
+	print_array(a); //prints [0,1,9,2,3]
+
  */
-#define array_insert(_arr_, _ref_, _val_) (				\
+#define array_insert(_arrm_, _idx_, _val_) (						\
+	(void)h_chk_arr_ins_chk_sel(&auto_arr(_arrm_), (_idx_), "array_insert()"),	\
+	unsafe_array_insert_nc(&auto_arr(_arrm_), (_idx_), (_val_))			\
+)
+
+/* array_insert_ref(arr, ref, val)
+ * same as array_insert(), but uses pointer to array element instead of index
+ */
+#define array_insert_ref(_arr_, _ref_, _val_) (				\
 	(void)memmove((_ref_) + 1,					\
 		(_ref_),						\
 		(array_last_ref(_arr_) - (_ref_)) * sizeof(*(_ref_))),	\
@@ -1409,6 +1424,32 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 	}									\
 	println("]");								\
 } while (0)
+
+/* array insert() implementation */
+#define unsafe_array_insert_nc(_arrp_, _idx_, _val_)						\
+	(memmove( &(*_arrp_)[_idx_] + 1, &(*_arrp_)[_idx_],					\
+		(UNSAFE_ARRAY_SIZE(*_arrp_) - _idx_ - 1) * UNSAFE_ARRAY_ELEMENT_SIZE(*_arrp_) ),\
+	(*_arrp_)[_idx_] = _val_)
+
+#define h_chk_arr_ins_chk_sel(_arrp_, _idx_, _macro_name_) \
+	POOR_ARR_CHK_SEL(h_chk_arr_ins_chk_none, h_chk_arr_ins_chk_static, h_chk_arr_ins_chk_dyn)(_arrp_, _idx_, _macro_name_)
+
+#define h_chk_arr_ins_chk_none(...)
+#define h_chk_arr_ins_chk_static(_arrp_, _idx_, _macro_name_) _Generic(1,		\
+	int *: ARR_ASSERT(_idx_ >= 0),							\
+	int **: ARR_ASSERT(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_)),				\
+	default: 0)
+
+#define h_chk_arr_ins_chk_dyn(_arrp_, _idx_, _macro_name_) ((				\
+	ARR_ASSERT_MSG(_idx_ >= 0,							\
+		CRED _macro_name_ ":Attempting to insert value at negative index"	\
+		" (index:", _idx_, ")"							\
+		" at " FILE_AND_LINE CRESET),						\
+	ARR_ASSERT_MSG(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_),				\
+		CRED _macro_name_ ":Attempting to insert value beyond end of the array"	\
+		" (index:", _idx_, " array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
+		" at " FILE_AND_LINE CRESET)						\
+	), 0)
 
 /* array_inseret_array() implementation */
 #define h_array_insert_array(_arr_, _idx_, _src_arr_) do {                                                             \
