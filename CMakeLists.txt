@@ -15,8 +15,8 @@ target_include_directories(poor_base INTERFACE
     $<INSTALL_INTERFACE:include>
 )
 
-include(CTest)
-if(BUILD_TESTING)
+if(POOR_BASE_TEST)
+    include(CTest)
     add_subdirectory(tests)
 endif()
 
