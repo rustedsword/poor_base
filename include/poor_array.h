@@ -689,13 +689,14 @@
 
 /*** Experimental Vector-like array macros ***/
 
-/* array_insert(arr, ref, val)
- * Moves backwards all data from the position where (ref) points
- * and writes value (val) at that position
+/* array_insert(arrm, idx, val)
+ * Moves backwards all data in the array starting at (idx) element,
+ * erasing last array element in the process.
+ * Then writes value (val) at index (idx)
  *
  * | 0 | 1 | 2 | 3 | 4 |
  *           ^
- * ref-------|
+ * idx-------|
  *
  *         | 2 | 3 |
  *             \
@@ -707,8 +708,22 @@
  *           ^
  * val ------|
  *
+ * example:
+
+	int a[] = {0,1,2,3,4};
+	array_insert(a, 2, 9);
+	print_array(a); //prints [0,1,9,2,3]
+
  */
-#define array_insert(_arr_, _ref_, _val_) (				\
+#define array_insert(_arrm_, _idx_, _val_) (						\
+	(void)h_chk_arr_ins_chk_sel(&auto_arr(_arrm_), (_idx_), "array_insert()"),	\
+	unsafe_array_insert_nc(&auto_arr(_arrm_), (_idx_), (_val_))			\
+)
+
+/* array_insert_ref(arr, ref, val)
+ * same as array_insert(), but uses pointer to array element instead of index
+ */
+#define array_insert_ref(_arr_, _ref_, _val_) (				\
 	(void)memmove((_ref_) + 1,					\
 		(_ref_),						\
 		(array_last_ref(_arr_) - (_ref_)) * sizeof(*(_ref_))),	\
@@ -1410,6 +1425,32 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 	println("]");								\
 } while (0)
 
+/* array insert() implementation */
+#define unsafe_array_insert_nc(_arrp_, _idx_, _val_)						\
+	(memmove( &(*_arrp_)[_idx_] + 1, &(*_arrp_)[_idx_],					\
+		(UNSAFE_ARRAY_SIZE(*_arrp_) - _idx_ - 1) * UNSAFE_ARRAY_ELEMENT_SIZE(*_arrp_) ),\
+	(*_arrp_)[_idx_] = _val_)
+
+#define h_chk_arr_ins_chk_sel(_arrp_, _idx_, _macro_name_) \
+	POOR_ARR_CHK_SEL(h_chk_arr_ins_chk_none, h_chk_arr_ins_chk_static, h_chk_arr_ins_chk_dyn)(_arrp_, _idx_, _macro_name_)
+
+#define h_chk_arr_ins_chk_none(...)
+#define h_chk_arr_ins_chk_static(_arrp_, _idx_, _macro_name_) _Generic(1,		\
+	int *: ARR_ASSERT(_idx_ >= 0),							\
+	int **: ARR_ASSERT(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_)),				\
+	default: 0)
+
+#define h_chk_arr_ins_chk_dyn(_arrp_, _idx_, _macro_name_) ((				\
+	ARR_ASSERT_MSG(_idx_ >= 0,							\
+		CRED _macro_name_ ":Attempting to insert value at negative index"	\
+		" (index:", _idx_, ")"							\
+		" at " FILE_AND_LINE CRESET),						\
+	ARR_ASSERT_MSG(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_),				\
+		CRED _macro_name_ ":Attempting to insert value beyond end of the array"	\
+		" (index:", _idx_, " array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
+		" at " FILE_AND_LINE CRESET)						\
+	), 0)
+
 /* array_inseret_array() implementation */
 #define h_array_insert_array(_arr_, _idx_, _src_arr_) do {                                                             \
     make_arrview(_to_replace_, _idx_, ARRAY_SIZE(_src_arr_), _arr_);                                                   \
@@ -1418,6 +1459,85 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
             (array_last_ref(_arr_) - unsafe_array_last_ref(_to_replace_)) * UNSAFE_ARRAY_ELEMENT_SIZE(*_to_replace_)); \
     copy_array(_to_replace_, _src_arr_);                                                                               \
 } while (0)
+
+/* auto_arr_addressof() impelementation */
+#define h_arr_addressof(var)						\
+	_Generic(& (typeof(if_vla(var, (_is_arr_){0}, var))){0},	\
+		typeof(vla_to_dummy(*var))(*)[]: 1,			\
+		_is_arr_ *: 1,						\
+		default: 2)
+
+#define h_auto_arr_addressof(var)			\
+	&_Generic( (int (*)[h_arr_addressof(var)]){0},	\
+		int(*)[1]: var,				\
+		int(*)[2]: *var )
+
+/* automatically references arrays
+ * if var is an array then returns a pointer to that array,
+ * if var is a pointer to any object then returns var as is.
+ * if var is not an array or a pointer to any object then stops compilation
+ */
+#define auto_arr_addressof(...) h_auto_arr_addressof((__VA_ARGS__))
+
+/* prints array as hexademical values */
+#define h_print_arr_hex(_ptr_) print("0x", fmt_hex_p(*_ptr_, sizeof(*_ptr_) * 2))
+#define print_array_hex(...) print_array_fmt(h_print_arr_hex, __VA_ARGS__)
+
+/* returns compound literal of _type_ with same qualification as _var_ */
+#define qualify_type_as(_type_, _var_)					\
+	_Generic( (1 ? &_var_ : (void*)1) ,				\
+		void *: (_type_){0},					\
+		const void*: (const _type_){0},				\
+		volatile void *: (volatile _type_){0},			\
+		const volatile void*: (const volatile _type_){0}	\
+)
+
+/* make_arrview_bytes(_name_, _objp_):
+ * creates an 'object representation' arrview: a pointer to array of unsigned chars
+ * allows to view any object as a sequence of bytes.
+ *
+ * @_name_: name of a view to make
+ * @_objp_: a pointer to an object or an array
+ *
+ * note: array does not decay to pointer to first element here.
+ *	If you want an object representation of an array element,
+ *	then pass a pointer to that element explicitly. e.g. &array[2]
+ *
+ * examples (little-endian platform):
+
+	//examine struct
+	struct {
+		uint16_t a;
+		uint32_t b;
+	} ke = {.a = 0xffae, .b = 10};
+
+	make_arrview_bytes(ke_byteview, &ke);
+	print_array_hex(ke_byteview);
+	//prints: [0xae,0xff,0x00,0x00,0x0a,0x00,0x00,0x00]
+		  |uint16_t | padding |      uint32_t     |
+	...
+
+	//examine an array
+	make_arrview_bytes(data_bv, (uint16_t[]){4,6,9});
+	print_array_hex(data_bv);
+	//prints: [0x04,0x00,0x06,0x00,0x09,0x00]
+		  |    0    |    1    |    2    |
+	...
+
+	//examine a value and a pointer to that value
+	uint32_t *ptr = &(uint32_t){10};
+
+	print_array_hex(arrview_bytes(ptr));
+	//prints: [0x0a,0x00,0x00,0x00] (representation of uint32_t)
+
+	print_array_hex(arrview_bytes(&ptr));
+	//prints: [0x14,0x2f,0xc4,0x69,0xfd,0x7f,0x00,0x00] (representation of a pointer to uint32_t)
+ */
+#define arrview_bytes(...) unsafe_arrview_bytes(auto_arr_addressof(__VA_ARGS__))
+#define make_arrview_bytes(_name_, ...) unsafe_make_arrview_bytes(_name_, auto_arr_addressof(__VA_ARGS__))
+
+#define	unsafe_make_arrview_bytes(_name_, _objp_) typeof(qualify_type_as(unsigned char, *_objp_)) (*_name_)[sizeof(*_objp_)] = (void*)_objp_
+#define unsafe_arrview_bytes(_objp_) (typeof(qualify_type_as(unsigned char, *_objp_))(*)[sizeof(*_objp_)])_objp_
 
 /* Array bit operations. Experimental */
 

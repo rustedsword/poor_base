@@ -231,6 +231,10 @@
 #define MAP_ARG0(f, p, x, peek, ...) f(p, x) MAP_NEXT(peek, MAP_ARG1)(f, p, peek, __VA_ARGS__)
 #define MAP_ARG1(f, p, x, peek, ...) f(p, x) MAP_NEXT(peek, MAP_ARG0)(f, p, peek, __VA_ARGS__)
 
+#define MAP2_ARG(f, p, ...) EVAL2_SELECT(__VA_ARGS__)(MAP2_ARG1(f, p, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP2_ARG0(f, p, x, peek, ...) f(p, x) MAP_NEXT(peek, MAP2_ARG1)(f, p, peek, __VA_ARGS__)
+#define MAP2_ARG1(f, p, x, peek, ...) f(p, x) MAP_NEXT(peek, MAP2_ARG0)(f, p, peek, __VA_ARGS__)
+
 /*
  * Calls macro/function 'f' for each parameters and provides index of each parameter starting from 0
  * example:
