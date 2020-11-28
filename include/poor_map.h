@@ -190,6 +190,12 @@
 #define MAP_NEXT1(test, next) MAP_NEXT0(test, next, 0)
 #define MAP_NEXT(test, next)  MAP_NEXT1(MAP_GET_END test, next)
 
+#define MAP_IDX_UNP(f, idx, x) f(idx, x)
+#define MAP2_IDX_UNP(f, idx, x) f(idx, x)
+
+#define MAP_IDX_UNP_ARG(f, idx, p, x) f(idx, p, x)
+#define MAP2_IDX_UNP_ARG(f, idx, p, x) f(idx, p, x)
+
 /************ --- simple map --- **********/
 /*
  * Calls macro/function 'f' for each parameters one at a time.
@@ -249,12 +255,12 @@
 
  */
 #define MAP_INDEX(f, ...) EVAL_SELECT(__VA_ARGS__)(MAP_INDEX1(f, (1), __VA_ARGS__, ()()(), ()()(), ()()(), 0))
-#define MAP_INDEX0(f, cnt, x, peek, ...) f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP_INDEX1)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
-#define MAP_INDEX1(f, cnt, x, peek, ...) f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP_INDEX0)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+#define MAP_INDEX0(f, cnt, x, peek, ...) MAP_IDX_UNP(f, ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP_INDEX1)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+#define MAP_INDEX1(f, cnt, x, peek, ...) MAP_IDX_UNP(f, ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP_INDEX0)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
 
 #define MAP2_INDEX(f, ...) EVAL2_SELECT(__VA_ARGS__)(MAP2_INDEX1(f, (1), __VA_ARGS__, ()()(), ()()(), ()()(), 0))
-#define MAP2_INDEX0(f, cnt, x, peek, ...) f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP2_INDEX1)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
-#define MAP2_INDEX1(f, cnt, x, peek, ...) f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP2_INDEX0)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+#define MAP2_INDEX0(f, cnt, x, peek, ...) MAP2_IDX_UNP(f, ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP2_INDEX1)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+#define MAP2_INDEX1(f, cnt, x, peek, ...) MAP2_IDX_UNP(f, ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_NEXT(peek, MAP2_INDEX0)(f, (EXPAND cnt, 1), peek, __VA_ARGS__)
 
 
 /*
@@ -273,11 +279,19 @@
 
  */
 #define MAP_ARG_INDEX(f, p, ...) \
-    EVAL_SELECT(__VA_ARGS__)(MAP_ARG_INDEX1(f, (1), p, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+	EVAL_SELECT(__VA_ARGS__)(MAP_ARG_INDEX1(f, (1), p, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 #define MAP_ARG_INDEX0(f, cnt, p, x, peek, ...) \
-    f(ARGS_COUNT_ZERO(EXPAND cnt), p, x) MAP_NEXT(peek, MAP_ARG_INDEX1)(f, (EXPAND cnt, 1), p, peek, __VA_ARGS__)
+	MAP_IDX_UNP_ARG(f, ARGS_COUNT_ZERO(EXPAND cnt), p, x) MAP_NEXT(peek, MAP_ARG_INDEX1)(f, (EXPAND cnt, 1), p, peek, __VA_ARGS__)
 #define MAP_ARG_INDEX1(f, cnt, p, x, peek, ...) \
-    f(ARGS_COUNT_ZERO(EXPAND cnt), p, x) MAP_NEXT(peek, MAP_ARG_INDEX0)(f, (EXPAND cnt, 1), p, peek, __VA_ARGS__)
+	MAP_IDX_UNP_ARG(f, ARGS_COUNT_ZERO(EXPAND cnt), p, x) MAP_NEXT(peek, MAP_ARG_INDEX0)(f, (EXPAND cnt, 1), p, peek, __VA_ARGS__)
+
+#define MAP2_ARG_INDEX(f, p, ...) \
+	EVAL2_SELECT(__VA_ARGS__)(MAP2_ARG_INDEX1(f, (1), p, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP2_ARG_INDEX0(f, cnt, p, x, peek, ...) \
+	MAP2_IDX_UNP_ARG(f, ARGS_COUNT_ZERO(EXPAND cnt), p, x) MAP_NEXT(peek, MAP2_ARG_INDEX1)(f, (EXPAND cnt, 1), p, peek, __VA_ARGS__)
+#define MAP2_ARG_INDEX1(f, cnt, p, x, peek, ...) \
+	MAP2_IDX_UNP_ARG(f, ARGS_COUNT_ZERO(EXPAND cnt), p, x) MAP_NEXT(peek, MAP2_ARG_INDEX0)(f, (EXPAND cnt, 1), p, peek, __VA_ARGS__)
+
 
 /************ --- map with separator --- **********/
 /* Helpers */
@@ -320,9 +334,15 @@
  */
 #define MAP_SEP_IDX(sep, f, ...) EVAL_SELECT(__VA_ARGS__)(MAP_SEP_IDX1(sep, f, (1), __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 #define MAP_SEP_IDX0(sep, f, cnt, x, peek, ...) \
-    f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_SEP_NEXT(peek, sep, MAP_SEP_IDX1)(sep, f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+	MAP_IDX_UNP(f, ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_SEP_NEXT(peek, sep, MAP_SEP_IDX1)(sep, f, (EXPAND cnt, 1), peek, __VA_ARGS__)
 #define MAP_SEP_IDX1(sep, f, cnt, x, peek, ...) \
-    f(ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_SEP_NEXT(peek, sep, MAP_SEP_IDX0)(sep, f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+	MAP_IDX_UNP(f, ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_SEP_NEXT(peek, sep, MAP_SEP_IDX0)(sep, f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+
+#define MAP2_SEP_IDX(sep, f, ...) EVAL2_SELECT(__VA_ARGS__)(MAP2_SEP_IDX1(sep, f, (1), __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define MAP2_SEP_IDX0(sep, f, cnt, x, peek, ...) \
+	MAP2_IDX_UNP(f, ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_SEP_NEXT(peek, sep, MAP2_SEP_IDX1)(sep, f, (EXPAND cnt, 1), peek, __VA_ARGS__)
+#define MAP2_SEP_IDX1(sep, f, cnt, x, peek, ...) \
+	MAP2_IDX_UNP(f, ARGS_COUNT_ZERO(EXPAND cnt), x) MAP_SEP_NEXT(peek, sep, MAP2_SEP_IDX0)(sep, f, (EXPAND cnt, 1), peek, __VA_ARGS__)
 
 /*
  * Calls macro/function 'f' for each parameters and inserts 'sep' as separator between invocations.
@@ -341,9 +361,9 @@
  */
 #define MAP_SEP_ARG_IDX(sep, f, p, ...) EVAL_SELECT(__VA_ARGS__)(MAP_SEP_ARG_IDX1(sep, f, (1), p, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 #define MAP_SEP_ARG_IDX0(sep, f, cnt, p, x, peek, ...) \
-    f(ARGS_COUNT_ZERO(EXPAND cnt), p, x) MAP_SEP_NEXT(peek, sep, MAP_SEP_ARG_IDX1)(sep, f, (EXPAND cnt, 1), p, peek, __VA_ARGS__)
+	MAP_IDX_UNP_ARG(f, ARGS_COUNT_ZERO(EXPAND cnt), p, x) MAP_SEP_NEXT(peek, sep, MAP_SEP_ARG_IDX1)(sep, f, (EXPAND cnt, 1), p, peek, __VA_ARGS__)
 #define MAP_SEP_ARG_IDX1(sep, f, cnt, p, x, peek, ...) \
-    f(ARGS_COUNT_ZERO(EXPAND cnt), p, x) MAP_SEP_NEXT(peek, sep, MAP_SEP_ARG_IDX0)(sep, f, (EXPAND cnt, 1), p, peek, __VA_ARGS__)
+	MAP_IDX_UNP_ARG(f, ARGS_COUNT_ZERO(EXPAND cnt), p, x) MAP_SEP_NEXT(peek, sep, MAP_SEP_ARG_IDX0)(sep, f, (EXPAND cnt, 1), p, peek, __VA_ARGS__)
 
 /****** ---- Map list ---- ********/
 #define MAP_LIST_NEXT1(test, next) MAP_NEXT0(test, MAP_COMMA next, 0)
