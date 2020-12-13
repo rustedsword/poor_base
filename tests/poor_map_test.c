@@ -21,25 +21,25 @@
 
 int main(void) {
 /* MAP_ variants */
-#define do_paste_val(val) char TOKEN_CAT_2(aa1_, val) [val];
+#define do_paste_val(val) char aa1_ ## val [val];
 	MAP(do_paste_val, 2,8,5)
 	static_assert(sizeof (aa1_2) == 2 );
 	static_assert(sizeof (aa1_8) == 8 );
 	static_assert(sizeof (aa1_5) == 5 );
 
-#define do_paste_arg_val(arg, val) char TOKEN_CAT_2(aa2_, TOKEN_CAT_2(arg, val)) [val];
+#define do_paste_arg_val(arg, val) char aa2_ ## arg ## val [val];
 	MAP_ARG(do_paste_arg_val, 3, 2,8,5)
 	static_assert(sizeof (aa2_32) == 2);
 	static_assert(sizeof (aa2_38) == 8);
 	static_assert(sizeof (aa2_35) == 5);
 
-#define do_paste_idx_val(idx, val) char TOKEN_CAT_2(tt_, TOKEN_CAT_2(idx, val)) [ val ];
+#define do_paste_idx_val(idx, val) char tt_ ## idx ## val [ val ];
 	MAP_INDEX(do_paste_idx_val, 2, 4, 6)
 	static_assert(sizeof(tt_02) == 2);
 	static_assert(sizeof(tt_14) == 4);
 	static_assert(sizeof(tt_26) == 6);
 
-#define do_paste_idx_arg_val(idx, arg, val) char TOKEN_CAT_2(tte_, TOKEN_CAT_2(idx, TOKEN_CAT_2(arg, val)))[val];
+#define do_paste_idx_arg_val(idx, arg, val) char tte_ ## idx ## arg ## val [val];
 	MAP_ARG_INDEX(do_paste_idx_arg_val, 7, 2, 5, 6)
 	static_assert(sizeof (tte_072) == 2);
 	static_assert(sizeof (tte_175) == 5);
@@ -58,7 +58,7 @@ int main(void) {
 	char er[] = { MAP_SEP_IDX((,), do_paste_idx_val2, 2, 3, 4, 5)  };
 	static_assert(sizeof (er) == 4);
 
-#define do_paste_idx_arg_val2(idx, arg, val) char TOKEN_CAT_2(ffe_, TOKEN_CAT_2(idx, TOKEN_CAT_2(arg, val)))[val]
+#define do_paste_idx_arg_val2(idx, arg, val) char ffe_ ## idx ## arg ## val [val]
 	MAP_SEP_ARG_IDX((;), do_paste_idx_arg_val2, 7, 3, 6, 9);
 	static_assert(sizeof (ffe_073) == 3);
 	static_assert(sizeof (ffe_176) == 6);
@@ -66,8 +66,8 @@ int main(void) {
 
 
 /* Nested MAP */
-#define do_paste_val_lvl2(val) char TOKEN_CAT_2(eee_, val) [ val ];
-#define do_paste_val_lvl1(val) MAP2(do_paste_val_lvl2, TOKEN_CAT_2(val, 7), TOKEN_CAT_2(val, 8), TOKEN_CAT_2(val, 9))
+#define do_paste_val_lvl2(val) char eee_ ## val [ val ];
+#define do_paste_val_lvl1(val) MAP2(do_paste_val_lvl2, val ## 7, val ## 8, val ## 9)
 	MAP(do_paste_val_lvl1, 1, 2, 3)
 	static_assert(sizeof (eee_17) == 17);
 	static_assert(sizeof (eee_18) == 18);
@@ -80,10 +80,10 @@ int main(void) {
 	static_assert(sizeof (eee_39) == 39);
 
 /* Nested MAP_INDEX */
-#define do_paste_idx_val_l2(idx, val) char TOKEN_CAT_2(ert_, TOKEN_CAT_2(val, idx)) [ val ];
+#define do_paste_idx_val_l2(idx, val) char ert_ ## val ## idx [ val ];
 #define do_paste_idx_val_l1(idx, val) MAP2_INDEX(do_paste_idx_val_l2, \
-	TOKEN_CAT_2(4, TOKEN_CAT_2(idx, val)), \
-	TOKEN_CAT_2(5, TOKEN_CAT_2(idx, val)))
+	4 ## idx ## val, \
+	5 ## idx ## val)
 
 	MAP_INDEX(do_paste_idx_val_l1, 3, 6, 7)
 	static_assert(sizeof (ert_4030) == 403);
@@ -101,7 +101,7 @@ int main(void) {
 	static_assert(sizeof(a1) == 16);
 
 /* RECURSION() test */
-#define h_rec_val(prev, val) TOKEN_CAT_2(prev, val)
+#define h_rec_val(prev, val) prev ## val
 	char RECURSION(h_rec_val, rrr, 1);
 	(void)rrr1;
 	char RECURSION(h_rec_val, rrr, 1, 2);
@@ -113,7 +113,7 @@ int main(void) {
 	char RECURSION(h_rec_val, rrr, 1, 2, 3, 4, 5);
 	(void)rrr12345;
 
-#define h_rec_arg_val(arg, prev, val) TOKEN_CAT_2(arg, TOKEN_CAT_2(prev, val))
+#define h_rec_arg_val(arg, prev, val) arg ## prev ## val
 	char RECURSION_ARG(h_rec_arg_val, y, z, 1);
 	(void)yz1;
 	char RECURSION_ARG(h_rec_arg_val, y, z, 1, 2);

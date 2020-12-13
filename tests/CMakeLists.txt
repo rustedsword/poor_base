@@ -1,12 +1,12 @@
 add_executable(poor_map_test poor_map_test.c )
 target_link_libraries(poor_map_test poor_base)
-target_compile_options(poor_map_test PUBLIC -Wall -Werror -UNDEBUG)
+target_compile_options(poor_map_test PRIVATE -Wall -Werror -UNDEBUG)
 
 add_test(poor_map_test poor_map_test)
 
 add_executable(printf_format printf_format.c )
 target_link_libraries(printf_format poor_base)
-target_compile_options(printf_format PUBLIC -Wall -Werror -UNDEBUG)
+target_compile_options(printf_format PRIVATE -Wall -Werror -UNDEBUG)
 
 add_test(NAME printf_fmt_char COMMAND printf_format printf_fmt_char)
 add_test(NAME printf_fmt_short COMMAND printf_format printf_fmt_short)
@@ -38,7 +38,7 @@ add_test(NAME fprint_test COMMAND printf_format fprint_test)
 add_executable(poor_array_tests poor_array_tests.c )
 target_link_libraries(poor_array_tests poor_base)
 #no-ignored-qualifiers is for TYPEOF_NO_QUAL()
-target_compile_options(poor_array_tests PUBLIC -Wall -Werror -UNDEBUG)
+target_compile_options(poor_array_tests PRIVATE -Wall -Werror -UNDEBUG)
 
 add_test(NAME auto_arr_test COMMAND poor_array_tests auto_arr_test)
 add_test(NAME array_size COMMAND poor_array_tests array_size)
@@ -54,6 +54,7 @@ add_test(NAME arrview_first_test COMMAND poor_array_tests arrview_first_test)
 add_test(NAME arrview_last_test COMMAND poor_array_tests arrview_last_test)
 add_test(NAME arrview_shrink_test COMMAND poor_array_tests arrview_shrink_test)
 add_test(NAME array_dim_flat_test COMMAND poor_array_tests array_dim_flat_test)
+add_test(NAME array_insert_test COMMAND poor_array_tests array_insert_test)
 
 #These tests should fail
 add_library(auto_arr_compile_ptr OBJECT EXCLUDE_FROM_ALL auto_arr_compile_ptr.c)
