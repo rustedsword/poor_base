@@ -10,6 +10,7 @@
 #include <poor_traits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 #define CAT(a, ...) PRIMITIVE_CAT(a, __VA_ARGS__)
 #define PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
