@@ -170,9 +170,9 @@
 
 /*** Basic array manipulation ***/
 
-/* make_array_ptr(name, pointer, size)
+/* array_ptr(pointer, size)
  *
- * Declares a pointer to an array with specified name and sets it's value to (pointer)
+ * Returns a pointer to an array of (size) elements starting at (pointer)
  * This macro is useful to tie together pointer and size in the form of pointer to array.
  *
  * @pointer: pointer to the first array element
@@ -186,17 +186,29 @@
 	if(!ptr || !size)
 		return;
 
-	make_array_ptr(data, ptr, size);
+	auto data = array_ptr(ptr, size);
 	print_array(data);
 
 	...
 	//Simple program:
 
 	int main(int argc, char **argv) {
-		make_array_ptr(args, argv, argc);
+		auto args = array_ptr(argv, argc);
 		print_array(args);
 		return 0;
 	}
+
+ */
+#define array_ptr(_pointer_, _size_) ((typeof(*(_pointer_)) (*)[(_size_)])(void*)(_pointer_))
+
+/* make_array_ptr(name, pointer, size)
+ *
+ * Declares a pointer to an array with specified name and sets it's value to (pointer)
+ *
+ * C had no auto when this macro was written, so it had to declare the variable itself.
+ * There is no reason to use it in new code, write this instead:
+
+	auto data = array_ptr(ptr, size);
 
  */
 #define make_array_ptr(_name_, _pointer_, _size_) typeof(*(_pointer_)) (* _name_)[(_size_)]  = (void*)(_pointer_)

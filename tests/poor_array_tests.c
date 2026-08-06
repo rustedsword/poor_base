@@ -539,6 +539,146 @@ static int array_dim_flat_test(void) {
 	return 0;
 }
 
+static int array_ptr_test(void) {
+	const char *n = "string";
+
+	auto a = array_ptr(n, 6);
+	static_assert(ARRAY_SIZE(a) == 6);
+	static_assert(sizeof(*a) == 6);
+	static_assert(is_pointer_to_const(*a) == true);
+	assert(auto_arr(a)[0] == 's' && auto_arr(a)[5] == 'g');
+
+	//expression form and declaring form must agree on type and value
+	make_array_ptr(m, n, 6);
+	static_assert(is_arrays_of_same_types(a, m) == true);
+	assert(a == m);
+
+	//non const pointer stays non const and aliases the original storage
+	int raw[8] = {0,1,2,3,4,5,6,7};
+	auto p = array_ptr(raw, 4);
+	static_assert(ARRAY_SIZE(p) == 4);
+	static_assert(is_pointer_to_const(*p) == false);
+	assert(auto_arr(p)[3] == 3);
+	auto_arr(p)[3] = 30;
+	assert(raw[3] == 30);
+
+	//the result is a normal pointer to array, usable by the rest of the library
+	auto v = arrview_last(2, p);
+	static_assert(ARRAY_SIZE(v) == 2);
+	assert(auto_arr(v)[1] == 30);
+
+	//runtime size produces a pointer to VLA
+	size_t len = 5;
+	auto r = array_ptr(raw, len);
+	assert(ARRAY_SIZE(r) == 5);
+	assert(is_ptr_to_vla(r) == true);
+	assert(auto_arr(r)[4] == 4);
+
+	/* the size argument must accept any integer type, not a fixed list of them:
+	 * a _Generic based check here would wrongly reject _BitInt and __int128 */
+	char c_sz = 3;                 assert(ARRAY_SIZE(array_ptr(raw, c_sz)) == 3);
+	short s_sz = 4;                assert(ARRAY_SIZE(array_ptr(raw, s_sz)) == 4);
+	unsigned long long ull_sz = 6; assert(ARRAY_SIZE(array_ptr(raw, ull_sz)) == 6);
+	size_t st_sz = 7;              assert(ARRAY_SIZE(array_ptr(raw, st_sz)) == 7);
+	enum { K = 2 };                static_assert(ARRAY_SIZE(array_ptr(raw, K)) == 2);
+
+#ifdef __BITINT_MAXWIDTH__
+	_BitInt(16) bi_sz = 5;         assert(ARRAY_SIZE(array_ptr(raw, bi_sz)) == 5);
+#endif
+#ifdef __SIZEOF_INT128__
+	__int128 i128_sz = 8;          assert(ARRAY_SIZE(array_ptr(raw, i128_sz)) == 8);
+#endif
+
+	return 0;
+}
+
+/* every arrview expression form must survive C23 auto with its
+ * pointer-to-array type, size and constness intact */
+static int arrview_auto_test(void) {
+	int a[] = {1,2,3,4,5};
+
+	auto v = arrview(1, 3, a);
+	static_assert(ARRAY_SIZE(v) == 3);
+	static_assert(sizeof(*v) == 3 * sizeof(int));
+	assert(auto_arr(v)[0] == 2 && auto_arr(v)[1] == 3 && auto_arr(v)[2] == 4);
+
+	auto v_first = arrview_first(3, a);
+	static_assert(ARRAY_SIZE(v_first) == 3);
+	assert(auto_arr(v_first)[0] == 1 && auto_arr(v_first)[2] == 3);
+
+	auto v_last = arrview_last(3, a);
+	static_assert(ARRAY_SIZE(v_last) == 3);
+	assert(auto_arr(v_last)[0] == 3 && auto_arr(v_last)[2] == 5);
+
+	auto v_shrink = arrview_shrink(1, 1, a);
+	static_assert(ARRAY_SIZE(v_shrink) == 3);
+	assert(auto_arr(v_shrink)[0] == 2 && auto_arr(v_shrink)[2] == 4);
+
+	auto v_front = arrview_cfront(2, a);
+	static_assert(ARRAY_SIZE(v_front) == 3);
+	assert(auto_arr(v_front)[0] == 3);
+
+	auto v_back = arrview_cback(2, a);
+	static_assert(ARRAY_SIZE(v_back) == 3);
+	assert(auto_arr(v_back)[2] == 3);
+
+	auto v_full = arrview_full(a);
+	static_assert(ARRAY_SIZE(v_full) == ARRAY_SIZE(a));
+	assert(v_full == &a);
+
+	//auto form and declaring form must produce the same type and value
+	make_arrview(m_view, 1, 3, a);
+	static_assert(is_arrays_of_same_types(v, m_view) == true);
+	assert(v == m_view);
+
+	//constness is part of the type and must be carried over
+	const int c[] = {1,2,3,4,5};
+	auto v_const = arrview_first(2, c);
+	static_assert(ARRAY_SIZE(v_const) == 2);
+	static_assert(is_pointer_to_const(*v_const) == true);
+	static_assert(is_pointer_to_const(*v_first) == false);
+
+	int m[2][3] = {{1,2,3},{4,5,6}};
+	auto v_flat = arrview_flat(m);
+	static_assert(ARRAY_SIZE(v_flat) == 6);
+	assert(auto_arr(v_flat)[5] == 6);
+
+	int f[6] = {1,2,3,4,5,6};
+	auto v_dim = arrview_dim(3, f);
+	static_assert(ARRAY_SIZE(v_dim) == 2);
+	static_assert(ARRAY_SIZE(auto_arr(v_dim)[0]) == 3);
+	assert(auto_arr(v_dim)[1][2] == 6);
+
+	//string view drops the trailing NUL
+	auto v_str = arrview_str("poor");
+	static_assert(ARRAY_SIZE(v_str) == 4);
+	assert(auto_arr(v_str)[0] == 'p' && auto_arr(v_str)[3] == 'r');
+
+	uint32_t u = 0;
+	auto v_bytes = arrview_bytes(&u);
+	static_assert(ARRAY_SIZE(v_bytes) == sizeof(uint32_t));
+
+	//runtime sized array and runtime sized view
+	size_t len = 5;
+	int vla[len];
+	copy_array(vla, (int[]){1,2,3,4,5});
+	auto v_vla = arrview_first(len - 2, vla);
+	assert(ARRAY_SIZE(v_vla) == 3);
+	assert(auto_arr(v_vla)[0] == 1 && auto_arr(v_vla)[2] == 3);
+
+	//array_slice_* aliases resolve to the same expressions
+	auto v_slice = array_slice_size(1, 3, a);
+	static_assert(is_arrays_of_same_types(v_slice, v) == true);
+	assert(v_slice == v);
+
+	//views are writable through auto and alias the original storage
+	auto v_write = arrview_last(2, a);
+	auto_arr(v_write)[0] = 40;
+	assert(a[3] == 40);
+
+	return 0;
+}
+
 static int array_insert_test(void) {
 	{
 		int x[] = {0,1,2,3,4,5};
@@ -591,6 +731,9 @@ static struct tests_struct {
 	TEST_FN(arrview_shrink_test),
 
 	TEST_FN(array_dim_flat_test),
+
+	TEST_FN(array_ptr_test),
+	TEST_FN(arrview_auto_test),
 
 	TEST_FN(array_insert_test),
 };

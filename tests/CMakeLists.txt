@@ -54,6 +54,8 @@ add_test(NAME arrview_first_test COMMAND poor_array_tests arrview_first_test)
 add_test(NAME arrview_last_test COMMAND poor_array_tests arrview_last_test)
 add_test(NAME arrview_shrink_test COMMAND poor_array_tests arrview_shrink_test)
 add_test(NAME array_dim_flat_test COMMAND poor_array_tests array_dim_flat_test)
+add_test(NAME array_ptr_test COMMAND poor_array_tests array_ptr_test)
+add_test(NAME arrview_auto_test COMMAND poor_array_tests arrview_auto_test)
 add_test(NAME array_insert_test COMMAND poor_array_tests array_insert_test)
 
 #These tests should fail
