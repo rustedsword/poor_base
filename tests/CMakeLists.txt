@@ -84,3 +84,23 @@ add_library(string_literal_compile_write OBJECT EXCLUDE_FROM_ALL string_literal_
 target_link_libraries(string_literal_compile_write poor_base)
 add_test(NAME string_literal_compile_write COMMAND ${CMAKE_COMMAND} --build . --target string_literal_compile_write WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 set_tests_properties(string_literal_compile_write PROPERTIES WILL_FAIL TRUE)
+
+add_library(copy_array_compile_const_dst OBJECT EXCLUDE_FROM_ALL copy_array_compile_const_dst.c)
+target_link_libraries(copy_array_compile_const_dst poor_base)
+add_test(NAME copy_array_compile_const_dst COMMAND ${CMAKE_COMMAND} --build . --target copy_array_compile_const_dst WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(copy_array_compile_const_dst PROPERTIES WILL_FAIL TRUE)
+
+add_library(copy_arrays_compile_const_dst OBJECT EXCLUDE_FROM_ALL copy_arrays_compile_const_dst.c)
+target_link_libraries(copy_arrays_compile_const_dst poor_base)
+add_test(NAME copy_arrays_compile_const_dst COMMAND ${CMAKE_COMMAND} --build . --target copy_arrays_compile_const_dst WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(copy_arrays_compile_const_dst PROPERTIES WILL_FAIL TRUE)
+
+add_library(memset_array_compile_const_dst OBJECT EXCLUDE_FROM_ALL memset_array_compile_const_dst.c)
+target_link_libraries(memset_array_compile_const_dst poor_base)
+add_test(NAME memset_array_compile_const_dst COMMAND ${CMAKE_COMMAND} --build . --target memset_array_compile_const_dst WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(memset_array_compile_const_dst PROPERTIES WILL_FAIL TRUE)
+
+add_library(array_remove_view_compile_const_dst OBJECT EXCLUDE_FROM_ALL array_remove_view_compile_const_dst.c)
+target_link_libraries(array_remove_view_compile_const_dst poor_base)
+add_test(NAME array_remove_view_compile_const_dst COMMAND ${CMAKE_COMMAND} --build . --target array_remove_view_compile_const_dst WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(array_remove_view_compile_const_dst PROPERTIES WILL_FAIL TRUE)

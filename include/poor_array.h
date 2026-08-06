@@ -258,7 +258,10 @@
 		print(*ref); //Will print: LLLLL
 
 */
-#define memset_array(_arrm_, _symbol_) memset((_arrm_), _symbol_, ARRAY_SIZE_BYTES(_arrm_))
+#define memset_array(_arrm_, _symbol_) (					\
+	(void)h_chk_dst_const_sel(_arrm_, "memset_array()"),			\
+	memset((_arrm_), _symbol_, ARRAY_SIZE_BYTES(_arrm_))			\
+)
 
 /* fill_array(_arrm_, _value_)
  * Fills array with specified value
@@ -402,6 +405,7 @@
 
  */
 #define copy_array(_arrp_dst_, ...) do {			\
+	(void)h_chk_dst_const_sel(_arrp_dst_, "copy_array()");	\
 	make_arrview_full(_tmp_dst_full_, _arrp_dst_);		\
 	const make_arrview_full(_tmp_src_full_, (__VA_ARGS__));	\
 	unsafe_copy_array(_tmp_dst_full_, _tmp_src_full_);	\
@@ -442,6 +446,7 @@
 	}
 */
 #define copy_arrays(_arrm_dst_, ...) (							\
+	(void)h_chk_dst_const_sel(_arrm_dst_, "copy_arrays()"),				\
 	(void)h_copy_arrs_chk_size_sel(_arrm_dst_, __VA_ARGS__),			\
 	(void)RECURSION_ARG(h_copy_arrs, _arrm_dst_, _arrm_dst_, __VA_ARGS__)		\
 )
@@ -790,9 +795,11 @@
  *
  * | 0 | 1 | 5 | 6 | 7 | 5 | 6 | 7 |
  */
-#define array_remove_view(_arr_ptr_, _view_)							\
+#define array_remove_view(_arr_ptr_, _view_) (							\
+	(void)h_chk_dst_const_sel(_arr_ptr_, "array_remove_view()"),				\
 	memmove(_view_, array_end_ref(_view_),							\
 	(array_last_ref(_arr_ptr_) - array_last_ref(_view_)) * ARRAY_ELEMENT_SIZE(_arr_ptr_))	\
+)
 
 /* array_remove_view_fill(array, view, val)
  * works exactly same as array_remove_view()
@@ -1089,6 +1096,16 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 	(void)h_copy_arrs_chk_type_sel(_arrm_dst_, _arrm_src_),							\
 	(unsigned char*)memcpy(_prev_, _arrm_src_, ARRAY_SIZE_BYTES(_arrm_src_)) + ARRAY_SIZE_BYTES(_arrm_src_)	\
 )
+
+/* memcpy() and memset() happily discard const, so the destination has to be checked here */
+#define h_chk_dst_const_sel(_arrm_dst_, _macro_name_) \
+	POOR_ARR_CHK_SEL(h_chk_dst_const_none, h_chk_dst_const_static, h_chk_dst_const_static)(_arrm_dst_, _macro_name_)
+
+#define h_chk_dst_const_none(...) 0
+
+#define h_chk_dst_const_static(_arrm_dst_, _macro_name_)			\
+	static_assert_expr(!is_pointer_to_const(&auto_arr(_arrm_dst_)[0]),	\
+	_macro_name_ ": destination array (" #_arrm_dst_ ") is const")
 
 #define h_copy_arrs_chk_type_sel(_arrm_dst_, _arrm_src_) \
 	POOR_ARR_CHK_SEL(h_copy_arrs_chk_type_none, h_copy_arrs_chk_type_static, h_copy_arrs_chk_type_static)(_arrm_dst_, _arrm_src_)
