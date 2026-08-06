@@ -539,6 +539,56 @@ static int array_dim_flat_test(void) {
 	return 0;
 }
 
+static string_literal(file_scope_str, "I am just a string");
+
+#define EXPORTED_LIT "Exported"
+extern declare_string_literal(exported_str, EXPORTED_LIT);
+string_literal(exported_str, EXPORTED_LIT);
+
+static int string_literal_test(void) {
+	string_literal(str, "String Literal");
+
+	//size includes the terminating '\0'
+	static_assert(ARRAY_SIZE(str) == sizeof("String Literal"));
+	static_assert(ARRAY_SIZE(str) == 15);
+	static_assert(ARRAY_ELEMENT_SIZE(str) == 1);
+
+	//chars are const, so the literal cannot be written through
+	static_assert(is_pointer_to_const(*str) == true);
+
+	assert(auto_arr(str)[0] == 'S');
+	assert(auto_arr(str)[13] == 'l');
+	assert(auto_arr(str)[14] == '\0');
+	assert(!strcmp(*str, "String Literal"));
+
+	//a string view drops the '\0'
+	make_arrview_str(str_nonull, str);
+	static_assert(ARRAY_SIZE(str_nonull) == ARRAY_SIZE(str) - 1);
+	assert(auto_arr(str_nonull)[13] == 'l');
+
+	auto str_nonull_auto = arrview_str(str);
+	static_assert(is_arrays_of_same_types(str_nonull, str_nonull_auto) == true);
+	assert(str_nonull == str_nonull_auto);
+
+	//declared at file scope with static
+	static_assert(ARRAY_SIZE(file_scope_str) == sizeof("I am just a string"));
+	assert(!strcmp(*file_scope_str, "I am just a string"));
+
+	//declared with extern declare_string_literal(), defined with string_literal()
+	static_assert(ARRAY_SIZE(exported_str) == sizeof(EXPORTED_LIT));
+	assert(!strcmp(*exported_str, EXPORTED_LIT));
+
+	//behaves like any other pointer to array
+	size_t n = 0;
+	foreach_array_ref(str, ref) {
+		assert(*ref == auto_arr(str)[n]);
+		n++;
+	}
+	assert(n == ARRAY_SIZE(str));
+
+	return 0;
+}
+
 static int array_ptr_test(void) {
 	const char *n = "string";
 
@@ -732,6 +782,7 @@ static struct tests_struct {
 
 	TEST_FN(array_dim_flat_test),
 
+	TEST_FN(string_literal_test),
 	TEST_FN(array_ptr_test),
 	TEST_FN(arrview_auto_test),
 
