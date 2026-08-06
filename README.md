@@ -1,10 +1,14 @@
 # poor_base
 Header-only library for C with macros for type-generic printing and advanced array operations.
-1. [Basic Example](#basic-example)
-2. [Headers]
+1. [Requirements](#requirements)
+2. [Basic Example](#basic-example)
+3. [Headers]
    1. [poor_stdio.h](#i-poor-stdio)
    2. [poor_array.h](#i-poor-array)
 4. [Arrays in C Language](#arrays-in-c-language)
+
+# Requirements
+C23 or later
 
 
 # Basic Example

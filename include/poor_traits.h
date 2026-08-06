@@ -6,31 +6,9 @@
 #define POOR_TRAITS_H
 #include <inttypes.h>
 #include <assert.h>
-#include <stdbool.h>
 
-/* Redefine true and false so they will be really bools, not ints.
- * This is the same as in C23 Standard */
-#ifndef __cplusplus
-
-#if defined __STDC_VERSION__ && __STDC_VERSION__ <= 201710L
-
-#ifdef true
-#undef true
-#define true ((_Bool)+1u)
-#endif //true
-
-#ifdef false
-#undef false
-#define false ((_Bool)+0u)
-#endif //false
-
-#endif //__STDC_VERSION__
-#endif //__cplusplus
-
-/* assert.h on windows have no static_assert define =\ */
-#if defined WIN32 && !defined static_assert && !defined __cplusplus && defined _MSC_VER
-# undef static_assert
-# define static_assert _Static_assert
+#if !defined __cplusplus && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 202311L)
+# error "poor_base requires C23 (compile with -std=c23 or -std=gnu23)"
 #endif
 
 /* static_assert that can be used inside other expressions
@@ -81,12 +59,20 @@
 #define if_vla(arr, t, f) if_constexpr(sizeof(arr), (f), (t))
 
 
-/* returns true if var can be promoted.
- * i.e char, unsigned char, signed char, short, unsigned short can be promoted to int
- * and float can be promoted to double
+/* returns true if var is subject to the default argument promotions.
+ * i.e bool, char, unsigned char, signed char, short, unsigned short are promoted to int
+ * and float is promoted to double
  *
  * This macro can be used with any type of variable.
  */
-#define is_promotable(var) _Generic( (void (*)(__typeof__(var)) ){0}, void (*)(): false, default: true)
+#define is_promotable(var) _Generic( (var), \
+        bool:               true,          \
+        char:               true,          \
+        signed char:        true,          \
+        unsigned char:      true,          \
+        short:              true,          \
+        unsigned short:     true,          \
+        float:              true,          \
+        default:            false )
 
 #endif // POOR_TRAITS_H

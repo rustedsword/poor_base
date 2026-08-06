@@ -10,6 +10,8 @@ include(GNUInstallDirs)
 
 add_library(poor_base INTERFACE)
 
+target_compile_features(poor_base INTERFACE c_std_23)
+
 target_include_directories(poor_base INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>

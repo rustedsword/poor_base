@@ -4,20 +4,6 @@
 
 #undef NDEBUG
 
-#if defined __STDC_VERSION__ && __STDC_VERSION__ <= 201710L
-
-#undef static_assert
-#define static_assert_m(_expr_, _string_) _Static_assert(_expr_, _string_)
-#define static_assert_s(_expr_) _Static_assert(_expr_, "static_assert")
-#define static_assert(...) IF_SINGLE_ARG(static_assert_s ,static_assert_m ,__VA_ARGS__)(__VA_ARGS__)
-
-#else
-
-#undef static_assert
-#define static_assert(_expr_, ...) assert(_expr_)
-
-#endif //__STDC_VERSION__
-
 static int auto_arr_test(void) {
 	unsigned char ar[2] = {3, 5}; //array
 	unsigned char (*ar_p)[2] = &ar; //pointer to array
@@ -296,21 +282,21 @@ static int merged_array_test(void) {
 
 static int same_type_arrays(void) {
 	int i1[1];
-	const int i1c[1];
+	const int i1c[1] = {0};
 	int (*i1p)[1] = &i1;
 	const int (*i1cp)[1] = &i1c;
 	int (*const ci1p)[1] = &i1;
 	const int (*const ci1cp)[1] = &i1c;
 
 	int i2[2];
-	const int i2c[2];
+	const int i2c[2] = {0};
 	int (*i2p)[2] = &i2;
 	const int (*i2cp)[2] = &i2c;
 	int (*const ci2p)[2] = &i2;
 	const int (*const ci2cp)[2] = &i2c;
 
 	short s1[1];
-	const short s1c[1];
+	const short s1c[1] = {0};
 	short (*s1p)[1] = &s1;
 	const short (*s1cp)[1] = &s1c;
 	short (*const cs1p)[1] = &s1;

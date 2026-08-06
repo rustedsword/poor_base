@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <stdarg.h>
 
 #define CAT(a, ...) PRIMITIVE_CAT(a, __VA_ARGS__)
 #define PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
@@ -528,7 +529,13 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 
 #define _printf_specifier_size(x) (sizeof(printf_dec_format(x)) - 1)
 
-#define _gen_printf_specifier(idx, x) char TOKEN_CAT_1(s, idx) [_printf_specifier_size(x)];
+#if __has_c_attribute(gnu::nonstring)
+# define _poor_nonstring [[gnu::nonstring]]
+#else
+# define _poor_nonstring
+#endif
+
+#define _gen_printf_specifier(idx, x) _poor_nonstring char TOKEN_CAT_1(s, idx) [_printf_specifier_size(x)];
 #define _add_endline char endl;
 #define _add_endline_symbol '\n',
 #define _nothing
@@ -536,10 +543,20 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 #define printf_spec_size(endl, ...) \
         ( MAP_SEP((+), _printf_specifier_size, __VA_ARGS__) + !!(endl) + 1 )
 
-//#define printf_specifier_string_multi(endl, ...) printf_specifier_string_multi_cl(endl, __VA_ARGS__)
-//#define printf_specifier_string_multi(endl, ...) s_printf_specifier_string_multi_cl(endl, __VA_ARGS__)
-//#define printf_specifier_string_multi(endl, ...) printf_specifier_string_multi_es(endl, __VA_ARGS__)
+/* No feature test macro exists for N3038 */
+#ifndef CLANG_DOES_NOT_SUPPORT_STATIC_COMPOUND_LITERALS
+# if defined __GNUC__ && !defined __clang__ && __GNUC__ >= 15
+#  define CLANG_DOES_NOT_SUPPORT_STATIC_COMPOUND_LITERALS 0
+# else
+#  define CLANG_DOES_NOT_SUPPORT_STATIC_COMPOUND_LITERALS 1
+# endif
+#endif
+
+#if CLANG_DOES_NOT_SUPPORT_STATIC_COMPOUND_LITERALS
 #define printf_specifier_string_multi(endl, ...) s_printf_specifier_string_multi_es(endl, __VA_ARGS__)
+#else
+#define printf_specifier_string_multi(endl, ...) s_printf_specifier_string_multi_cl(endl, __VA_ARGS__)
+#endif
 
 #define h_fmt_struct_decl(endl, ...)				\
 	const struct {						\
@@ -556,9 +573,9 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 	}
 
 /* Variant of creating format string with compound literal,
- * it uses automatic storage duration, but no compiler extensions used here */
+ * it uses static storage duration, but no compiler extensions used here */
 #define printf_specifier_string_multi_cl(endl, ...) (		\
-(const union {							\
+(static const union {						\
 	h_fmt_struct_decl(endl, __VA_ARGS__) specifier;		\
 	const char array [printf_spec_size(endl, __VA_ARGS__)]; \
 }){								\
@@ -568,7 +585,7 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 
 /* Simplified compound literal variant, struct directly casted to const char* */
 #define s_printf_specifier_string_multi_cl(endl, ...) \
-	(const char*)&(h_fmt_struct_decl(endl, __VA_ARGS__))h_fmt_struct_init(endl, __VA_ARGS__)
+	(const char*)&(static h_fmt_struct_decl(endl, __VA_ARGS__))h_fmt_struct_init(endl, __VA_ARGS__)
 
 /* Variant of creating format string with an expression statement,
  * resulting string will be generated at compile time, but expression statements is not a part of standard C */
@@ -786,6 +803,21 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 	char (*_name_)[1 + snprintf(NULL, 0, fmt___ ## _name_, printf_args_pre_process(__VA_ARGS__))];		\
 	((_name_ = malloc(sizeof(*_name_))) ? sprintf(*_name_, fmt___ ## _name_, printf_args_pre_process(__VA_ARGS__)) : (void)0)
 
+static inline char *_poor_concat(const char *fmt, ...) {
+	va_list ap, ap_size;
+	va_start(ap, fmt);
+	va_copy(ap_size, ap);
+	int len = vsnprintf(NULL, 0, fmt, ap_size);
+	va_end(ap_size);
+
+	char *str = len < 0 ? NULL : malloc((size_t)len + 1);
+	if(str)
+		vsnprintf(str, (size_t)len + 1, fmt, ap);
+
+	va_end(ap);
+	return str;
+}
+
 /* concat(var1, ..., varn):
  * Returns a pointer to char with memory allocated by malloc with concatenated string within.
  * Returned string is null-terminated.
@@ -803,10 +835,7 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 		free(buf);
 	}
  */
-#define concat(...) __extension__ ({					\
-	concat_malloc_array(_tmp_s_array_, __VA_ARGS__);		\
-	(char *)_tmp_s_array_;						\
-})
+#define concat(...) _poor_concat(printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
 
 #endif // POOR_STDIO_H
