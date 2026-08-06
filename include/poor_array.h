@@ -1044,7 +1044,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define unsafe_copy_array(_arrp_dst_, _arrp_src_) do {								\
 	unsafe_nc_make_arrview_first(_tmp_dst_, h_copy_arr_min_size(_arrp_dst_, _arrp_src_), _arrp_dst_);	\
 														\
-	_dummy_type_ _same_[1 + unsafe_is_ptas_of_same_types(_tmp_dst_, _arrp_src_)];				\
+	_dummy_type_ _same_[1 + unsafe_is_same_array_element_type(_tmp_dst_, _arrp_src_)];				\
 														\
 	if(is_dummy_true(_same_)) {										\
 		memcpy(_tmp_dst_, _arrp_src_, UNSAFE_ARRAY_SIZE_BYTES(*_tmp_dst_));				\
@@ -1063,36 +1063,26 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 #define h_copy_min(a, b) a > b ? b : a
 
-/* is_arrays_of_same_types(dst_ptr, src_ptr)
- * checks if two pointers to arrays contain same type, ignoring type constness
+/* is_same_array_element_type(dst_ptr, src_ptr)
+ * checks if two arrays have the same element type, ignoring qualifiers
  *
- * char a[1];
- * const char b[1];
- * int c[1];
+ * is_same_array_element_type((char[1]){}, (char[1]){})       // true
+ * is_same_array_element_type((char[1]){}, (const char[1]){}) // true
+ * is_same_array_element_type((char[1]){}, (int[1]){})        // false
  *
- * is_arrays_of_same_types(&a, &a) // true
- * is_arrays_of_same_types(&a, &b) // true
- * is_arrays_of_same_types(&b, &b) // true
- * is_arrays_of_same_types(&a, &c) // false
+ * Only the outermost array size is ignored. For a multi-dimensional array the
+ * element type is an array itself, so all inner dimensions have to match:
  *
- * Three-level check for same type:
- * at first level we return true if types are exactly same (const dst == const src) or (non-const dst == non-const src)
- * at second level we return true if dst type is const and src type is non const
- * at third level we return true if dst type is non const and src type is const
+ * is_same_array_element_type((int[2][3]){}, (int[5][3]){}) // true, both have int[3] elements
+ * is_same_array_element_type((int[2][3]){}, (int[2][4]){}) // false, int[3] against int[4]
  */
-#define is_arrays_of_same_types(dst_ptr, src_ptr) unsafe_is_ptas_of_same_types(& auto_arr(dst_ptr), & auto_arr(src_ptr))
+#define is_same_array_element_type(dst_ptr, src_ptr) unsafe_is_same_array_element_type(& auto_arr(dst_ptr), & auto_arr(src_ptr))
 
-#define unsafe_is_ptas_of_same_types(dst_ptr, src_ptr)                           \
-        _Generic((dst_ptr),                                                     \
-                typeof((*(src_ptr))[0]) (*)[]: true,                            \
-                default: _Generic( (dst_ptr),                                   \
-                        const typeof((*(src_ptr))[0]) (*)[]: true,              \
-                        default: _Generic( (src_ptr),                           \
-                                const typeof((*(dst_ptr))[0]) (*)[]: true,	\
-                                default: false                                  \
-                                )                                               \
-                        )                                                       \
-                )
+#define unsafe_is_same_array_element_type(dst_ptr, src_ptr)                     \
+        _Generic( (typeof_unqual((*(dst_ptr))[0]) (*)[])0,                      \
+                typeof_unqual((*(src_ptr))[0]) (*)[]: true,                     \
+                default: false                                                  \
+        )
 
 /* copy_arrays() implementation */
 #define h_copy_arrs(_arrm_dst_, _prev_, _arrm_src_) (								\
@@ -1105,7 +1095,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 
 #define h_copy_arrs_chk_type_none(...) 0
 #define h_copy_arrs_chk_type_static(_arrm_dst_, _arrm_src_)			\
-	static_assert_expr(is_arrays_of_same_types(_arrm_dst_ , _arrm_src_),	\
+	static_assert_expr(is_same_array_element_type(_arrm_dst_ , _arrm_src_),	\
 	"copy_arrays(): source array (" #_arrm_src_ ") doesn't have same type as destination array (" #_arrm_dst_ ")")
 
 #define h_copy_arrs_chk_size_sel(_arrm_dst_, ...) \
