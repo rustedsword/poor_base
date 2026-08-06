@@ -14,6 +14,7 @@ add_test(NAME printf_fmt_int COMMAND printf_format printf_fmt_int)
 add_test(NAME printf_fmt_long_int COMMAND printf_format printf_fmt_long_int)
 add_test(NAME printf_fmt_llong_int COMMAND printf_format printf_fmt_llong_int)
 add_test(NAME printf_fmt_str COMMAND printf_format printf_fmt_str)
+add_test(NAME printf_fmt_nullptr COMMAND printf_format printf_fmt_nullptr)
 add_test(NAME printf_fmt_real COMMAND printf_format printf_fmt_real)
 
 add_test(NAME printf_fmt_hex_char COMMAND printf_format printf_fmt_hex_char)

@@ -90,6 +90,35 @@ static int printf_fmt_str(void) {
 	return 0;
 }
 
+static int printf_fmt_nullptr(void) {
+	void *vp = nullptr;
+	const void *cvp = nullptr;
+
+	const char *fmt = printf_specifier_string(0, nullptr);
+	assert(strcmp("%p", fmt) == 0);
+
+	fmt = printf_specifier_string(1, nullptr);
+	assert(strcmp("%p\n", fmt) == 0);
+
+	//nullptr_t is a distinct type, but must yield the same specifier as void*
+	fmt = printf_specifier_string(0, vp, cvp, nullptr);
+	assert(strcmp("%p%p%p", fmt) == 0);
+
+	fmt = printf_specifier_string(0, "string", 5, nullptr, true);
+	assert(strcmp("%s%d%p%s", fmt) == 0);
+
+	//and must render exactly like a null void*
+	char *np = concat(nullptr);
+	char *vpp = concat(vp);
+	assert(np && vpp);
+	assert(strcmp(np, vpp) == 0);
+	free(np);
+	free(vpp);
+
+	(void)vp, (void)cvp;
+	return 0;
+}
+
 static int printf_fmt_real(void) {
 	float f = 1;
 	double d = 2;
@@ -305,6 +334,7 @@ static struct tests_struct {
 	TEST_FN(printf_fmt_long_int),
 	TEST_FN(printf_fmt_llong_int),
 	TEST_FN(printf_fmt_str),
+	TEST_FN(printf_fmt_nullptr),
 	TEST_FN(printf_fmt_real),
 	TEST_FN(printf_fmt_hex_char),
 	TEST_FN(printf_fmt_hex_short),

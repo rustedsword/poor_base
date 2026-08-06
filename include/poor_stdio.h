@@ -447,6 +447,7 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
     const char (*)[]:   "%s"   after,            \
     void *:             "%p"   after,            \
     const void *:       "%p"   after,            \
+    nullptr_t:          "%p"   after,            \
     bool:               "%s"   after             \
 )
 
@@ -503,6 +504,7 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
         const char (*)[]:   _p_cchar_arr_ptr,   \
         void *:             _p_cvoid_ptr,       \
         const void *:       _p_cvoid_ptr,       \
+        nullptr_t:          _p_cvoid_ptr,       \
         bool:               _p_bool             \
 )((arg))
 
