@@ -642,8 +642,6 @@
  *
  * If at least one of provided source arrays is VLA, then resulting array will be variable length too.
  *
- * Doesn't work with multi-dimensional arrays for now =\
- *
  * examples:
 
 	make_merged_array(data,
@@ -909,13 +907,8 @@
 
 #define TAKE_FIRST_ARG(var, ...) var
 
-/* Typeof with stripped qualifiers
- * This requires gcc 9.1 or greater
- * Won't work with arrays, since functions can't return them */
-#define TYPEOF_NO_QUAL(var) typeof( (typeof(var) (*)(void) ){0}() )
-
-/* Returns type of array element without qualifiers, works only on single-dimensional arrays */
-#define ARRAY_ELEMENT_TYPE_NO_QUAL(var) TYPEOF_NO_QUAL(ARRAY_ELEMENT_TYPE(var))
+/* Returns type of array element without qualifiers */
+#define ARRAY_ELEMENT_TYPE_NO_QUAL(var) typeof_unqual(ARRAY_ELEMENT_TYPE(var))
 
 /* Expands to string literal with file:line. example: /home/user/cool_program.c:56 */
 #define FILE_AND_LINE __FILE__ ":" STRINGIFY2(__LINE__)

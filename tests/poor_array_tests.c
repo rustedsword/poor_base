@@ -277,6 +277,25 @@ static int merged_array_test(void) {
 	assert(arr(merged)[6] == 7);
 	assert(arr(merged)[7] == 8);
 
+	//multi-dimensional merge, needs typeof_unqual() to build the element type
+	int md_a[2][2] = {{1,2},{3,4}};
+	int md_b[1][2] = {{5,6}};
+	make_merged_array(md, md_a, md_b);
+
+	static_assert(ARRAY_SIZE(md) == ARRAY_SIZE(md_a) + ARRAY_SIZE(md_b));
+	static_assert(ARRAY_SIZE(arr(md)[0]) == 2);
+	static_assert(ARRAY_SIZE_BYTES(md) == ARRAY_SIZE_BYTES(md_a) + ARRAY_SIZE_BYTES(md_b));
+
+	assert(arr(md)[0][0] == 1 && arr(md)[0][1] == 2);
+	assert(arr(md)[1][0] == 3 && arr(md)[1][1] == 4);
+	assert(arr(md)[2][0] == 5 && arr(md)[2][1] == 6);
+
+	//element type must come out unqualified
+	const int md_c[1][2] = {{7,8}};
+	make_merged_array(md2, md_c, md_b);
+	arr(md2)[0][0] = 70;
+	assert(arr(md2)[0][0] == 70 && arr(md2)[1][1] == 6);
+
 	return 0;
 }
 
