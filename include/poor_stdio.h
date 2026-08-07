@@ -610,6 +610,41 @@ static h_fmt_struct_decl(endl, __VA_ARGS__)					\
 	(const char*)&generic_printf_format_string;				\
 })
 
+/* make_printf_pack(pack, var1, ..., varn)
+ * Declares (pack): a struct holding the format specifier string in its (fmt)
+ * member, and every argument converted once, ready to be passed to printf.
+ *
+ * printf_pack_get_args(pack, var1, ..., varn) expands to the argument list of (pack),
+ * so a pack can be printed as many times as needed while its arguments are
+ * evaluated only once:
+
+	int a = 42;
+	make_printf_pack(pk, "a=", a);
+	printf(pk.fmt, printf_pack_get_args(pk, "a=", a));
+	//prints: a=42
+
+ */
+#define make_printf_pack(_pack_, ...)					\
+	const struct {							\
+		const char *fmt;					\
+		MAP_ARG_INDEX(h_printf_pack_member, , __VA_ARGS__)	\
+	} _pack_ = {							\
+		printf_specifier_string(0, __VA_ARGS__),		\
+		printf_args_pre_process(__VA_ARGS__)			\
+	}
+
+#define printf_pack_get_args(_pack_, ...) \
+	MAP_SEP_ARG_IDX((,), h_printf_pack_use, _pack_, __VA_ARGS__)
+
+#define h_printf_pack_member(idx, p, x) typeof(_each_printf_args(x)) TOKEN_CAT_1(a, idx);
+#define h_printf_pack_use(idx, p, x) p.TOKEN_CAT_1(a, idx)
+
+/* the pack that concat_vla() and concat_malloc_array() build for (_name_) */
+#define h_printf_pack_get(_name_)      TOKEN_CAT_1(pack___, _name_)
+#define h_printf_pack_get_fmt(_name_)  h_printf_pack_get(_name_).fmt
+#define h_printf_pack_get_args(_name_, ...) \
+	printf_pack_get_args(h_printf_pack_get(_name_), __VA_ARGS__)
+
 /*** Print optimization ****/
 
 /* is_same_type(variable, _type_, SIMPLE, CONST)
@@ -778,9 +813,11 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 	prints: //VLA string: num is:2 var l is:500. it's size:22
 */
 #define concat_vla(_name_, ...)										\
-	const char * const fmt___ ## _name_ = printf_specifier_string(0, __VA_ARGS__);			\
-	char _name_[1 + snprintf(NULL, 0, fmt___ ## _name_, printf_args_pre_process(__VA_ARGS__))];	\
-	sprintf(_name_, fmt___ ## _name_, printf_args_pre_process(__VA_ARGS__))
+	make_printf_pack(h_printf_pack_get(_name_), __VA_ARGS__);					\
+	char _name_[1 + snprintf(NULL, 0, h_printf_pack_get_fmt(_name_),				\
+		h_printf_pack_get_args(_name_, __VA_ARGS__))];						\
+	sprintf(_name_, h_printf_pack_get_fmt(_name_),							\
+		h_printf_pack_get_args(_name_, __VA_ARGS__))
 
 /* concat_malloc_array(_name_, var1, ..., varn):
  * Creates a pointer (_name_) to a variable length array,
@@ -800,10 +837,13 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 		free(string);
 	}
  */
-#define concat_malloc_array(_name_, ...) \
-	const char * const fmt___ ## _name_ = printf_specifier_string(0, __VA_ARGS__);				\
-	char (*_name_)[1 + snprintf(NULL, 0, fmt___ ## _name_, printf_args_pre_process(__VA_ARGS__))];		\
-	((_name_ = malloc(sizeof(*_name_))) ? sprintf(*_name_, fmt___ ## _name_, printf_args_pre_process(__VA_ARGS__)) : (void)0)
+#define concat_malloc_array(_name_, ...)									\
+	make_printf_pack(h_printf_pack_get(_name_), __VA_ARGS__);						\
+	char (*_name_)[1 + snprintf(NULL, 0, h_printf_pack_get_fmt(_name_),					\
+		h_printf_pack_get_args(_name_, __VA_ARGS__))];							\
+	((_name_ = malloc(sizeof(*_name_)))									\
+		? sprintf(*_name_, h_printf_pack_get_fmt(_name_),						\
+			h_printf_pack_get_args(_name_, __VA_ARGS__)) : (void)0)
 
 static inline char *_poor_concat(const char *fmt, ...) {
 	va_list ap, ap_size;

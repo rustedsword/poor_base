@@ -23,7 +23,9 @@ add_test(NAME printf_fmt_hex_int COMMAND printf_format printf_fmt_hex_int)
 add_test(NAME printf_fmt_hex_long COMMAND printf_format printf_fmt_hex_long)
 add_test(NAME printf_fmt_hex_llong COMMAND printf_format printf_fmt_hex_llong)
 
+add_test(NAME concat_single_eval_test COMMAND printf_format concat_single_eval_test)
 add_test(NAME concat_vla_test COMMAND printf_format concat_vla_test)
+add_test(NAME concat_vla_full_test COMMAND printf_format concat_vla_full_test)
 add_test(NAME concat_test COMMAND printf_format concat_test)
 
 add_test(NAME fmt_p_test COMMAND printf_format fmt_p_test)

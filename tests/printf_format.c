@@ -199,6 +199,40 @@ static int printf_fmt_hex_llong(void) {
 	return 0;
 }
 
+static int side_effect_count = 0;
+/* returns its argument so the result does not depend on evaluation order,
+ * which is unspecified for both function arguments and initializer lists */
+static int count_side_effect(int v) { side_effect_count++; return v; }
+
+/* concat(), concat_vla() and concat_malloc_array() must evaluate
+ * each of their arguments exactly once */
+static int concat_single_eval_test(void) {
+	side_effect_count = 0;
+	concat_vla(v, count_side_effect(1), "-", count_side_effect(2), "-", count_side_effect(3));
+	assert(strcmp(v, "1-2-3") == 0);
+	assert(side_effect_count == 3);
+
+	side_effect_count = 0;
+	char *c = concat(count_side_effect(1), "-", count_side_effect(2));
+	assert(c && strcmp(c, "1-2") == 0);
+	assert(side_effect_count == 2);
+	free(c);
+
+	side_effect_count = 0;
+	concat_malloc_array(m, count_side_effect(1), "-", count_side_effect(2));
+	assert(m && strcmp(*m, "1-2") == 0);
+	assert(side_effect_count == 2);
+	free(m);
+
+	//format modifiers expand to several printf arguments, still evaluated once
+	side_effect_count = 0;
+	concat_vla(w, fmt_w(count_side_effect(1), 4), fmt_hex(count_side_effect(2)));
+	assert(strcmp(w, "   12") == 0);
+	assert(side_effect_count == 2);
+
+	return 0;
+}
+
 static int concat_vla_test(void) {
 
 	concat_vla(string_vla,
@@ -213,6 +247,95 @@ static int concat_vla_test(void) {
 		   fmt_hex(20), fmt_hex(30U), fmt_hex(40U));
 
 	assert(strcmp("e12345678910stringtruefalse141e28", string_vla) == 0);
+	return 0;
+}
+
+/* concat_vla() builds a VLA sized at runtime, so every argument form has to be
+ * exercised: plain types, runtime variables, expressions, every format
+ * modifier, array arguments, scoping and the resulting array size */
+static int concat_vla_full_test(void) {
+	int i = 42; unsigned u = 7; long l = -5;
+	double d = 1.5; float f = 2.5f;
+	char c = 'Z'; const char *s = "str"; bool b = true;
+	char arr[] = "arr";
+	char (*parr)[4] = &arr;
+	void *vp = nullptr;
+
+	//single argument
+	concat_vla(one, i);
+	assert(strcmp(one, "42") == 0);
+	assert(sizeof(one) == 3);
+
+	//runtime variables of several integer types
+	concat_vla(mix, "i=", i, " u=", u, " l=", l);
+	assert(strcmp(mix, "i=42 u=7 l=-5") == 0);
+	assert(sizeof(mix) == 14);
+
+	concat_vla(reals, f, " ", d);
+	assert(strcmp(reals, "2.500000 1.500000") == 0);
+
+	concat_vla(misc, c, " ", b, " ", vp, " ", nullptr);
+	assert(strcmp(misc, "Z true (nil) (nil)") == 0);
+
+	//char *, char array and pointer to char array all print as strings
+	concat_vla(strs, s, arr, parr);
+	assert(strcmp(strs, "strarrarr") == 0);
+
+	//arguments may be arbitrary expressions
+	concat_vla(expr, i * 2, " ", (int)(d * 4));
+	assert(strcmp(expr, "84 6") == 0);
+
+	//every format modifier
+	concat_vla(m_p,   fmt_p(10, 4));          assert(strcmp(m_p,   "0010") == 0);
+	concat_vla(m_w,   fmt_w(10, 9));          assert(strcmp(m_w,   "       10") == 0);
+	concat_vla(m_wp,  fmt_wp(10, 9, 5));      assert(strcmp(m_wp,  "    00010") == 0);
+	concat_vla(m_zw,  fmt_zw(10, 9));         assert(strcmp(m_zw,  "000000010") == 0);
+	concat_vla(m_zwp, fmt_zwp(10.f, 10, 1));  assert(strcmp(m_zwp, "00000010.0") == 0);
+	concat_vla(m_h,   fmt_hex(255));          assert(strcmp(m_h,   "ff") == 0);
+	concat_vla(m_hp,  fmt_hex_p(1223, 8));    assert(strcmp(m_hp,  "000004c7") == 0);
+	concat_vla(m_hw,  fmt_hex_w(1223, 8));    assert(strcmp(m_hw,  "     4c7") == 0);
+	concat_vla(m_hzw, fmt_hex_zw(1223, 8));   assert(strcmp(m_hzw, "000004c7") == 0);
+
+	//modifiers expand to several printf arguments, mixed with plain ones
+	concat_vla(mixed_mod, "[", fmt_w(1, 3), "|", 2, "]");
+	assert(strcmp(mixed_mod, "[  1|2]") == 0);
+
+	//many arguments at once
+	concat_vla(many, 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16);
+	assert(strcmp(many, "12345678910111213141516") == 0);
+	assert(sizeof(many) == 24);
+
+	//a VLA may be used as an argument, and the result fed to another concat_vla
+	size_t n = 4;
+	char vla_arg[n];
+	memcpy(vla_arg, "vla", 4);
+	concat_vla(from_vla, "<", vla_arg, ">");
+	assert(strcmp(from_vla, "<vla>") == 0);
+	concat_vla(nested, from_vla, "!");
+	assert(strcmp(nested, "<vla>!") == 0);
+
+	//two in the same scope must not collide
+	concat_vla(x1, "a");
+	concat_vla(x2, "b");
+	assert(strcmp(x1, "a") == 0 && strcmp(x2, "b") == 0);
+
+	//fresh on each loop iteration
+	for(int k = 0; k < 3; k++) {
+		concat_vla(loop, "k=", k);
+		assert(loop[2] == (char)('0' + k));
+		assert(sizeof(loop) == 4);
+	}
+
+	//an inner scope may shadow the same name
+	{
+		concat_vla(sh, "outer");
+		{
+			concat_vla(sh, "inner");
+			assert(strcmp(sh, "inner") == 0);
+		}
+		assert(strcmp(sh, "outer") == 0);
+	}
+
 	return 0;
 }
 
@@ -341,7 +464,9 @@ static struct tests_struct {
 	TEST_FN(printf_fmt_hex_int),
 	TEST_FN(printf_fmt_hex_long),
 	TEST_FN(printf_fmt_hex_llong),
+	TEST_FN(concat_single_eval_test),
 	TEST_FN(concat_vla_test),
+	TEST_FN(concat_vla_full_test),
 	TEST_FN(concat_test),
 
 	TEST_FN(fmt_p_test),
