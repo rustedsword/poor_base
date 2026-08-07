@@ -964,10 +964,34 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 		_is_arr_ **: 1			\
 	)
 
-#define h_auto_arr(var)					\
+#define h_auto_arr_std(var)				\
 	_Generic(&(int [h_aa_l2(h_aa_l1(var))]){0},	\
 		int(*)[1]: var,				\
 		int(*)[2]: *var)
+
+/* GCC 14+ classifies type names directly: unlike _Generic it needs no laundering
+ * of VLA types and no valid-in-every-branch result expressions, so the argument
+ * is expanded 4 times instead of 14. Nested calls like arr(arr(x)) grow with
+ * factor 4 instead of 14, keeping preprocessor output and compiler memory sane. */
+#define h_arr_type_class(...) __builtin_classify_type(typeof(__VA_ARGS__))
+
+/* 1 if var is an array, 2 if var is a pointer to an array, otherwise -1
+ * terminates compilation as a negative array size.
+ * (var)[0] rejects scalars, structs and function pointers by itself. */
+#define h_aa_idx(var) (							\
+	h_arr_type_class(var) == h_arr_type_class(char[1]) ? 1 :	\
+	h_arr_type_class((var)[0]) == h_arr_type_class(char[1]) ? 2 : -1)
+
+#define h_auto_arr_gcc(var)				\
+	_Generic(&(char [h_aa_idx(var)]){0},		\
+		char(*)[1]: var,			\
+		char(*)[2]: *var)
+
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 14
+#define h_auto_arr(var) h_auto_arr_gcc(var)
+#else
+#define h_auto_arr(var) h_auto_arr_std(var)
+#endif
 
 /* ONLY FOR INTERNAL USE! arr is not validated for arrayness. arr should be an array. */
 #define UNSAFE_ARRAY_SIZE(_arr_) (sizeof(_arr_) / sizeof((_arr_)[0]) )
