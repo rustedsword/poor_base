@@ -34,6 +34,12 @@ static int auto_arr_test(void) {
 	assert( auto_arr(*ar_v_p)[0] == 8); //dereferenced pointer to vla
 	assert( auto_arr(*ar_v_p)[1] == 13);
 
+	//string literals are arrays, so auto_arr() accepts them
+	assert( auto_arr("desu")[0] == 'd' );
+	assert( auto_arr("desu")[4] == '\0' );
+	static_assert( ARRAY_SIZE(auto_arr("desu")) == 5 );
+	assert( auto_arr(&"desu")[1] == 'e' ); //pointer to the literal's array
+
 	assert( auto_arr((int[]){4, 8})[1] == 8 ); //array as a compound literal
 	assert( auto_arr(&(int[]){4, 8})[1] == 8 ); //addressof an array as a compound literal
 

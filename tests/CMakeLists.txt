@@ -106,3 +106,23 @@ add_library(array_remove_view_compile_const_dst OBJECT EXCLUDE_FROM_ALL array_re
 target_link_libraries(array_remove_view_compile_const_dst poor_base)
 add_test(NAME array_remove_view_compile_const_dst COMMAND ${CMAKE_COMMAND} --build . --target array_remove_view_compile_const_dst WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 set_tests_properties(array_remove_view_compile_const_dst PROPERTIES WILL_FAIL TRUE)
+
+add_library(auto_arr_compile_scalar OBJECT EXCLUDE_FROM_ALL auto_arr_compile_scalar.c)
+target_link_libraries(auto_arr_compile_scalar poor_base)
+add_test(NAME auto_arr_compile_scalar COMMAND ${CMAKE_COMMAND} --build . --target auto_arr_compile_scalar WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(auto_arr_compile_scalar PROPERTIES WILL_FAIL TRUE)
+
+add_library(auto_arr_compile_struct OBJECT EXCLUDE_FROM_ALL auto_arr_compile_struct.c)
+target_link_libraries(auto_arr_compile_struct poor_base)
+add_test(NAME auto_arr_compile_struct COMMAND ${CMAKE_COMMAND} --build . --target auto_arr_compile_struct WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(auto_arr_compile_struct PROPERTIES WILL_FAIL TRUE)
+
+add_library(auto_arr_compile_void_ptr OBJECT EXCLUDE_FROM_ALL auto_arr_compile_void_ptr.c)
+target_link_libraries(auto_arr_compile_void_ptr poor_base)
+add_test(NAME auto_arr_compile_void_ptr COMMAND ${CMAKE_COMMAND} --build . --target auto_arr_compile_void_ptr WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(auto_arr_compile_void_ptr PROPERTIES WILL_FAIL TRUE)
+
+add_library(auto_arr_compile_fn_ptr OBJECT EXCLUDE_FROM_ALL auto_arr_compile_fn_ptr.c)
+target_link_libraries(auto_arr_compile_fn_ptr poor_base)
+add_test(NAME auto_arr_compile_fn_ptr COMMAND ${CMAKE_COMMAND} --build . --target auto_arr_compile_fn_ptr WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(auto_arr_compile_fn_ptr PROPERTIES WILL_FAIL TRUE)
