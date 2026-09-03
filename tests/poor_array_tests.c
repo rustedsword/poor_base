@@ -166,6 +166,56 @@ static int fill_array_test(void) {
 	return 0;
 }
 
+static int foreach_array_index_test(void) {
+	int fixed[] = {2, 3, 5, 7};
+	size_t visited = 0;
+	int sum = 0;
+	foreach_array_index(fixed, index) {
+		static_assert(_Generic(index, size_t: true, default: false));
+		assert(index == visited++);
+		sum += fixed[index];
+	}
+	assert(visited == ARRAY_SIZE(fixed));
+	assert(sum == 17);
+
+	int (*fixed_ptr)[ARRAY_SIZE(fixed)] = &fixed;
+	foreach_array_index(fixed_ptr, index)
+		assert(auto_arr(fixed_ptr)[index] == fixed[index]);
+
+	size_t vla_size = 3;
+	int vla[vla_size];
+	int (*vla_ptr)[vla_size] = &vla;
+	visited = 0;
+	foreach_array_index(vla_ptr, index) {
+		vla[index] = (int)index;
+		visited++;
+	}
+	assert(visited == vla_size);
+
+	int matrix[2][3] = {0};
+	visited = 0;
+	foreach_array_index(matrix, row)
+		foreach_array_index(matrix[row], column) {
+			matrix[row][column] = 1;
+			visited++;
+		}
+	assert(visited == 6);
+
+	visited = 0;
+	foreach_array_index(((int[]){11, 13, 17}), index) {
+		assert(index == visited);
+		visited++;
+	}
+	assert(visited == 3);
+
+	int evaluations = 0;
+	foreach_array_index((evaluations++, vla_ptr), index)
+		(void)index;
+	assert(evaluations == 1);
+
+	return 0;
+}
+
 static int array_accessors(void) {
 	int a[] = {1,2,3,4,5,6,7,8,9,10};
 	assert( *array_first_ref(a) == 1);
@@ -820,6 +870,7 @@ static struct tests_struct {
 	TEST_FN(array_size),
 	TEST_FN(arrays_size),
 	TEST_FN(fill_array_test),
+	TEST_FN(foreach_array_index_test),
 	TEST_FN(array_accessors),
 	TEST_FN(copy_array_single),
 	TEST_FN(copy_array_multiple),

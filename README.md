@@ -205,17 +205,18 @@ print_array(n_arr); //[s,t,r,i,n,g]
 
 ### Array iterators and accessors
 
-macro                                | description
--------------------------------------|-----------------------
-foreach_array_ref(arrm, ref_name)    | array iterator
-foreach_array_ref_bw(arrm, ref_name) | array reverse iterator
-array_first_ref(arrm)                | returns a pointer to the first array element
-array_last_ref(arrm)                 | returns a pointer to the last array element
-array_end_ref(arrm)                  | returns a pointer to the one past-the-last array element
-is_first_array_ref(arrm, ref)        | returns true if ref points to the first array element
-is_last_array_ref(arrm, ref)         | returns true if ref points to the last array element
-is_end_array_ref(arrm, ref)          | returns true if ref points to the one past-the-last array element
-array_ref_index(arrm, ref)           | returns index of array element
+macro                                 | description
+--------------------------------------|-----------------------
+foreach_array_ref(arrm, ref_name)     | array iterator
+foreach_array_index(arrm, index_name) | array index iterator using size_t
+foreach_array_ref_bw(arrm, ref_name)  | array reverse iterator
+array_first_ref(arrm)                 | returns a pointer to the first array element
+array_last_ref(arrm)                  | returns a pointer to the last array element
+array_end_ref(arrm)                   | returns a pointer to the one past-the-last array element
+is_first_array_ref(arrm, ref)         | returns true if ref points to the first array element
+is_last_array_ref(arrm, ref)          | returns true if ref points to the last array element
+is_end_array_ref(arrm, ref)           | returns true if ref points to the one past-the-last array element
+array_ref_index(arrm, ref)            | returns index of array element
 
 ```c
 int x[] = {1,2,3};
@@ -228,6 +229,9 @@ foreach_array_ref(x, x_ref) {
     //index:1 value:2
     //index:2 value:6
 }
+
+foreach_array_index(x, index)
+    println("index:", index, " value:", x[index]);
 ```
 
 ### Array copy

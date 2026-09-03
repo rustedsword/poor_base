@@ -312,6 +312,20 @@
 /* same as foreach_array_ref_bw(), but _ref_ptr_name_ is always const */
 #define foreach_array_const_ref_bw(_arr_, _ref_ptr_name_) foreach_array_ref_bw_base(const, (_arr_), _ref_ptr_name_)
 
+/* Iterate over the indexes of an array.
+ * @_arr_: array or pointer to an array
+ * @_index_name_: name of the size_t index used for iteration
+ * example:
+
+	uint16_t test[] = {1, 2, 3, 4};
+	foreach_array_index(test, index)
+		print(test[index]);  //prints: 1234
+ */
+#define foreach_array_index(_arr_, _index_name_)					\
+	for(size_t _index_name_ = 0, _tmp_arr_size_ = ARRAY_SIZE(_arr_);		\
+		_index_name_ < _tmp_arr_size_;						\
+		(_index_name_)++)
+
 /*** Array accessors ***/
 
 /* get pointer to the first, to the last and to the one past the last element of the array  */
