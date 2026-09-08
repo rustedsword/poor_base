@@ -63,6 +63,16 @@ add_test(NAME arrview_auto_test COMMAND poor_array_tests arrview_auto_test)
 add_test(NAME array_insert_test COMMAND poor_array_tests array_insert_test)
 
 #These tests should fail
+add_library(array_ptr_compile_three_args OBJECT EXCLUDE_FROM_ALL array_ptr_compile_three_args.c)
+target_link_libraries(array_ptr_compile_three_args poor_base)
+add_test(NAME array_ptr_compile_three_args COMMAND ${CMAKE_COMMAND} --build . --target array_ptr_compile_three_args WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(array_ptr_compile_three_args PROPERTIES WILL_FAIL TRUE)
+
+add_library(array_ptr_compile_four_args OBJECT EXCLUDE_FROM_ALL array_ptr_compile_four_args.c)
+target_link_libraries(array_ptr_compile_four_args poor_base)
+add_test(NAME array_ptr_compile_four_args COMMAND ${CMAKE_COMMAND} --build . --target array_ptr_compile_four_args WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(array_ptr_compile_four_args PROPERTIES WILL_FAIL TRUE)
+
 add_library(auto_arr_compile_ptr OBJECT EXCLUDE_FROM_ALL auto_arr_compile_ptr.c)
 target_link_libraries(auto_arr_compile_ptr poor_base)
 add_test(NAME auto_arr_compile_ptr COMMAND ${CMAKE_COMMAND} --build . --target auto_arr_compile_ptr WORKING_DIRECTORY ${CMAKE_BINARY_DIR})

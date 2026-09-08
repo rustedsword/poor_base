@@ -170,15 +170,19 @@
 
 /*** Basic array manipulation ***/
 
-/* array_ptr(pointer, size)
+/* array_ptr(pointer[, size])
  *
  * Returns a pointer to an array of (size) elements starting at (pointer)
  * This macro is useful to tie together pointer and size in the form of pointer to array.
  *
  * @pointer: pointer to the first array element
- * @size: size of the array, should be greater than zero.
+ * @size: size of the array, should be greater than zero. Defaults to 1 if omitted.
  *
  * example:
+
+	//Wrap a single object as a one-element array
+	int value = 5;
+	int (*single)[1] = array_ptr(&value); //same as array_ptr(&value, 1)
 
 	//Wraping pointer and size returned from function
 	size_t size;
@@ -199,7 +203,9 @@
 	}
 
  */
-#define array_ptr(_pointer_, _size_) ((typeof(*(_pointer_)) (*)[(_size_)])(void*)(_pointer_))
+#define array_ptr(_pointer_, ...) \
+	EAT_ONE_ARG(__VA_ARGS__ ## __VA_OPT__()) \
+	((typeof(*(_pointer_)) (*)[TAKE_FIRST_ARG(__VA_OPT__((__VA_ARGS__),) 1)])(void*)(_pointer_))
 
 /* make_array_ptr(name, pointer, size)
  *

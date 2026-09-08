@@ -691,6 +691,26 @@ static int string_literal_test(void) {
 }
 
 static int array_ptr_test(void) {
+	//omitting the size wraps a single object without copying it
+	int lol = 5;
+	int (*lolptr)[1];
+	lolptr = array_ptr(&lol);
+	static_assert(ARRAY_SIZE(array_ptr(&lol)) == 1);
+	assert(auto_arr(lolptr)[0] == 5);
+	auto_arr(lolptr)[0] = 10;
+	assert(lol == 10);
+	lolptr = array_ptr(&lol, 1);
+	assert(lolptr == array_ptr(&lol));
+
+	//the default size preserves const and evaluates an ordinary pointer once
+	const int value = 7;
+	const int *value_ptr = &value;
+	auto single = array_ptr(value_ptr++);
+	static_assert(ARRAY_SIZE(single) == 1);
+	static_assert(is_pointer_to_const(*single) == true);
+	assert(auto_arr(single)[0] == 7);
+	assert(value_ptr == &value + 1);
+
 	const char *n = "string";
 
 	auto a = array_ptr(n, 6);
@@ -712,6 +732,27 @@ static int array_ptr_test(void) {
 	assert(auto_arr(p)[3] == 3);
 	auto_arr(p)[3] = 30;
 	assert(raw[3] == 30);
+
+	//initializer commas introduced by a size macro are not extra arguments
+#define ARRAY_PTR_TEST_BOUND sizeof (char[]){1, 2, 3}
+	auto macro_sized = array_ptr(raw, ARRAY_PTR_TEST_BOUND);
+	static_assert(ARRAY_SIZE(macro_sized) == 3);
+	assert(auto_arr(macro_sized)[2] == 2);
+
+	//size arguments may themselves contain array_ptr() calls
+	auto nested_size = array_ptr(raw, ARRAY_SIZE(array_ptr(raw, ARRAY_PTR_TEST_BOUND)));
+	static_assert(ARRAY_SIZE(nested_size) == 3);
+	assert(nested_size == macro_sized);
+#undef ARRAY_PTR_TEST_BOUND
+
+	//a size macro may also expand to a comma expression with side effects
+	int size_evaluations = 0;
+#define ARRAY_PTR_TEST_COMMA_BOUND ++size_evaluations, 3
+	auto comma_sized = array_ptr(raw, ARRAY_PTR_TEST_COMMA_BOUND);
+#undef ARRAY_PTR_TEST_COMMA_BOUND
+	assert(size_evaluations == 1);
+	assert(ARRAY_SIZE(comma_sized) == 3);
+	assert(comma_sized == macro_sized);
 
 	//the result is a normal pointer to array, usable by the rest of the library
 	auto v = arrview_last(2, p);

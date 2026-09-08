@@ -184,6 +184,7 @@ print_array(b); //[1,2,3,4,5]
 
 macro                  | description
 -----------------------|-------
+array_ptr(ptr[, size]) | returns a pointer to an array; size defaults to 1
 make_array_ptr(name, ptr, size) | declares a pointer to array by using a pointer to single element and size
 malloc_array(arrp)     | allocates memory for a pointer to an array
 calloc_array(arrp)     | allocates zero initialized memory for a pointer to an array
@@ -201,6 +202,10 @@ if(data) {
 const char *n = "string";
 make_array_ptr(n_arr, n, 6);
 print_array(n_arr); //[s,t,r,i,n,g]
+
+int value = 5;
+auto single = array_ptr(&value); //same as array_ptr(&value, 1)
+print_array(single); //[5]
 ```
 
 ### Array iterators and accessors

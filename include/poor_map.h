@@ -11,6 +11,7 @@
 #define TOKEN_CAT_1(a, ...) a ## __VA_ARGS__
 
 #define EAT(...)
+#define EAT_ONE_ARG(arg)
 #define EXPAND(...) __VA_ARGS__
 
 #define STRINGIFY_(var) #var
