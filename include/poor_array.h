@@ -969,7 +969,7 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
  * returns _is_p_arr_ if var is a pointer to VLA
  * or returns dereferenced var if it is a pointer to any other type */
 #define h_aa_l1(var)							\
-	_Generic(& (typeof(h_arrvla_chk(var))){0},			\
+	_Generic(& (typeof(h_arrvla_chk(var))){},			\
 		typeof(vla_to_dummy(*var))(*)[]: (_is_arr_*){0},	\
 		_is_arr_ *: (_is_arr_*){0},				\
 		_is_p_arr_ *: (_is_p_arr_*){0},				\
@@ -1014,10 +1014,10 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 #endif
 
 /* ONLY FOR INTERNAL USE! arr is not validated for arrayness. arr should be an array. */
-#define UNSAFE_ARRAY_SIZE(_arr_) (sizeof(_arr_) / sizeof((_arr_)[0]) )
+#define UNSAFE_ARRAY_SIZE(_arr_) (sizeof(_arr_) / sizeof(*(_arr_)) )
 #define UNSAFE_ARRAY_SIZE_BYTES(_arr_) sizeof(_arr_)
-#define UNSAFE_ARRAY_ELEMENT_SIZE(_arr_) sizeof((_arr_)[0])
-#define UNSAFE_ARRAY_ELEMENT_TYPE(_arr_) typeof((_arr_)[0])
+#define UNSAFE_ARRAY_ELEMENT_SIZE(_arr_) sizeof(*(_arr_))
+#define UNSAFE_ARRAY_ELEMENT_TYPE(_arr_) typeof(*(_arr_))
 
 /* is_ptr_to_vla(_arr_ptr_)
  * Returns true if _arr_ptr_ is pointer to VLA. */
@@ -1045,7 +1045,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
                 (*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),          \
                 *_ref_ptr_name_ = unsafe_array_first_ref(_tmp_arr_ptr_);                \
                                                                                         \
-                _ref_ptr_name_ < unsafe_array_end_ref(_tmp_arr_ptr_);                   \
+                _ref_ptr_name_ != unsafe_array_end_ref(_tmp_arr_ptr_);                  \
                                                                                         \
                 (_ref_ptr_name_)++)
 
@@ -1061,14 +1061,13 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     for(const unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != unsafe_array_end_ref(_array_ptr_); _ref_ptr_name_++)
 
 /* base macro for foreach_array_ref_bw() */
-#define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)		\
+#define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)			\
 	for(prefix ARRAY_ELEMENT_TYPE(_arr_)					\
 		(*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),	\
-		*_ref_ptr_name_ = unsafe_array_last_ref(_tmp_arr_ptr_);		\
+		*_ref_ptr_name_ = unsafe_array_end_ref(_tmp_arr_ptr_);		\
 										\
-		_ref_ptr_name_ >= unsafe_array_first_ref(_tmp_arr_ptr_);	\
-										\
-		(_ref_ptr_name_)--)
+		_ref_ptr_name_ != unsafe_array_first_ref(_tmp_arr_ptr_) &&		\
+			(--(_ref_ptr_name_), true);)
 
 
 /* Declares pointer to first array element */
@@ -1082,9 +1081,9 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 #define unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_) UNSAFE_ARRAY_ELEMENT_TYPE(*(_array_ptr_)) *(_ref_ptr_name_) = &(*(_array_ptr_))[0]
 
 /* Unsafe variants, _array_ptr_ should be a pta */
-#define unsafe_array_first_ref(_array_ptr_) (&(*(_array_ptr_))[0])
+#define unsafe_array_first_ref(_array_ptr_) ((UNSAFE_ARRAY_ELEMENT_TYPE(*(_array_ptr_)) *)(_array_ptr_))
 #define unsafe_array_last_ref(_array_ptr_)  (&(*(_array_ptr_))[UNSAFE_ARRAY_SIZE(*(_array_ptr_)) - 1])
-#define unsafe_array_end_ref(_array_ptr_)   (&(*(_array_ptr_))[UNSAFE_ARRAY_SIZE(*(_array_ptr_))])
+#define unsafe_array_end_ref(_array_ptr_)   (unsafe_array_first_ref(_array_ptr_) + UNSAFE_ARRAY_SIZE(*(_array_ptr_)))
 
 /* Unsafe variants, _array_ptr_ should be a pta */
 #define unsafe_is_first_array_ref(_arr_ptr_, _ref_) ((_ref_) == unsafe_array_first_ref((_arr_ptr_)))

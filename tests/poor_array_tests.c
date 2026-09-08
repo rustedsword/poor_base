@@ -166,6 +166,143 @@ static int fill_array_test(void) {
 	return 0;
 }
 
+/* Stop immediately if an empty iterator enters its body, even with a bad ref. */
+#define CHECK_EMPTY_ITERATOR(iterator, input) do { \
+	size_t visited = 0; \
+	iterator(input, ref) { \
+		(void)ref; \
+		visited++; \
+		break; \
+	} \
+	assert(visited == 0); \
+} while (0)
+
+/* Fixed [0] arrays use the GNU extension, not a VLA with a runtime zero bound.
+ * For these fixed types, reference iterators evaluate their input once; the
+ * index iterator only queries its type with sizeof and does not evaluate it. */
+#define DEFINE_EMPTY_ITERATOR_TESTS(iterator, evaluations_expected) \
+static int iterator##_zero_length_test(void) { \
+	int empty[0]; \
+	int (*empty_ptr)[0] = &empty; \
+	int storage[] = {11, 13}; \
+	const int (*const_empty_ptr)[0] = (const int (*)[0])storage; \
+	static_assert(ARRAY_SIZE(empty_ptr) == 0); \
+	CHECK_EMPTY_ITERATOR(iterator, empty); \
+	CHECK_EMPTY_ITERATOR(iterator, &empty); \
+	CHECK_EMPTY_ITERATOR(iterator, empty_ptr); \
+	CHECK_EMPTY_ITERATOR(iterator, *empty_ptr); \
+	CHECK_EMPTY_ITERATOR(iterator, (int (*)[0])storage); \
+	CHECK_EMPTY_ITERATOR(iterator, const_empty_ptr); \
+	int evaluations = 0; \
+	CHECK_EMPTY_ITERATOR(iterator, (evaluations++, empty_ptr)); \
+	assert(evaluations == evaluations_expected); \
+	assert(storage[0] == 11 && storage[1] == 13); \
+	return 0; \
+} \
+static int iterator##_null_zero_length_test(void) { \
+	int (*null_ptr)[0] = NULL; \
+	const int (*const_null_ptr)[0] = NULL; \
+	CHECK_EMPTY_ITERATOR(iterator, null_ptr); \
+	CHECK_EMPTY_ITERATOR(iterator, const_null_ptr); \
+	CHECK_EMPTY_ITERATOR(iterator, (int (*)[0])NULL); \
+	CHECK_EMPTY_ITERATOR(iterator, (const int (*)[0])NULL); \
+	int evaluations = 0; \
+	CHECK_EMPTY_ITERATOR(iterator, (evaluations++, null_ptr)); \
+	assert(evaluations == evaluations_expected); \
+	return 0; \
+}
+
+DEFINE_EMPTY_ITERATOR_TESTS(foreach_array_ref, 1)
+DEFINE_EMPTY_ITERATOR_TESTS(foreach_array_const_ref, 1)
+DEFINE_EMPTY_ITERATOR_TESTS(foreach_array_ref_bw, 1)
+DEFINE_EMPTY_ITERATOR_TESTS(foreach_array_const_ref_bw, 1)
+DEFINE_EMPTY_ITERATOR_TESTS(foreach_array_index, 0)
+
+#undef DEFINE_EMPTY_ITERATOR_TESTS
+#undef CHECK_EMPTY_ITERATOR
+
+static int foreach_array_ref_test(void) {
+	int fixed[] = {2, 3, 5};
+	size_t visited = 0;
+	foreach_array_ref(&fixed, ref) {
+		static_assert(_Generic(ref, int *: true, default: false));
+		assert(visited < ARRAY_SIZE(fixed));
+		assert(ref == &fixed[visited++]);
+	}
+	assert(visited == ARRAY_SIZE(fixed));
+
+	visited = 0;
+	foreach_array_const_ref(fixed, ref) {
+		static_assert(_Generic(ref, const int *: true, default: false));
+		assert(visited < ARRAY_SIZE(fixed));
+		assert(ref == &fixed[visited++]);
+	}
+	assert(visited == ARRAY_SIZE(fixed));
+
+	visited = 0;
+	foreach_array_ref_bw(&fixed, ref) {
+		static_assert(_Generic(ref, int *: true, default: false));
+		assert(visited < ARRAY_SIZE(fixed));
+		assert(ref == &fixed[ARRAY_SIZE(fixed) - 1 - visited++]);
+		*ref += 1;
+	}
+	assert(visited == ARRAY_SIZE(fixed));
+	assert(fixed[0] == 3 && fixed[1] == 4 && fixed[2] == 6);
+
+	visited = 0;
+	foreach_array_const_ref_bw(fixed, ref) {
+		static_assert(_Generic(ref, const int *: true, default: false));
+		assert(visited < ARRAY_SIZE(fixed));
+		assert(ref == &fixed[ARRAY_SIZE(fixed) - 1 - visited++]);
+	}
+	assert(visited == ARRAY_SIZE(fixed));
+
+	const int singleton[] = {7};
+	visited = 0;
+	foreach_array_ref_bw(&singleton, ref) {
+		static_assert(_Generic(ref, const int *: true, default: false));
+		assert(ref == &singleton[0]);
+		assert(*ref == 7);
+		visited++;
+	}
+	assert(visited == 1);
+
+	size_t length = 3;
+	int vla[length];
+	for(size_t i = 0; i < length; i++)
+		vla[i] = (int)i;
+	visited = 0;
+	int sum = 0;
+	foreach_array_ref_bw(&vla, ref) {
+		assert(visited < length);
+		assert(ref == &vla[length - 1 - visited++]);
+		if(*ref == 1)
+			continue;
+		sum += *ref;
+	}
+	assert(visited == length);
+	assert(sum == 2);
+
+	visited = 0;
+	foreach_array_const_ref_bw(&vla, ref) {
+		assert(ref == &vla[length - 1]);
+		visited++;
+		break;
+	}
+	assert(visited == 1);
+
+	int matrix[2][3] = {{1, 2, 3}, {4, 5, 6}};
+	visited = 0;
+	foreach_array_ref_bw(matrix, row)
+		foreach_array_ref_bw(*row, ref) {
+			assert(*ref == 6 - (int)visited);
+			visited++;
+		}
+	assert(visited == 6);
+
+	return 0;
+}
+
 static int foreach_array_index_test(void) {
 	int fixed[] = {2, 3, 5, 7};
 	size_t visited = 0;
@@ -911,7 +1048,18 @@ static struct tests_struct {
 	TEST_FN(array_size),
 	TEST_FN(arrays_size),
 	TEST_FN(fill_array_test),
+	TEST_FN(foreach_array_ref_test),
 	TEST_FN(foreach_array_index_test),
+	TEST_FN(foreach_array_ref_zero_length_test),
+	TEST_FN(foreach_array_ref_null_zero_length_test),
+	TEST_FN(foreach_array_const_ref_zero_length_test),
+	TEST_FN(foreach_array_const_ref_null_zero_length_test),
+	TEST_FN(foreach_array_ref_bw_zero_length_test),
+	TEST_FN(foreach_array_ref_bw_null_zero_length_test),
+	TEST_FN(foreach_array_const_ref_bw_zero_length_test),
+	TEST_FN(foreach_array_const_ref_bw_null_zero_length_test),
+	TEST_FN(foreach_array_index_zero_length_test),
+	TEST_FN(foreach_array_index_null_zero_length_test),
 	TEST_FN(array_accessors),
 	TEST_FN(copy_array_single),
 	TEST_FN(copy_array_multiple),
