@@ -217,6 +217,7 @@ DEFINE_EMPTY_ITERATOR_TESTS(foreach_array_const_ref, 1)
 DEFINE_EMPTY_ITERATOR_TESTS(foreach_array_ref_bw, 1)
 DEFINE_EMPTY_ITERATOR_TESTS(foreach_array_const_ref_bw, 1)
 DEFINE_EMPTY_ITERATOR_TESTS(foreach_array_index, 0)
+DEFINE_EMPTY_ITERATOR_TESTS(foreach_array_index_bw, 0)
 
 #undef DEFINE_EMPTY_ITERATOR_TESTS
 #undef CHECK_EMPTY_ITERATOR
@@ -347,6 +348,52 @@ static int foreach_array_index_test(void) {
 
 	int evaluations = 0;
 	foreach_array_index((evaluations++, vla_ptr), index)
+		(void)index;
+	assert(evaluations == 1);
+
+	return 0;
+}
+
+static int foreach_array_index_bw_test(void) {
+	int fixed[] = {2, 3, 5, 7};
+	size_t visited = 0;
+	int sum = 0;
+	foreach_array_index_bw(fixed, index) {
+		static_assert(_Generic(index, size_t: true, default: false));
+		assert(index == ARRAY_SIZE(fixed) - 1 - visited++);
+		if(index == 2)
+			continue;
+		sum += fixed[index];
+	}
+	assert(visited == ARRAY_SIZE(fixed));
+	assert(sum == 12);
+
+	int (*fixed_ptr)[ARRAY_SIZE(fixed)] = &fixed;
+	foreach_array_index_bw(fixed_ptr, index)
+		assert(auto_arr(fixed_ptr)[index] == fixed[index]);
+
+	size_t vla_size = 3;
+	int vla[vla_size];
+	int (*vla_ptr)[vla_size] = &vla;
+	visited = 0;
+	foreach_array_index_bw(vla_ptr, index) {
+		vla[index] = (int)index;
+		visited++;
+	}
+	assert(visited == vla_size);
+
+	int matrix[2][3] = {0};
+	visited = 0;
+	foreach_array_index_bw(matrix, row)
+		foreach_array_index_bw(matrix[row], column) {
+			assert(row == 1 - visited / 3);
+			assert(column == 2 - visited % 3);
+			visited++;
+		}
+	assert(visited == 6);
+
+	int evaluations = 0;
+	foreach_array_index_bw((evaluations++, vla_ptr), index)
 		(void)index;
 	assert(evaluations == 1);
 
@@ -1050,6 +1097,7 @@ static struct tests_struct {
 	TEST_FN(fill_array_test),
 	TEST_FN(foreach_array_ref_test),
 	TEST_FN(foreach_array_index_test),
+	TEST_FN(foreach_array_index_bw_test),
 	TEST_FN(foreach_array_ref_zero_length_test),
 	TEST_FN(foreach_array_ref_null_zero_length_test),
 	TEST_FN(foreach_array_const_ref_zero_length_test),
@@ -1060,6 +1108,8 @@ static struct tests_struct {
 	TEST_FN(foreach_array_const_ref_bw_null_zero_length_test),
 	TEST_FN(foreach_array_index_zero_length_test),
 	TEST_FN(foreach_array_index_null_zero_length_test),
+	TEST_FN(foreach_array_index_bw_zero_length_test),
+	TEST_FN(foreach_array_index_bw_null_zero_length_test),
 	TEST_FN(array_accessors),
 	TEST_FN(copy_array_single),
 	TEST_FN(copy_array_multiple),

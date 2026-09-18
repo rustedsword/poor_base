@@ -332,6 +332,18 @@
 		_index_name_ < _tmp_arr_size_;						\
 		(_index_name_)++)
 
+/* Iterate backwards over the indexes of an array.
+ * Same as foreach_array_index(), but starts at the last element.
+ * example:
+
+	uint16_t test[] = {1, 2, 3, 4};
+	foreach_array_index_bw(test, index)
+		print(test[index]);  //prints: 4321
+ */
+#define foreach_array_index_bw(_arr_, _index_name_)				\
+	for(size_t _index_name_ = ARRAY_SIZE(_arr_), _tmp_arr_size_ = _index_name_;\
+		_tmp_arr_size_ > 0 && ((_index_name_ = --_tmp_arr_size_), true);)
+
 /*** Array accessors ***/
 
 /* get pointer to the first, to the last and to the one past the last element of the array  */
