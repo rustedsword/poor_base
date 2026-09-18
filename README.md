@@ -215,6 +215,7 @@ macro                                 | description
 foreach_array_ref(arrm, ref_name)     | array iterator
 foreach_array_index(arrm, index_name) | array index iterator using size_t
 foreach_array_ref_bw(arrm, ref_name)  | array reverse iterator
+foreach_array_index_bw(arrm, index_name) | reverse array index iterator using size_t
 array_first_ref(arrm)                 | returns a pointer to the first array element
 array_last_ref(arrm)                  | returns a pointer to the last array element
 array_end_ref(arrm)                   | returns a pointer to the one past-the-last array element
@@ -237,6 +238,9 @@ foreach_array_ref(x, x_ref) {
 
 foreach_array_index(x, index)
     println("index:", index, " value:", x[index]);
+
+foreach_array_index_bw(x, index)
+    println("reverse index:", index, " value:", x[index]);
 ```
 
 ### Array copy
