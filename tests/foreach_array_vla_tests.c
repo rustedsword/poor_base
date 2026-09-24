@@ -75,7 +75,37 @@ static void foreach_array_index_test(size_t length, bool use_null) {
 	}
 }
 
+#define CHECK_INDEX_ITERATOR_BW(input) do { \
+	size_t visited = 0; \
+	foreach_array_index_bw(input, index) { \
+		assert(visited < length); \
+		assert(index == length - 1 - visited); \
+		assert(auto_arr(input)[index] == storage[index]); \
+		visited++; \
+	} \
+	assert(visited == length); \
+} while (0)
+
+static void foreach_array_index_bw_test(size_t length, bool use_null) {
+	int storage[] = {11, 13, 17};
+	assert(length <= ARRAY_SIZE(storage));
+	assert(!use_null || length == 0);
+	int (*pointer)[length] = use_null ? NULL : (void *)storage;
+	const int (*const_pointer)[length] = use_null ? NULL : (void *)storage;
+	assert(ARRAY_SIZE(pointer) == length);
+	CHECK_INDEX_ITERATOR_BW(pointer);
+	CHECK_INDEX_ITERATOR_BW(const_pointer);
+	if(use_null) {
+		CHECK_INDEX_ITERATOR_BW((int (*)[length])NULL);
+		CHECK_INDEX_ITERATOR_BW((const int (*)[length])NULL);
+	} else {
+		CHECK_INDEX_ITERATOR_BW((int (*)[length])storage);
+		CHECK_INDEX_ITERATOR_BW((const int (*)[length])storage);
+	}
+}
+
 #undef CHECK_INDEX_ITERATOR
+#undef CHECK_INDEX_ITERATOR_BW
 
 int main(int argc, char **argv) {
 	assert(argc == 4);
@@ -91,6 +121,8 @@ int main(int argc, char **argv) {
 		foreach_array_const_ref_bw_test(length, use_null);
 	else if(!strcmp(argv[1], "foreach_array_index"))
 		foreach_array_index_test(length, use_null);
+	else if(!strcmp(argv[1], "foreach_array_index_bw"))
+		foreach_array_index_bw_test(length, use_null);
 	else
 		return 1;
 	return 0;
