@@ -454,33 +454,6 @@
 #define RECURSION_ARG_END(f, arg, prev, ...) prev
 
 
-/* Obsolete */
-
-/*
- * Applies the function macro `f` to first argument and each of the remaining parameters and
- * inserts commas between the results.
- */
-#define MAP_LIST_TWOARG(f, p1, p2, ...) \
-    EVAL_SELECT(__VA_ARGS__)(MAP_LIST_TWOARG1(f, p1, p2, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
-#define MAP_LIST_TWOARG0(f, p1, p2, x, peek, ...) f(p1, p2, x) MAP_LIST_NEXT(peek, MAP_LIST_TWOARG1)(f, p1, p2, peek, __VA_ARGS__)
-#define MAP_LIST_TWOARG1(f, p1, p2, x, peek, ...) f(p1, p2, x) MAP_LIST_NEXT(peek, MAP_LIST_TWOARG0)(f, p1, p2, peek, __VA_ARGS__)
-
-/*
- * Applies the function macro `f` to first two arguments and each of the remaining parameters.
- */
-#define MAP_TWOARG(f, p1, p2, ...) \
-    EVAL_SELECT(__VA_ARGS__)(MAP_TWOARG1(f, p1, p2, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
-#define MAP_TWOARG0(f, p1, p2, x, peek, ...) f(p1, p2, x) MAP_NEXT(peek, MAP_TWOARG1)(f, p1, p2, peek, __VA_ARGS__)
-#define MAP_TWOARG1(f, p1, p2, x, peek, ...) f(p1, p2, x) MAP_NEXT(peek, MAP_TWOARG0)(f, p1, p2, peek, __VA_ARGS__)
-
-/*
- * Applies the function macro `f` to each pair of the remaining parameters.
- */
-#define MAP_TWO(f, ...) EVAL_MAX(MAP_TWO1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
-#define MAP_TWO0(f, x, y, peek1, peek2, ...) f(x, y) MAP_NEXT(peek2, MAP_TWO1)(f, peek1, peek2, __VA_ARGS__)
-#define MAP_TWO1(f, x, y, peek1, peek2, ...) f(x, y) MAP_NEXT(peek2, MAP_TWO0)(f, peek1, peek2, __VA_ARGS__)
-
-
 /* Test macro helpers for single or multiple arguments in variadic argument list */
 #define ARG_TST_END2(...) 0, 0
 #define ARG_TST_END1(...) ARG_TST_END2

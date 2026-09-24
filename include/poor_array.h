@@ -236,7 +236,7 @@
 		exit(EXIT_FAILURE);
 	}
 
-	for(unsigned i = 0; i < P_ARRAY_SIZE(some_ints); i++) {
+	for(unsigned i = 0; i < ARRAY_SIZE(some_ints); i++) {
 		(*some_ints)[i] = ((int)i + 1) * 2;
 	}
 	println("index 0 has value:", (*some_ints)[0]);
@@ -1048,8 +1048,8 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 
 /* This needs more work, don't use */
 #define for_each_bit_in_array(_array_) \
-for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
-    for(unsigned bit_index = 0; bit_index < (P_ARRAY_ELEMENT_SIZE(_array_) * 8); bit_index++)
+for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
+    for(unsigned bit_index = 0; bit_index < (ARRAY_ELEMENT_SIZE(_array_) * 8); bit_index++)
 
 /* base macro for foreach_array_ref() */
 #define foreach_array_ref_base(prefix, _arr_, _ref_ptr_name_)                           \
@@ -1405,7 +1405,7 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
     int main() {
         println(*super_string);
 
-        make_array_slice_string(ss, super_string);
+        make_arrview_str(ss, super_string);
         print_array(ss);
 
         PRINT_ARRAY_INFO(super_string);
@@ -1665,44 +1665,5 @@ for(unsigned byte_index = 0; byte_index < P_ARRAY_SIZE(_array_); byte_index++) \
 	}											\
 	print((char)'\n');									\
 } while(0)
-
-/* Backward compatibility */
-
-#define P_ARRAY_SIZE(arr) ARRAY_SIZE(arr)
-#define P_ARRAY_SIZE_BYTES(arr) ARRAY_SIZE_BYTES(arr)
-#define P_ARRAY_ELEMENT_SIZE(arr) ARRAY_ELEMENT_SIZE(arr)
-#define P_ARRAY_ELEMENT_TYPE(arr) ARRAY_ELEMENT_TYPE(arr)
-
-#define P_ARRAYS_SIZE(...) ARRAYS_SIZE((__VA_ARGS__))
-#define P_ARRAYS_SIZE_BYTES(...) ARRAYS_SIZE_BYTES((__VA_ARGS__))
-
-/* Obsolete arrslice */
-#define make_array_slice_size(_name_, start, size, ...) make_arrview(_name_, start, size, __VA_ARGS__)
-#define array_slice_size(start, size, ...) arrview(start, size, __VA_ARGS__)
-
-#define make_array_slice_first(_name_, size, ...) make_arrview_first(_name_, size, __VA_ARGS__)
-#define array_slice_first(size, ...) arrview_first(size, __VA_ARGS__)
-
-#define make_array_slice_last(_name_, size, ...) make_arrview_last(_name_, size, __VA_ARGS__)
-#define array_slice_last(size, ...) arrview_last(size, __VA_ARGS__)
-
-#define make_array_slice_shrink(_name_, skip_start, skip_end, ...) make_arrview_shrink(_name_, skip_start, skip_end, __VA_ARGS__)
-#define array_slice_shrink(skip_start, skip_end, ...) arrview_shrink(skip_start, skip_end, __VA_ARGS__)
-
-#define make_array_slice_front(_name_, start, ...) make_arrview_cfront(_name_, start, __VA_ARGS__)
-#define array_slice_front(start, ...) arrview_cfront(start, __VA_ARGS__)
-
-#define make_array_slice_back(_name_, end, ...) make_arrview_cback(_name_, end, __VA_ARGS__)
-#define array_slice_back(end, ...) arrview_cback(end, __VA_ARGS__)
-
-#define make_array_slice_full(_name_, ...) make_arrview_full(_name_, __VA_ARGS__)
-#define array_slice_full(...) arrview_full(__VA_ARGS__)
-
-#define make_array_slice_string(_name_, ...) make_arrview_str(_name_, __VA_ARGS__)
-#define array_slice_string(...) arrview_str(__VA_ARGS__)
-
-
-/* Obsolete arrayr ref remove */
-#define array_ref_remove(_arr_ptr_, _ref_, _val_)  array_remove_ref_fill(_arr_ptr_, _ref_, _val_)
 
 #endif //POOR_ARRAY_H
