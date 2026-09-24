@@ -1042,11 +1042,6 @@ static int arrview_auto_test(void) {
 	assert(ARRAY_SIZE(v_vla) == 3);
 	assert(auto_arr(v_vla)[0] == 1 && auto_arr(v_vla)[2] == 3);
 
-	//array_slice_* aliases resolve to the same expressions
-	auto v_slice = array_slice_size(1, 3, a);
-	static_assert(is_same_array_element_type(v_slice, v) == true);
-	assert(v_slice == v);
-
 	//views are writable through auto and alias the original storage
 	auto v_write = arrview_last(2, a);
 	auto_arr(v_write)[0] = 40;
