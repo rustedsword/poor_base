@@ -982,6 +982,9 @@
 /* If _expr_ is constant expression and is equals zero then terminates compilation  */
 #define ARR_ASSERT(_expr_)  (void)(sizeof(char [_expr_ ? 1 : -1]))
 
+/* (x) >= 0 warns with -Wtype-limits for an unsigned x, so unsigned types compare 0 instead */
+#define h_not_negative(x) (if_unsigned(x, 0, (x)) >= 0)
+
 /* Declares a pointer to array with same type as another pointer to array but with different size */
 #define unsafe_make_arrptr(_name_, _size_, _arrp_) UNSAFE_ARRAY_ELEMENT_TYPE(*_arrp_)(* _name_)[_size_]
 
@@ -1223,13 +1226,13 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 
 #define h_av_chk_none(...) 0
 #define h_av_chk_static(_arrp_, _idx_, _size_, _macro_name_) _Generic(1,	\
-	int*:	ARR_ASSERT(_idx_ >= 0),						\
+	int*:	ARR_ASSERT(h_not_negative(_idx_)),				\
 	int**:	ARR_ASSERT(_size_ > 0),						\
 	int***:	ARR_ASSERT(_idx_ + _size_ <= UNSAFE_ARRAY_SIZE(*_arrp_)),	\
 	default: 0 )
 
 #define h_av_chk_dyn(_arrp_, _idx_, _size_, _macro_name_) ((			\
-	ARR_ASSERT_MSG(_idx_ >= 0,						\
+	ARR_ASSERT_MSG(h_not_negative(_idx_),					\
 		CRED _macro_name_ ": Start index ", _idx_ ," is less than 0"	\
 		" (start index:", _idx_, ")"					\
 		" at " POOR_FILE_AND_LINE CRESET),				\
@@ -1307,13 +1310,13 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define h_av_shrink_chk_none(_arrp_, _skip_start_, _skip_end_, _macro_name_) 0
 
 #define h_av_shrink_chk_static(_arrp_, _skip_start_, _skip_end_, _macro_name_) _Generic(1,	\
-	int*:   ARR_ASSERT(_skip_start_ >= 0 && _skip_end_ >= 0),				\
+	int*:   ARR_ASSERT(h_not_negative(_skip_start_) && h_not_negative(_skip_end_)),		\
 	int**:	ARR_ASSERT(_skip_start_ + _skip_end_ < UNSAFE_ARRAY_SIZE(*_arrp_)),		\
 	default: 0										\
 	)
 
 #define h_av_shrink_chk_dyn(_arrp_, _skip_start_, _skip_end_, _macro_name_) ((					\
-	ARR_ASSERT_MSG(_skip_start_ >= 0 && _skip_end_ >= 0,							\
+	ARR_ASSERT_MSG(h_not_negative(_skip_start_) && h_not_negative(_skip_end_),				\
 		CRED _macro_name_ ": Skipping negative amount of elements"					\
 		" (skipped front:", _skip_start_, " skipped back:", _skip_end_, ")"				\
 		" at " POOR_FILE_AND_LINE CRESET),								\
@@ -1354,13 +1357,13 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define h_av_skip_chk_none(_arrp_, _skip_, _macro_name_) 0
 
 #define h_av_skip_chk_static(_arrp_, _skip_, _macro_name_) _Generic(1,	\
-	int*:  ARR_ASSERT(_skip_ >= 0),					\
+	int*:  ARR_ASSERT(h_not_negative(_skip_)),			\
 	int**: ARR_ASSERT(_skip_ < UNSAFE_ARRAY_SIZE(*_arrp_)),		\
 	default: 0							\
 	)
 
 #define h_av_skip_chk_dyn(_arrp_, _skip_, _macro_name_) ((					\
-	ARR_ASSERT_MSG(_skip_ >= 0,								\
+	ARR_ASSERT_MSG(h_not_negative(_skip_),							\
 		CRED _macro_name_ ": Skipping negative amount of elements"			\
 		" (skipped:", _skip_, ") at " POOR_FILE_AND_LINE CRESET),			\
 	ARR_ASSERT_MSG(_skip_ < UNSAFE_ARRAY_SIZE(*_arrp_),					\
@@ -1530,12 +1533,12 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 
 #define h_chk_arr_ins_chk_none(...)
 #define h_chk_arr_ins_chk_static(_arrp_, _idx_, _macro_name_) _Generic(1,		\
-	int *: ARR_ASSERT(_idx_ >= 0),							\
+	int *: ARR_ASSERT(h_not_negative(_idx_)),					\
 	int **: ARR_ASSERT(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_)),				\
 	default: 0)
 
 #define h_chk_arr_ins_chk_dyn(_arrp_, _idx_, _macro_name_) ((				\
-	ARR_ASSERT_MSG(_idx_ >= 0,							\
+	ARR_ASSERT_MSG(h_not_negative(_idx_),						\
 		CRED _macro_name_ ":Attempting to insert value at negative index"	\
 		" (index:", _idx_, ")"							\
 		" at " POOR_FILE_AND_LINE CRESET),					\
@@ -1640,7 +1643,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define array_bit_idx_to_byte_idx(arr, idx) ((idx) / (ARRAY_ELEMENT_SIZE(arr) * 8))
 
 #define _array_bit_chk_index(arr, idx, ...) _Generic(1,             \
-    int*:  sizeof(char [idx < 0 ? -1 : 1]),                         \
+    int*:  sizeof(char [h_not_negative(idx) ? 1 : -1]),             \
     int**:  sizeof(char [idx >= ARRAY_SIZE_BITS(arr) ? -1 : 1]),    \
     default: __VA_ARGS__                                            \
     )
