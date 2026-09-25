@@ -50,6 +50,9 @@
  * otherwise evaluates (if_not_const) expression */
 #define if_constexpr(expr, if_const, if_not_const) _Generic( magic_ice_expression(expr), int*: (if_const), void*:(if_not_const))
 
+/* returns (x) if it is constant integer expression, or (d) if it is not */
+#define constexpr_or(x, d) if_constexpr(x, x, d)
+
 /* is_vla(array)
  * Returns true if array is variable length array(VLA)
  * This macro can be used with any type of variable.
@@ -60,7 +63,7 @@
  * This macro can be used with any type of variable. */
 #define if_vla(arr, t, f) if_constexpr(sizeof(arr), (f), (t))
 
-#define is_unsigned(x) if_constexpr((typeof((void)0, (x)))-1 > 0, (typeof((void)0, (x)))-1 > 0, 0)
+#define is_unsigned(x) constexpr_or((typeof((void)0, (x)))-1 > 0, 0)
 
 /* Evaluates (t) expression if x has an unsigned integer type, otherwise evaluates (f) expression. */
 #define if_unsigned(x, t, f) _Generic((char (*)[1 + is_unsigned(x)])0, char (*)[2]: (t), default: (f))

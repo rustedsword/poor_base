@@ -13,6 +13,7 @@ extern _Atomic unsigned atomic_u;
 extern _Atomic int atomic_s;
 static_assert(is_unsigned(((struct bits){0}).u) && !is_unsigned(((struct bits){0}).s));
 static_assert(is_unsigned(atomic_u) && !is_unsigned(atomic_s));
+static_assert(constexpr_or(3, 7) == 3 && constexpr_or(atomic_s, 7) == 7);
 
 int bitfield_and_atomic_index(int (*a)[16], struct bits b) {
 	return (*arrview(b.u, 2, a))[0] + (*arrview(b.s, 2, a))[0] + (*arrview(atomic_u, 2, a))[0] + (*arrview(atomic_s, 2, a))[0];
@@ -26,6 +27,10 @@ int static_check_unsigned(int (*a)[16], unsigned char (*b)[4], unsigned u, size_
 	return (*v)[0] + (*w)[0] + (*arrview_cfront(u, a))[0] + (*arrview_cback(u, a))[0] + (*arrview_shrink(u, u, a))[0];
 }
 
+int narrow_static_check(int (*a)[70000], unsigned char c, unsigned short h, bool b) {
+	return (*arrview(c, 2, a))[0] + (*arrview(2, h, a))[0] + (*arrview(b, b, a))[0] + (*arrview_shrink(c, h, a))[0] + (*arrview_shrink(b, b, a))[0];
+}
+
 #undef POOR_ARRAY_CHECK
 #define POOR_ARRAY_CHECK RUNTIME_CHECK
 
@@ -34,4 +39,8 @@ int runtime_check_unsigned(int (*a)[16], unsigned char (*b)[4], unsigned u, size
 	array_insert(a, z, 5);
 	array_set_bit(b, u);
 	return (*v)[0] + (*arrview(u, 2, a))[0] + (*arrview_cfront(u, a))[0] + (*arrview_cback(u, a))[0] + (*arrview_shrink(u, u, a))[0];
+}
+
+int narrow_runtime_check(int (*a)[70000], unsigned char c, unsigned short h, bool b) {
+	return (*arrview(c, 2, a))[0] + (*arrview(2, h, a))[0] + (*arrview(b, b, a))[0] + (*arrview_shrink(c, h, a))[0] + (*arrview_shrink(b, b, a))[0];
 }
