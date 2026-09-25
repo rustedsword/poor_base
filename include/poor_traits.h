@@ -60,6 +60,11 @@
  * This macro can be used with any type of variable. */
 #define if_vla(arr, t, f) if_constexpr(sizeof(arr), (f), (t))
 
+#define is_unsigned(x) if_constexpr((typeof((void)0, (x)))-1 > 0, (typeof((void)0, (x)))-1 > 0, 0)
+
+/* Evaluates (t) expression if x has an unsigned integer type, otherwise evaluates (f) expression. */
+#define if_unsigned(x, t, f) _Generic((char (*)[1 + is_unsigned(x)])0, char (*)[2]: (t), default: (f))
+
 
 /* returns true if var is subject to the default argument promotions.
  * i.e bool, char, unsigned char, signed char, short, unsigned short are promoted to int

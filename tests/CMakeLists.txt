@@ -120,6 +120,11 @@ target_link_libraries(concat_malloc_array_compile_pedantic poor_base)
 target_compile_options(concat_malloc_array_compile_pedantic PRIVATE -pedantic-errors)
 add_test(NAME concat_malloc_array_compile_pedantic COMMAND ${CMAKE_COMMAND} --build . --target concat_malloc_array_compile_pedantic WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
+add_library(unsigned_index_compile_type_limits OBJECT EXCLUDE_FROM_ALL unsigned_index_compile_type_limits.c)
+target_link_libraries(unsigned_index_compile_type_limits poor_base)
+target_compile_options(unsigned_index_compile_type_limits PRIVATE -Werror=type-limits)
+add_test(NAME unsigned_index_compile_type_limits COMMAND ${CMAKE_COMMAND} --build . --target unsigned_index_compile_type_limits WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
 #These tests should fail
 add_library(array_ptr_compile_three_args OBJECT EXCLUDE_FROM_ALL array_ptr_compile_three_args.c)
 target_link_libraries(array_ptr_compile_three_args poor_base)
