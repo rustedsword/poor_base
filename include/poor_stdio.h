@@ -598,7 +598,7 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 #define puts_charptr_guard(var) check_char_ptr( char_ptr_or_nullptr(var) )
 
 /* returns var if var is char, or returns 0 */
-#define char_or_zero(var) _Generic((var), char: var, const char: var, default: 0)
+#define char_or_zero(var) _Generic((var), char: var, default: 0)
 
 /* single println variant, optimized case when single argument is a string
  * in that case we will use puts() */
@@ -609,13 +609,13 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 /* single print variant, optimized cases when single argument is string or char */
 #define single_print(arg)                                                           \
         is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stdout ) : \
-        is_same_type(arg, char, 1, 1)  ? putchar( char_or_zero(arg) ) :             \
+        is_same_type(arg, char, 1, 0)  ? putchar( char_or_zero(arg) ) :             \
         print_main(arg)
 
 /* single fprint variant, optimised cases when single argument is string or char */
 #define single_fprint(stream, arg)                                                  \
         is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stream ) : \
-        is_same_type(arg, char, 1, 1)  ? fputc( char_or_zero(arg), stream ) :       \
+        is_same_type(arg, char, 1, 0)  ? fputc( char_or_zero(arg), stream ) :       \
         fprint_main(stream, arg)
 
 /* These functions are real printx() functions */
