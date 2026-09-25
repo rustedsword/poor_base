@@ -432,6 +432,12 @@ static inline int h_fprint_test(FILE *f) {
 	if(fprint(f, "L", 1, true, "0x", fmt_hex_p(0xDEAD, 6)) <= 0)
 		return printerrln("Failed to write to file"), -1;
 
+	int rc_char = fprint(f, (char)'!');
+	int rc_str = fprint(f, "end");
+	int rc_empty = print("");
+	if(rc_char == EOF || rc_str == EOF || rc_empty == EOF)
+		return printerrln("Failed to write to file"), -1;
+
 	rewind(f);
 
 	char tmp[20] = {0};
@@ -439,7 +445,7 @@ static inline int h_fprint_test(FILE *f) {
 	if(nread == 0 || nread == 20)
 		return printerrln("Failed to read file:", nread), -1;
 
-	assert(!strcmp("L1true0x00dead", tmp));
+	assert(!strcmp("L1true0x00dead!end", tmp));
 	return 0;
 }
 
