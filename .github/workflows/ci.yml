@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gcc:
+    name: gcc-${{ matrix.version }} ${{ matrix.sanitizers == 'ON' && 'sanitizers' || 'release' }}
+    runs-on: ubuntu-24.04
+    container:
+      image: gcc:${{ matrix.version }}
+      options: --cap-add=SYS_PTRACE
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [15, 16]
+        sanitizers: ['ON', 'OFF']
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install CMake
+        run: apt-get update && apt-get install -y --no-install-recommends cmake
+      - name: Configure
+        run: cmake -S . -B build -DPOOR_BASE_TEST=1 -DPOOR_BASE_TEST_SANITIZERS=${{ matrix.sanitizers }} -DCMAKE_BUILD_TYPE=${{ matrix.sanitizers == 'ON' && 'Debug' || 'Release' }}
+      - name: Build
+        run: cmake --build build --parallel $(nproc)
+      - name: Test
+        run: ctest --test-dir build --parallel $(nproc) --output-on-failure
+
+  clang:
+    name: clang-${{ matrix.version }} ${{ matrix.sanitizers == 'ON' && 'sanitizers' || 'release' }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [20, 21, 22]
+        sanitizers: ['ON', 'OFF']
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Clang
+        run: |
+          wget -qO llvm.sh https://apt.llvm.org/llvm.sh
+          sudo bash llvm.sh ${{ matrix.version }}
+          sudo apt-get install -y libclang-rt-${{ matrix.version }}-dev
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_C_COMPILER=clang-${{ matrix.version }} -DPOOR_BASE_TEST=1 -DPOOR_BASE_TEST_SANITIZERS=${{ matrix.sanitizers }} -DCMAKE_BUILD_TYPE=${{ matrix.sanitizers == 'ON' && 'Debug' || 'Release' }}
+      - name: Build
+        run: cmake --build build --parallel $(nproc)
+      - name: Test
+        run: ctest --test-dir build --parallel $(nproc) --output-on-failure
