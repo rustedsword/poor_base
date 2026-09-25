@@ -985,6 +985,9 @@
 /* (x) >= 0 warns with -Wtype-limits for an unsigned x, so unsigned types compare 0 instead */
 #define h_not_negative(x) (if_unsigned(x, 0, (x)) >= 0)
 
+/* Runtime check functions take uintmax_t: wider arguments don't compile instead of being truncated */
+#define h_dyn_arg(x) (ARR_ASSERT(sizeof((void)0, (x)) <= sizeof(uintmax_t)), (x))
+
 /* Declares a pointer to array with same type as another pointer to array but with different size */
 #define unsafe_make_arrptr(_name_, _size_, _arrp_) UNSAFE_ARRAY_ELEMENT_TYPE(*_arrp_)(* _name_)[_size_]
 
@@ -1228,10 +1231,15 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define h_av_chk_static(_arrp_, _idx_, _size_, _macro_name_) _Generic(1,	\
 	int*:	ARR_ASSERT(h_not_negative(_idx_)),				\
 	int**:	ARR_ASSERT(_size_ > 0),						\
-	int***:	ARR_ASSERT(_idx_ + _size_ <= UNSAFE_ARRAY_SIZE(*_arrp_)),	\
+	int***:	ARR_ASSERT(h_av_fits_static(UNSAFE_ARRAY_SIZE(*_arrp_), constexpr_or(_idx_, 0), constexpr_or(_size_, 1))),	\
 	default: 0 )
 
+/* Static checks pass constexpr_or(x, <most permissive value>): only constants can fail them, and comparing the rest could warn */
+#define h_av_fits_static(n, idx, size) ((idx) < (n) && (size) <= (n) - (idx))
+static inline bool h_av_fits(size_t n, uintmax_t idx, uintmax_t size) { return h_av_fits_static(n, idx, size); }
+
 #define h_av_chk_dyn(_arrp_, _idx_, _size_, _macro_name_) ((			\
+	(void)h_av_chk_static(_arrp_, _idx_, _size_, _macro_name_),		\
 	ARR_ASSERT_MSG(h_not_negative(_idx_),					\
 		CRED _macro_name_ ": Start index ", _idx_ ," is less than 0"	\
 		" (start index:", _idx_, ")"					\
@@ -1240,7 +1248,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 		CRED _macro_name_ ": Size of the view should be greater than 0"	\
 		" (size:", _size_, ")"						\
 		" at " POOR_FILE_AND_LINE CRESET),				\
-	ARR_ASSERT_MSG(_idx_ + _size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),		\
+	ARR_ASSERT_MSG(h_av_fits(UNSAFE_ARRAY_SIZE(*_arrp_), h_dyn_arg(_idx_), h_dyn_arg(_size_)),	\
 		CRED _macro_name_ ": Out of bound view "			\
 		" (start index:", _idx_, " view size:", _size_,			\
 		" source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"		\
@@ -1311,16 +1319,20 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 
 #define h_av_shrink_chk_static(_arrp_, _skip_start_, _skip_end_, _macro_name_) _Generic(1,	\
 	int*:   ARR_ASSERT(h_not_negative(_skip_start_) && h_not_negative(_skip_end_)),		\
-	int**:	ARR_ASSERT(_skip_start_ + _skip_end_ < UNSAFE_ARRAY_SIZE(*_arrp_)),		\
+	int**:	ARR_ASSERT(h_av_shrink_fits_static(UNSAFE_ARRAY_SIZE(*_arrp_), constexpr_or(_skip_start_, 0), constexpr_or(_skip_end_, 0))),	\
 	default: 0										\
 	)
 
+#define h_av_shrink_fits_static(n, skip_start, skip_end) ((skip_start) < (n) && (skip_end) < (n) - (skip_start))
+static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t skip_end) { return h_av_shrink_fits_static(n, skip_start, skip_end); }
+
 #define h_av_shrink_chk_dyn(_arrp_, _skip_start_, _skip_end_, _macro_name_) ((					\
+	(void)h_av_shrink_chk_static(_arrp_, _skip_start_, _skip_end_, _macro_name_),				\
 	ARR_ASSERT_MSG(h_not_negative(_skip_start_) && h_not_negative(_skip_end_),				\
 		CRED _macro_name_ ": Skipping negative amount of elements"					\
 		" (skipped front:", _skip_start_, " skipped back:", _skip_end_, ")"				\
 		" at " POOR_FILE_AND_LINE CRESET),								\
-	ARR_ASSERT_MSG(_skip_start_ + _skip_end_ < UNSAFE_ARRAY_SIZE(*_arrp_),					\
+	ARR_ASSERT_MSG(h_av_shrink_fits(UNSAFE_ARRAY_SIZE(*_arrp_), h_dyn_arg(_skip_start_), h_dyn_arg(_skip_end_)),	\
 		CRED _macro_name_ ": Skipping the whole array"							\
 		" (skipped front:", _skip_start_, " skipped back:", _skip_end_, ","				\
 		" array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"							\

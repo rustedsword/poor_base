@@ -59,11 +59,17 @@ target_compile_options(array_vla_function_tests PRIVATE -Wall -Werror -UNDEBUG)
 # Keep the caller's values unavailable when compiling the function under test.
 set_target_properties(array_vla_function_tests PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
 
+add_executable(arrview_runtime_check_tests arrview_runtime_check_tests.c)
+target_link_libraries(arrview_runtime_check_tests poor_base)
+target_compile_options(arrview_runtime_check_tests PRIVATE -Wall -Werror -UNDEBUG)
+
 if(POOR_BASE_TEST_SANITIZERS)
     # Accept GCC/Clang runtime-zero array bounds while checking actual iteration
     # with ASan and all the remaining UBSan checks.
     target_compile_options(foreach_array_vla_tests PRIVATE -fno-sanitize=vla-bound)
     target_compile_options(array_vla_function_tests PRIVATE -fno-sanitize=vla-bound)
+    # Rejected views reach zero or negative VLA bounds before arr_errmsg()
+    target_compile_options(arrview_runtime_check_tests PRIVATE -fno-sanitize=vla-bound)
 endif()
 
 add_test(NAME auto_arr_test COMMAND poor_array_tests auto_arr_test)
@@ -114,6 +120,7 @@ add_test(NAME array_insert_test COMMAND poor_array_tests array_insert_test)
 add_test(NAME sprint_array_test COMMAND poor_array_tests sprint_array_test)
 add_test(NAME print_array_test COMMAND poor_array_tests print_array_test)
 set_tests_properties(print_array_test PROPERTIES PASS_REGULAR_EXPRESSION "^\\[\\]\n\\[\\]\n\\[\\]\n\\[7\\]\n\\[1,2,3\\]\n\\[0xab,0x01\\]\n\\[\\[1,2\\]\n,\\[3,4\\]\n\\]\n\\[\\[5,6\\]\n,\\[7,8\\]\n\\]\ndone\n$")
+add_test(NAME arrview_runtime_check_test COMMAND arrview_runtime_check_tests)
 
 add_library(concat_malloc_array_compile_pedantic OBJECT EXCLUDE_FROM_ALL concat_malloc_array_compile_pedantic.c)
 target_link_libraries(concat_malloc_array_compile_pedantic poor_base)
@@ -122,7 +129,7 @@ add_test(NAME concat_malloc_array_compile_pedantic COMMAND ${CMAKE_COMMAND} --bu
 
 add_library(unsigned_index_compile_type_limits OBJECT EXCLUDE_FROM_ALL unsigned_index_compile_type_limits.c)
 target_link_libraries(unsigned_index_compile_type_limits poor_base)
-target_compile_options(unsigned_index_compile_type_limits PRIVATE -Werror=type-limits)
+target_compile_options(unsigned_index_compile_type_limits PRIVATE -Wall -Wextra -Werror)
 add_test(NAME unsigned_index_compile_type_limits COMMAND ${CMAKE_COMMAND} --build . --target unsigned_index_compile_type_limits WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 #These tests should fail
@@ -135,6 +142,21 @@ add_library(array_ptr_compile_four_args OBJECT EXCLUDE_FROM_ALL array_ptr_compil
 target_link_libraries(array_ptr_compile_four_args poor_base)
 add_test(NAME array_ptr_compile_four_args COMMAND ${CMAKE_COMMAND} --build . --target array_ptr_compile_four_args WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 set_tests_properties(array_ptr_compile_four_args PROPERTIES WILL_FAIL TRUE)
+
+foreach(name IN ITEMS arrview_compile_wrap_idx arrview_shrink_compile_wrap_start arrview_shrink_compile_wrap_end)
+    foreach(target IN ITEMS ${name} ${name}_runtime)
+        add_library(${target} OBJECT EXCLUDE_FROM_ALL ${name}.c)
+        target_link_libraries(${target} poor_base)
+        add_test(NAME ${target} COMMAND ${CMAKE_COMMAND} --build . --target ${target} WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+        set_tests_properties(${target} PROPERTIES WILL_FAIL TRUE)
+    endforeach()
+    target_compile_definitions(${name}_runtime PRIVATE RUNTIME_MODE)
+endforeach()
+
+add_library(arrview_compile_too_wide OBJECT EXCLUDE_FROM_ALL arrview_compile_too_wide.c)
+target_link_libraries(arrview_compile_too_wide poor_base)
+add_test(NAME arrview_compile_too_wide COMMAND ${CMAKE_COMMAND} --build . --target arrview_compile_too_wide WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(arrview_compile_too_wide PROPERTIES WILL_FAIL TRUE)
 
 add_library(auto_arr_compile_ptr OBJECT EXCLUDE_FROM_ALL auto_arr_compile_ptr.c)
 target_link_libraries(auto_arr_compile_ptr poor_base)
