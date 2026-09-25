@@ -168,6 +168,27 @@
 	println("]");								\
 } while (0)
 
+/* sprint_array(_arrm_, var1, ..., varn):
+ * prints to char array.
+ * returns number of bytes in the printed string without last '\0'
+ * always writes '\0' at the end of printed string.
+ * if printed string was larger than array, then writes '\0' to the last array element.
+ *
+ * if returned value is equal or greater than size of the provided array, then output was truncated.
+ *
+ * @_arrm_: a char array or a pointer to a char array
+ * @_var_: standard C types variables that supported by print() macro family
+ * example:
+
+	char buf[5];
+	if((size_t)sprint_array(buf,1,2,3,4,5) >= sizeof(buf))
+		printerrln("Output truncated");
+
+	println(buf); //prints:1234
+ */
+#define sprint_array(_arrm_, ...) snprintf(auto_arr(_arrm_), ARRAY_SIZE_BYTES(_arrm_), printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+#define sprintln_array(_arrm_, ...) snprintf(auto_arr(_arrm_), ARRAY_SIZE_BYTES(_arrm_), printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
+
 /*** Basic array manipulation ***/
 
 /* array_ptr(pointer[, size])
