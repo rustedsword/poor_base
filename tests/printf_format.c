@@ -367,6 +367,12 @@ static int fmt_p_test(void) {
 
 	concat_vla(c, fmt_p(10.f, 4));
 	assert(strcmp(c, "10.0000") == 0);
+
+	concat_vla(d, fmt_p(3.14159265358979, 12));
+	assert(strcmp(d, "3.141592653590") == 0);
+
+	concat_vla(e, fmt_p(3.14159265358979L, 12));
+	assert(strcmp(e, "3.141592653590") == 0);
 	return 0;
 }
 

@@ -133,8 +133,8 @@ static inline sllong_raw  _to_psn_sllong(long long c)         { return (sllong_r
 static inline ullong_raw  _to_psn_ullong(unsigned long long c){ return (ullong_raw){c}; }
 
 static inline float_raw   _to_psn_float(float c)              { return (float_raw){c}; }
-static inline double_raw  _to_psn_double(float c)             { return (double_raw){c}; }
-static inline ldouble_raw _to_psn_ldouble(float c)            { return (ldouble_raw){c}; }
+static inline double_raw  _to_psn_double(double c)            { return (double_raw){c}; }
+static inline ldouble_raw _to_psn_ldouble(long double c)      { return (ldouble_raw){c}; }
 
 static inline const_char_ptr_raw _to_psn_const_char_ptr(const char *c) { return (const_char_ptr_raw){c}; }
 static inline const_char_ptr_raw _to_psn_const_char_arr_ptr(const char (*c)[]) { return (const_char_ptr_raw){*c}; }
