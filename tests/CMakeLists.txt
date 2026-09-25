@@ -63,6 +63,11 @@ add_executable(arrview_runtime_check_tests arrview_runtime_check_tests.c)
 target_link_libraries(arrview_runtime_check_tests poor_base)
 target_compile_options(arrview_runtime_check_tests PRIVATE -Wall -Werror -UNDEBUG)
 
+add_executable(array_insert_no_check_test array_insert_no_check_test.c)
+target_link_libraries(array_insert_no_check_test poor_base)
+target_compile_definitions(array_insert_no_check_test PRIVATE POOR_ARRAY_CHECK=NO_CHECK)
+target_compile_options(array_insert_no_check_test PRIVATE -Wall -Werror -UNDEBUG)
+
 if(POOR_BASE_TEST_SANITIZERS)
     # Accept GCC/Clang runtime-zero array bounds while checking actual iteration
     # with ASan and all the remaining UBSan checks.
@@ -121,6 +126,7 @@ add_test(NAME sprint_array_test COMMAND poor_array_tests sprint_array_test)
 add_test(NAME print_array_test COMMAND poor_array_tests print_array_test)
 set_tests_properties(print_array_test PROPERTIES PASS_REGULAR_EXPRESSION "^\\[\\]\n\\[\\]\n\\[\\]\n\\[7\\]\n\\[1,2,3\\]\n\\[0xab,0x01\\]\n\\[\\[1,2\\]\n,\\[3,4\\]\n\\]\n\\[\\[5,6\\]\n,\\[7,8\\]\n\\]\ndone\n$")
 add_test(NAME arrview_runtime_check_test COMMAND arrview_runtime_check_tests)
+add_test(NAME array_insert_no_check_test COMMAND array_insert_no_check_test)
 
 add_library(concat_malloc_array_compile_pedantic OBJECT EXCLUDE_FROM_ALL concat_malloc_array_compile_pedantic.c)
 target_link_libraries(concat_malloc_array_compile_pedantic poor_base)
