@@ -112,6 +112,8 @@ add_test(NAME array_ptr_test COMMAND poor_array_tests array_ptr_test)
 add_test(NAME arrview_auto_test COMMAND poor_array_tests arrview_auto_test)
 add_test(NAME array_insert_test COMMAND poor_array_tests array_insert_test)
 add_test(NAME sprint_array_test COMMAND poor_array_tests sprint_array_test)
+add_test(NAME print_array_test COMMAND poor_array_tests print_array_test)
+set_tests_properties(print_array_test PROPERTIES PASS_REGULAR_EXPRESSION "^\\[\\]\n\\[\\]\n\\[\\]\n\\[7\\]\n\\[1,2,3\\]\n\\[0xab,0x01\\]\n\\[\\[1,2\\]\n,\\[3,4\\]\n\\]\n\\[\\[5,6\\]\n,\\[7,8\\]\n\\]\ndone\n$")
 
 add_library(concat_malloc_array_compile_pedantic OBJECT EXCLUDE_FROM_ALL concat_malloc_array_compile_pedantic.c)
 target_link_libraries(concat_malloc_array_compile_pedantic poor_base)

@@ -159,6 +159,10 @@
  */
 #define print_array(...) do {						\
 	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);		\
+	if(!UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_)) {				\
+		println("[]");							\
+		break;								\
+	}									\
 	unsafe_make_array_first_ref(_tmp_arr_ptr_, _ref_);		\
 										\
 	print((char)'[', *_ref_);						\
@@ -1502,6 +1506,10 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
  */
 #define print_array_fmt(_fmt_fn_, ...) do {					\
 	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);			\
+	if(!UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_)) {				\
+		println("[]");							\
+		break;								\
+	}									\
 	unsafe_make_array_first_ref(_tmp_arr_ptr_, _ref_);			\
 										\
 	print((char)'['); _fmt_fn_(_ref_);					\

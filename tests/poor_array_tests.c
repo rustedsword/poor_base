@@ -1096,6 +1096,24 @@ static int sprint_array_test(void) {
 	return 0;
 }
 
+static int print_array_test(void) {
+	int empty[0];
+	print_array(empty);
+	print_array((int (*)[0])NULL);
+	print_array_hex(empty);
+	print_array((int[]){7});
+	print_array((int[]){1, 2, 3});
+	print_array_hex((unsigned char[]){0xab, 1});
+#define h_print_row(r) print_array(r)
+	print_array_fmt(h_print_row, (int[2][2]){{1, 2}, {3, 4}});
+	size_t cols = 2;
+	int vla2d[2][cols];
+	vla2d[0][0] = 5; vla2d[0][1] = 6; vla2d[1][0] = 7; vla2d[1][1] = 8;
+	print_array_fmt(h_print_row, vla2d);
+	println("done");
+	return 0;
+}
+
 typedef int test_fn (void);
 
 #define TEST_FN(fn) {#fn, fn}
@@ -1141,6 +1159,7 @@ static struct tests_struct {
 
 	TEST_FN(array_insert_test),
 	TEST_FN(sprint_array_test),
+	TEST_FN(print_array_test),
 };
 
 static void usage(void) {
