@@ -132,6 +132,12 @@ target_link_libraries(unsigned_index_compile_type_limits poor_base)
 target_compile_options(unsigned_index_compile_type_limits PRIVATE -Wall -Wextra -Werror)
 add_test(NAME unsigned_index_compile_type_limits COMMAND ${CMAKE_COMMAND} --build . --target unsigned_index_compile_type_limits WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
+add_library(array_check_compile_define OBJECT EXCLUDE_FROM_ALL array_check_compile_define.c)
+target_link_libraries(array_check_compile_define poor_base)
+target_compile_definitions(array_check_compile_define PRIVATE POOR_ARRAY_CHECK=RUNTIME_CHECK)
+target_compile_options(array_check_compile_define PRIVATE -Werror)
+add_test(NAME array_check_compile_define COMMAND ${CMAKE_COMMAND} --build . --target array_check_compile_define WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
 #These tests should fail
 add_library(array_ptr_compile_three_args OBJECT EXCLUDE_FROM_ALL array_ptr_compile_three_args.c)
 target_link_libraries(array_ptr_compile_three_args poor_base)
