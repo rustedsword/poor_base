@@ -1042,6 +1042,11 @@ static int arrview_auto_test(void) {
 	assert(ARRAY_SIZE(v_vla) == 3);
 	assert(auto_arr(v_vla)[0] == 1 && auto_arr(v_vla)[2] == 3);
 
+	//library macros keep expanding inside POOR_PRIMITIVE_CAT
+	auto v_cat = POOR_PRIMITIVE_CAT(arr, view(1, 3, a));
+	static_assert(is_same_array_element_type(v_cat, v) == true);
+	assert(v_cat == v);
+
 	//views are writable through auto and alias the original storage
 	auto v_write = arrview_last(2, a);
 	auto_arr(v_write)[0] = 40;

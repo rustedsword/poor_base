@@ -7,15 +7,43 @@
 #ifndef POOR_MAP_H_INCLUDED
 #define POOR_MAP_H_INCLUDED
 
-#define TOKEN_CAT_2(a, ...) TOKEN_CAT_1(a, __VA_ARGS__)
-#define TOKEN_CAT_1(a, ...) a ## __VA_ARGS__
+/* The library doesn't use POOR_CAT, POOR_PRIMITIVE_CAT or POOR_EXPAND, every header has private copies:
+ * a macro can't expand during its own rescan, so library calls made inside them would stop expanding */
+#define POOR_CAT(a, ...) POOR_PRIMITIVE_CAT(a, __VA_ARGS__)
+#define POOR_PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
 
-#define EAT(...)
-#define EAT_ONE_ARG(arg)
-#define EXPAND(...) __VA_ARGS__
+#define H_MAP_CAT(a, ...) H_MAP_PRIMITIVE_CAT(a, __VA_ARGS__)
+#define H_MAP_PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
 
-#define STRINGIFY_(var) #var
-#define STRINGIFY2(var) STRINGIFY_(var)
+#define POOR_EAT(...)
+#define POOR_EAT_ONE_ARG(arg)
+#define POOR_EXPAND(...) __VA_ARGS__
+#define POOR_TAKE_FIRST_ARG(var, ...) var
+
+#define POOR_STRINGIFY(var) POOR_PRIMITIVE_STRINGIFY(var)
+#define POOR_PRIMITIVE_STRINGIFY(var) #var
+
+/* Expands to string literal with file:line. example: /home/user/cool_program.c:56 */
+#define POOR_FILE_AND_LINE __FILE__ ":" POOR_STRINGIFY(__LINE__)
+
+#define POOR_CHECK_N(x, n, ...) n
+#define POOR_CHECK(...) POOR_CHECK_N(__VA_ARGS__, 0,)
+#define POOR_PROBE(x) x, 1,
+
+#define POOR_NOT(x) POOR_CHECK(H_MAP_PRIMITIVE_CAT(POOR_NOT_, x))
+#define POOR_NOT_0 POOR_PROBE(~)
+
+#define POOR_COMPL(b) H_MAP_PRIMITIVE_CAT(POOR_COMPL_, b)
+#define POOR_COMPL_0 1
+#define POOR_COMPL_1 0
+
+#define POOR_BOOL(x) POOR_COMPL(POOR_NOT(x))
+
+#define POOR_IIF(c) H_MAP_PRIMITIVE_CAT(POOR_IIF_, c)
+#define POOR_IIF_0(t, ...) __VA_ARGS__
+#define POOR_IIF_1(t, ...) t
+
+#define POOR_IF(c) POOR_IIF(POOR_BOOL(c))
 
 #define H_ARG_CUT( \
     _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8,  _9, _10, \
@@ -176,8 +204,8 @@
 
 
 /* Choses one of EVAL_X/EVAL2_x macros depending on arguments count */
-#define EVAL_SELECT(...) TOKEN_CAT_2(EVAL_, EVAL_ARGS_COUNT(__VA_ARGS__))
-#define EVAL2_SELECT(...) TOKEN_CAT_2(EVAL2_, EVAL_ARGS_COUNT(__VA_ARGS__))
+#define EVAL_SELECT(...) H_MAP_CAT(EVAL_, EVAL_ARGS_COUNT(__VA_ARGS__))
+#define EVAL2_SELECT(...) H_MAP_CAT(EVAL2_, EVAL_ARGS_COUNT(__VA_ARGS__))
 
 /* map helpers */
 #define MAP_END(...)
@@ -321,7 +349,7 @@
 
 /************ --- map with separator --- **********/
 /* Helpers */
-#define MAP_SEP_NEXT1(test, sep, next) MAP_NEXT0(test, EXPAND sep next, 0)
+#define MAP_SEP_NEXT1(test, sep, next) MAP_NEXT0(test, MAP_EXPAND sep next, 0)
 #define MAP_SEP_NEXT(test, sep, next)  MAP_SEP_NEXT1(MAP_GET_END test, sep, next)
 
 /*

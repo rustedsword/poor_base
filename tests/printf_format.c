@@ -247,6 +247,9 @@ static int concat_vla_test(void) {
 		   fmt_hex(20), fmt_hex(30U), fmt_hex(40U));
 
 	assert(strcmp("e12345678910stringtruefalse141e28", string_vla) == 0);
+
+	POOR_PRIMITIVE_CAT(concat_, vla(pasted_vla, 1, 2U));
+	assert(strcmp("12", pasted_vla) == 0);
 	return 0;
 }
 
@@ -446,7 +449,7 @@ static int fprint_test(void) {
 
 typedef int test_fn (void) ;
 
-#define TEST_FN(fn) {STRINGIFY2(fn), fn}
+#define TEST_FN(fn) {POOR_STRINGIFY(fn), fn}
 static struct tests_struct {
 	const char *test_name;
 	test_fn *fn;

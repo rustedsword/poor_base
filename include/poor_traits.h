@@ -4,8 +4,10 @@
  */
 #ifndef POOR_TRAITS_H
 #define POOR_TRAITS_H
+#include <poor_map.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <stddef.h>
 
 #if !defined __cplusplus && (!defined __STDC_VERSION__ || __STDC_VERSION__ < 202311L)
 # error "poor_base requires C23 (compile with -std=c23 or -std=gnu23)"
@@ -74,5 +76,44 @@
         unsigned short:     true,          \
         float:              true,          \
         default:            false )
+
+/* is_same_type(variable, _type_, SIMPLE, CONST)
+ * returns true if variable is _type_, or returns false
+ *
+ * if SIMPLE is not 0, then check for basic _type_ match will be performed
+ * if CONST is not 0, then returns true if variable is const _type_
+ */
+#define is_same_type(var, _type_, SIMPLE, CONST) _Generic((var), \
+                        POOR_IF(SIMPLE)(h_same_type_simple, POOR_EAT)(_type_)   \
+                        POOR_IF(CONST)(h_same_type_const, POOR_EAT)(_type_)     \
+                        default: false)
+
+#define h_same_type_simple(_type_) _type_: true,
+#define h_same_type_const(_type_) const _type_: true,
+
+/*
+ * container_of(ptr, type, member): get pointer to a struct by using pointer to some member of that struct 
+ *
+ * @ptr: pointer to some member of struct
+ * @type: type of struct where ptr points to
+ * @member: name of struct's member
+ *
+ * usage:
+  struct s {
+	char c;
+	int a;
+  };
+
+  struct s s1 = {0};
+  int *a_ptr = &s1.a; // a_ptr points to member 'a' of the struct s1
+
+  struct s *s1_ptr = container_of(a_ptr, struct s, a);
+
+  //now s1_ptr will point to s1, so (s1_ptr == &s1) will be true
+
+ */
+#define container_of(ptr, type, member) _Generic(1, int*: (void)(&(type){0}.member - (ptr)), \
+                                         default: h_container_of(ptr, type, member) )
+#define h_container_of(ptr, type, member) (type *)( (uintptr_t)(ptr) - offsetof(type, member) )
 
 #endif // POOR_TRAITS_H
