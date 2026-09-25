@@ -111,6 +111,7 @@ add_test(NAME string_literal_test COMMAND poor_array_tests string_literal_test)
 add_test(NAME array_ptr_test COMMAND poor_array_tests array_ptr_test)
 add_test(NAME arrview_auto_test COMMAND poor_array_tests arrview_auto_test)
 add_test(NAME array_insert_test COMMAND poor_array_tests array_insert_test)
+add_test(NAME sprint_array_test COMMAND poor_array_tests sprint_array_test)
 
 #These tests should fail
 add_library(array_ptr_compile_three_args OBJECT EXCLUDE_FROM_ALL array_ptr_compile_three_args.c)

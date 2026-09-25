@@ -1084,6 +1084,18 @@ static int array_insert_test(void) {
 	return 0;
 }
 
+static int sprint_array_test(void) {
+	char buf[5];
+	assert(sprint_array(buf, 1, 2, 3, 4, 5) == 5);
+	assert(strcmp(buf, "1234") == 0);
+
+	char (*p)[8] = &(char[8]){0};
+	assert(sprintln_array(p, "ab", 1) == 4);
+	assert(strcmp(*p, "ab1\n") == 0);
+
+	return 0;
+}
+
 typedef int test_fn (void);
 
 #define TEST_FN(fn) {#fn, fn}
@@ -1128,6 +1140,7 @@ static struct tests_struct {
 	TEST_FN(arrview_auto_test),
 
 	TEST_FN(array_insert_test),
+	TEST_FN(sprint_array_test),
 };
 
 static void usage(void) {
