@@ -749,7 +749,7 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 	char (*_name_)[1 + snprintf(NULL, 0, h_printf_pack_get_fmt(_name_),					\
 		h_printf_pack_get_args(_name_, __VA_ARGS__))];							\
 	((_name_ = malloc(sizeof(*_name_)))									\
-		? sprintf(*_name_, h_printf_pack_get_fmt(_name_),						\
+		? (void)sprintf(*_name_, h_printf_pack_get_fmt(_name_),						\
 			h_printf_pack_get_args(_name_, __VA_ARGS__)) : (void)0)
 
 static inline char *_poor_concat(const char *fmt, ...) {
