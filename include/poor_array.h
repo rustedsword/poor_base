@@ -1545,7 +1545,7 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 #define h_chk_arr_ins_chk_sel(_arrp_, _idx_, _macro_name_) \
 	POOR_ARR_CHK_SEL(h_chk_arr_ins_chk_none, h_chk_arr_ins_chk_static, h_chk_arr_ins_chk_dyn)(_arrp_, _idx_, _macro_name_)
 
-#define h_chk_arr_ins_chk_none(...)
+#define h_chk_arr_ins_chk_none(...) 0
 #define h_chk_arr_ins_chk_static(_arrp_, _idx_, _macro_name_) _Generic(1,		\
 	int *: ARR_ASSERT(h_not_negative(_idx_)),					\
 	int **: ARR_ASSERT(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_)),				\
