@@ -113,6 +113,11 @@ add_test(NAME arrview_auto_test COMMAND poor_array_tests arrview_auto_test)
 add_test(NAME array_insert_test COMMAND poor_array_tests array_insert_test)
 add_test(NAME sprint_array_test COMMAND poor_array_tests sprint_array_test)
 
+add_library(concat_malloc_array_compile_pedantic OBJECT EXCLUDE_FROM_ALL concat_malloc_array_compile_pedantic.c)
+target_link_libraries(concat_malloc_array_compile_pedantic poor_base)
+target_compile_options(concat_malloc_array_compile_pedantic PRIVATE -pedantic-errors)
+add_test(NAME concat_malloc_array_compile_pedantic COMMAND ${CMAKE_COMMAND} --build . --target concat_malloc_array_compile_pedantic WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
 #These tests should fail
 add_library(array_ptr_compile_three_args OBJECT EXCLUDE_FROM_ALL array_ptr_compile_three_args.c)
 target_link_libraries(array_ptr_compile_three_args poor_base)
