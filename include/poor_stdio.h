@@ -603,20 +603,20 @@ static inline const char* check_char_ptr(const char *c) { return c ? c : "(null)
 /* single println variant, optimized case when single argument is a string
  * in that case we will use puts() */
 #define single_println(arg)                                                 \
-        is_same_type(arg, char*, 1, 1) ? puts( puts_charptr_guard(arg) ) :  \
-        println_main(arg)
+       (is_same_type(arg, char*, 1, 1) ? puts( puts_charptr_guard(arg) ) :  \
+        println_main(arg))
 
 /* single print variant, optimized cases when single argument is string or char */
 #define single_print(arg)                                                           \
-        is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stdout ) : \
+       (is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stdout ) : \
         is_same_type(arg, char, 1, 0)  ? putchar( char_or_zero(arg) ) :             \
-        print_main(arg)
+        print_main(arg))
 
 /* single fprint variant, optimised cases when single argument is string or char */
 #define single_fprint(stream, arg)                                                  \
-        is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stream ) : \
+       (is_same_type(arg, char*, 1, 1) ? fputs( puts_charptr_guard(arg), stream ) : \
         is_same_type(arg, char, 1, 0)  ? fputc( char_or_zero(arg), stream ) :       \
-        fprint_main(stream, arg)
+        fprint_main(stream, arg))
 
 /* These functions are real printx() functions */
 #define print_main(...)   printf(printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
