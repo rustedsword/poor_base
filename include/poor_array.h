@@ -204,8 +204,8 @@
 
  */
 #define array_ptr(_pointer_, ...) \
-	EAT_ONE_ARG(__VA_ARGS__ ## __VA_OPT__()) \
-	((typeof(*(_pointer_)) (*)[TAKE_FIRST_ARG(__VA_OPT__((__VA_ARGS__),) 1)])(void*)(_pointer_))
+	POOR_EAT_ONE_ARG(__VA_ARGS__ ## __VA_OPT__()) \
+	((typeof(*(_pointer_)) (*)[POOR_TAKE_FIRST_ARG(__VA_OPT__((__VA_ARGS__),) 1)])(void*)(_pointer_))
 
 /* make_array_ptr(name, pointer, size)
  *
@@ -706,7 +706,7 @@
 
  */
 #define make_merged_array(_name_, ...) \
-	ARRAY_ELEMENT_TYPE_NO_QUAL(TAKE_FIRST_ARG(__VA_ARGS__)) _name_ [ ARRAYS_SIZE(__VA_ARGS__) ]; \
+	ARRAY_ELEMENT_TYPE_NO_QUAL(POOR_TAKE_FIRST_ARG(__VA_ARGS__)) _name_ [ ARRAYS_SIZE(__VA_ARGS__) ]; \
 	copy_arrays(_name_, __VA_ARGS__)
 
 /* make_arrview_ref_ref(name, ref1, ref2):
@@ -935,22 +935,20 @@
 /*** Implementation macros. Everything below should not be used and can be changed anytime ***/
 /****** ------------------------------------------------------------------------------ *******/
 
+#define h_arr_cat(a, ...) h_arr_primitive_cat(a, __VA_ARGS__)
+#define h_arr_primitive_cat(a, ...) a ## __VA_ARGS__
+
 /* expands one of three provided macros by checking current POOR_ARRAY_CHECK setting */
 #define POOR_ARR_CHK_SEL(_no_check_, _static_check_, _runtime_check_) \
-	TOKEN_CAT_2(CHECK_SELECT_, POOR_ARRAY_CHECK)(_no_check_, _static_check_, _runtime_check_)
+	h_arr_cat(CHECK_SELECT_, POOR_ARRAY_CHECK)(_no_check_, _static_check_, _runtime_check_)
 
 #define CHECK_SELECT_0(_macro_, _1, _2)	_macro_
 #define CHECK_SELECT_1(_0, _macro_, _2)	_macro_
 #define CHECK_SELECT_2(_0, _1, _macro_)	_macro_
 #define CHECK_SELECT_POOR_ARRAY_CHECK(_0, _macro_, _2)	_macro_
 
-#define TAKE_FIRST_ARG(var, ...) var
-
 /* Returns type of array element without qualifiers */
 #define ARRAY_ELEMENT_TYPE_NO_QUAL(var) typeof_unqual(ARRAY_ELEMENT_TYPE(var))
-
-/* Expands to string literal with file:line. example: /home/user/cool_program.c:56 */
-#define FILE_AND_LINE __FILE__ ":" STRINGIFY2(__LINE__)
 
 /* If _expr_ is not constant expression and is equals zero then this macro calls arr_errmsg() macro
  * If _expr_ is constant expression and is equals zero then terminates compilation  */
@@ -1182,7 +1180,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 		"copy_arrays(): Array \"" #_arrm_dst_ "\" has incufficient space"	\
 		" (", ARRAY_SIZE(_arrm_dst_), " element(s))"				\
 		" while size of all source arrays is ", ARRAYS_SIZE(__VA_ARGS__),	\
-		" at " FILE_AND_LINE)							\
+		" at " POOR_FILE_AND_LINE)						\
 
 
 /***** Arrview helpers *****/
@@ -1209,16 +1207,16 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	ARR_ASSERT_MSG(_idx_ >= 0,						\
 		CRED _macro_name_ ": Start index ", _idx_ ," is less than 0"	\
 		" (start index:", _idx_, ")"					\
-		" at " FILE_AND_LINE CRESET),					\
+		" at " POOR_FILE_AND_LINE CRESET),				\
 	ARR_ASSERT_MSG(_size_ > 0,						\
 		CRED _macro_name_ ": Size of the view should be greater than 0"	\
 		" (size:", _size_, ")"						\
-		" at " FILE_AND_LINE CRESET),					\
+		" at " POOR_FILE_AND_LINE CRESET),				\
 	ARR_ASSERT_MSG(_idx_ + _size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),		\
 		CRED _macro_name_ ": Out of bound view "			\
 		" (start index:", _idx_, " view size:", _size_,			\
 		" source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"		\
-		" at " FILE_AND_LINE CRESET)					\
+		" at " POOR_FILE_AND_LINE CRESET)				\
     ), 0)
 
 /* arrview_first() implemenetation */
@@ -1256,11 +1254,11 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	ARR_ASSERT_MSG(_size_ > 0,								\
 		CRED _macro_name_ ": Size of the view should be greater than 0"			\
 		" (view size:", _size_, ")"							\
-		" at " FILE_AND_LINE CRESET),							\
+		" at " POOR_FILE_AND_LINE CRESET),						\
 	ARR_ASSERT_MSG(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),					\
 		CRED _macro_name_ ": Out of bound view "					\
 		" (view size:", _size_, " source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
-		" at " FILE_AND_LINE CRESET)							\
+		" at " POOR_FILE_AND_LINE CRESET)						\
     ), 0)
 
 /* arrview_shrink() implementation */
@@ -1293,12 +1291,12 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	ARR_ASSERT_MSG(_skip_start_ >= 0 && _skip_end_ >= 0,							\
 		CRED _macro_name_ ": Skipping negative amount of elements"					\
 		" (skipped front:", _skip_start_, " skipped back:", _skip_end_, ")"				\
-		" at " FILE_AND_LINE CRESET),									\
+		" at " POOR_FILE_AND_LINE CRESET),								\
 	ARR_ASSERT_MSG(_skip_start_ + _skip_end_ < UNSAFE_ARRAY_SIZE(*_arrp_),					\
 		CRED _macro_name_ ": Skipping the whole array"							\
 		" (skipped front:", _skip_start_, " skipped back:", _skip_end_, ","				\
 		" array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"							\
-		" at " FILE_AND_LINE CRESET)									\
+		" at " POOR_FILE_AND_LINE CRESET)								\
 	), 0)
 
 /* arrview cfront() implementation */
@@ -1339,11 +1337,11 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define h_av_skip_chk_dyn(_arrp_, _skip_, _macro_name_) ((					\
 	ARR_ASSERT_MSG(_skip_ >= 0,								\
 		CRED _macro_name_ ": Skipping negative amount of elements"			\
-		" (skipped:", _skip_, ") at " FILE_AND_LINE CRESET),				\
+		" (skipped:", _skip_, ") at " POOR_FILE_AND_LINE CRESET),			\
 	ARR_ASSERT_MSG(_skip_ < UNSAFE_ARRAY_SIZE(*_arrp_),					\
 		CRED _macro_name_ ": Skipping the whole array"					\
 		" (skipped:", _skip_,", array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"		\
-		" at " FILE_AND_LINE CRESET)							\
+		" at " POOR_FILE_AND_LINE CRESET)						\
 	), 0)
 
 /* arrview_dim() implementation */
@@ -1369,11 +1367,11 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	ARR_ASSERT_MSG(_size_ > 0,									\
 		CRED _macro_name_ ": Size of a new dimension should be greater than 0"			\
 		" (dimension size:", _size_, ")"								\
-		" at " FILE_AND_LINE CRESET),								\
+		" at " POOR_FILE_AND_LINE CRESET),							\
 	ARR_ASSERT_MSG(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),						\
 		CRED _macro_name_ ": Size of a new dimension is less than source array size"		\
 		" (dimension size:", _size_, " source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
-		" at " FILE_AND_LINE CRESET)								\
+		" at " POOR_FILE_AND_LINE CRESET)							\
     ), 0)
 
 /* arrview_flat() implementation */
@@ -1511,11 +1509,11 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	ARR_ASSERT_MSG(_idx_ >= 0,							\
 		CRED _macro_name_ ":Attempting to insert value at negative index"	\
 		" (index:", _idx_, ")"							\
-		" at " FILE_AND_LINE CRESET),						\
+		" at " POOR_FILE_AND_LINE CRESET),					\
 	ARR_ASSERT_MSG(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_),				\
 		CRED _macro_name_ ":Attempting to insert value beyond end of the array"	\
 		" (index:", _idx_, " array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
-		" at " FILE_AND_LINE CRESET)						\
+		" at " POOR_FILE_AND_LINE CRESET)					\
 	), 0)
 
 /* array_inseret_array() implementation */

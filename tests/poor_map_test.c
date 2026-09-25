@@ -111,5 +111,13 @@ int main(void) {
 	char RECURSION_ARG(h_rec_arg_val, y, z, 1, 2, 3, 4, 5);
 	(void)yyyyyz12345;
 
+/* POOR_IF and MAP_* inside POOR_PRIMITIVE_CAT and POOR_EXPAND */
+#define h_if_in_cat(...) __VA_ARGS__
+	static_assert(POOR_PRIMITIVE_CAT(h_if_in_, cat(POOR_IF(1)(1, 0))));
+	static_assert(POOR_PRIMITIVE_CAT(h_if_in_, cat(POOR_IF(0)(0, 1))));
+#define h_id(x) x
+	static_assert(POOR_PRIMITIVE_CAT(MAP_, SEP((+), h_id, 1, 2)) == 3);
+	static_assert(POOR_EXPAND(MAP_SEP MAP_OUT ((+), h_id, 1, 2)) == 3);
+
 	return 0;
 }

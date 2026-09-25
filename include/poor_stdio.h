@@ -13,64 +13,7 @@
 #include <stddef.h>
 #include <stdarg.h>
 
-#define CAT(a, ...) PRIMITIVE_CAT(a, __VA_ARGS__)
-#define PRIMITIVE_CAT(a, ...) a ## __VA_ARGS__
-
-#define COMPL(b) PRIMITIVE_CAT(COMPL_, b)
-#define COMPL_0 1
-#define COMPL_1 0
-
-#define BITAND(x) PRIMITIVE_CAT(BITAND_, x)
-#define BITAND_0(y) 0
-#define BITAND_1(y) y
-
-#define CHECK_N(x, n, ...) n
-#define CHECK(...) CHECK_N(__VA_ARGS__, 0,)
-#define PROBE(x) x, 1,
-
-#define IS_PAREN(x) CHECK(IS_PAREN_PROBE x)
-#define IS_PAREN_PROBE(...) PROBE(~)
-
-#define NOT(x) CHECK(PRIMITIVE_CAT(NOT_, x))
-#define NOT_0 PROBE(~)
-
-#define COMPL(b) PRIMITIVE_CAT(COMPL_, b)
-#define COMPL_0 1
-#define COMPL_1 0
-
-#define BOOL(x) COMPL(NOT(x))
-
-#define IIF(c) PRIMITIVE_CAT(IIF_, c)
-#define IIF_0(t, ...) __VA_ARGS__
-#define IIF_1(t, ...) t
-
-#define IF(c) IIF(BOOL(c))
-
-/*
- * container_of(ptr, type, member): get pointer to a struct by using pointer to some member of that struct 
- *
- * @ptr: pointer to some member of struct
- * @type: type of struct where ptr points to
- * @member: name of struct's member
- *
- * usage:
-  struct s {
-	char c;
-	int a;
-  };
-
-  struct s s1 = {0};
-  int *a_ptr = &s1.a; // a_ptr points to member 'a' of the struct s1
-
-  struct s *s1_ptr = container_of(a_ptr, struct s, a);
-
-  //now s1_ptr will point to s1, so (s1_ptr == &s1) will be true
-
- */
-#define container_of(ptr, type, member) _Generic(1, int*: (void)(&(type){0}.member - (ptr)), \
-                                         default: helper_container_of(ptr, type, member) )
-#define helper_container_of(ptr, type, member) (type *)( (uintptr_t)(ptr) - offsetof(type, member) )
-
+#define h_stdio_primitive_cat(a, ...) a ## __VA_ARGS__
 
 /**** ---- printf format specifiers helper functions ****/
 /* unpack basic types */
@@ -527,7 +470,7 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
     IF_SINGLE_ARG(printf_specifier_single, printf_specifier_string_multi, __VA_ARGS__)(endl, __VA_ARGS__)
 
 #define printf_specifier_single(endl, arg) \
-    IF( endl ) ( printf_dec_format_newline, printf_dec_format )(arg)
+    POOR_IF( endl ) ( printf_dec_format_newline, printf_dec_format )(arg)
 
 #define _printf_specifier_size(x) (sizeof(printf_dec_format(x)) - 1)
 
@@ -537,7 +480,7 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 # define _poor_nonstring
 #endif
 
-#define _gen_printf_specifier(idx, x) _poor_nonstring char TOKEN_CAT_1(s, idx) [_printf_specifier_size(x)];
+#define _gen_printf_specifier(idx, x) _poor_nonstring char h_stdio_primitive_cat(s, idx) [_printf_specifier_size(x)];
 #define _add_endline char endl;
 #define _add_endline_symbol '\n',
 #define _nothing
@@ -563,14 +506,14 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 #define h_fmt_struct_decl(endl, ...)				\
 	const struct {						\
 		MAP_INDEX(_gen_printf_specifier, __VA_ARGS__)	\
-		IF(endl)(_add_endline, _nothing)		\
+		POOR_IF(endl)(_add_endline, _nothing)		\
 		char null;					\
 	}
 
 #define h_fmt_struct_init(endl, ...)				\
 	{							\
 		MAP_LIST(printf_dec_format, __VA_ARGS__),	\
-		IF(endl)(_add_endline_symbol, _nothing)		\
+		POOR_IF(endl)(_add_endline_symbol, _nothing)	\
 		0						\
 	}
 
@@ -636,30 +579,16 @@ static h_fmt_struct_decl(endl, __VA_ARGS__)					\
 #define printf_pack_get_args(_pack_, ...) \
 	MAP_SEP_ARG_IDX((,), h_printf_pack_use, _pack_, __VA_ARGS__)
 
-#define h_printf_pack_member(idx, p, x) typeof(_each_printf_args(x)) TOKEN_CAT_1(a, idx);
-#define h_printf_pack_use(idx, p, x) p.TOKEN_CAT_1(a, idx)
+#define h_printf_pack_member(idx, p, x) typeof(_each_printf_args(x)) h_stdio_primitive_cat(a, idx);
+#define h_printf_pack_use(idx, p, x) p.h_stdio_primitive_cat(a, idx)
 
 /* the pack that concat_vla() and concat_malloc_array() build for (_name_) */
-#define h_printf_pack_get(_name_)      TOKEN_CAT_1(pack___, _name_)
+#define h_printf_pack_get(_name_)      h_stdio_primitive_cat(pack___, _name_)
 #define h_printf_pack_get_fmt(_name_)  h_printf_pack_get(_name_).fmt
 #define h_printf_pack_get_args(_name_, ...) \
 	printf_pack_get_args(h_printf_pack_get(_name_), __VA_ARGS__)
 
 /*** Print optimization ****/
-
-/* is_same_type(variable, _type_, SIMPLE, CONST)
- * returns true if variable is _type_, or returns false
- *
- * if SIMPLE is not 0, then check for basic _type_ match will be performed
- * if CONST is not 0, then returns true if variable is const _type_
- */
-#define is_same_type(var, _type_, SIMPLE, CONST) _Generic((var), \
-                        IF(SIMPLE)(simple_type, EAT)(_type_)     \
-                        IF(CONST)(const_type, EAT)(_type_)       \
-                        default: false)
-
-#define simple_type(_type_) _type_: true,
-#define const_type(_type_) const _type_: true,
 
 /* checks if providied value is [const] char *, and returns var if true, or returns NULL if false */
 #define char_ptr_or_nullptr(var) _Generic((var), char*: var, const char*:var, default: NULL)
