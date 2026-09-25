@@ -19,7 +19,7 @@
 #define CCYAN   "\033[0;36m"
 #define CRESET  "\033[0m"
 
-/* Define ARRAY_RUNTIME_CHECKS to one of three values to activate various checks when using macros from this library.
+/* Define POOR_ARRAY_CHECK to one of three values (STATIC_CHECK by default) to activate various checks when using macros from this library.
  *
  * NO_CHECK - no checks will be performed at compile-time or runtime when creating views,
  *	copying arrays and other macros. But your compiler may still catch some errors if any.
@@ -35,7 +35,9 @@
 #define NO_CHECK		0
 #define STATIC_CHECK		1
 #define RUNTIME_CHECK		2
+#ifndef POOR_ARRAY_CHECK
 #define POOR_ARRAY_CHECK	STATIC_CHECK
+#endif
 
 /* arr_errmsg() will be called when POOR_ARRAY_CHECK is set to RUNTIME_CHECK when error occurs */
 #ifndef arr_errmsg
