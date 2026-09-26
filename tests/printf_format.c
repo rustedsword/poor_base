@@ -134,6 +134,16 @@ static int printf_fmt_real(void) {
 	return 0;
 }
 
+static int printf_fmt_nested(void) {
+	int id = 7;
+	double value = 1.5;
+	char *formatted = concat("fmt=", printf_specifier_string(0, id, value), " end");
+
+	assert(formatted && strcmp("fmt=%d%lf end", formatted) == 0);
+	free(formatted);
+	return 0;
+}
+
 static int printf_fmt_hex_char(void) {
 	unsigned char uc = 1;
 	signed char sc = 2;
@@ -471,6 +481,7 @@ static struct tests_struct {
 	TEST_FN(printf_fmt_str),
 	TEST_FN(printf_fmt_nullptr),
 	TEST_FN(printf_fmt_real),
+	TEST_FN(printf_fmt_nested),
 	TEST_FN(printf_fmt_hex_char),
 	TEST_FN(printf_fmt_hex_short),
 	TEST_FN(printf_fmt_hex_int),
