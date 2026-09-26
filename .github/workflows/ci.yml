@@ -18,16 +18,29 @@ jobs:
       matrix:
         version: [15, 16]
         sanitizers: ['ON', 'OFF']
+    env:
+      CMAKE_ARGS: -DPOOR_BASE_TEST=1 -DPOOR_BASE_TEST_SANITIZERS=${{ matrix.sanitizers }} -DCMAKE_BUILD_TYPE=${{ matrix.sanitizers == 'ON' && 'Debug' || 'Release' }}
     steps:
       - uses: actions/checkout@v5
       - name: Install CMake
         run: apt-get update && apt-get install -y --no-install-recommends cmake
-      - name: Configure
-        run: cmake -S . -B build -DPOOR_BASE_TEST=1 -DPOOR_BASE_TEST_SANITIZERS=${{ matrix.sanitizers }} -DCMAKE_BUILD_TYPE=${{ matrix.sanitizers == 'ON' && 'Debug' || 'Release' }}
-      - name: Build
-        run: cmake --build build --parallel $(nproc)
-      - name: Test
-        run: ctest --test-dir build --parallel $(nproc) --output-on-failure
+      - name: NO_CHECK
+        run: |
+          cmake -S . -B build-NO_CHECK $CMAKE_ARGS -DPOOR_BASE_TEST_ARRAY_CHECK=NO_CHECK
+          cmake --build build-NO_CHECK --parallel $(nproc)
+          ctest --test-dir build-NO_CHECK --parallel $(nproc) --output-on-failure
+      - name: STATIC_CHECK
+        if: ${{ !cancelled() }}
+        run: |
+          cmake -S . -B build-STATIC_CHECK $CMAKE_ARGS -DPOOR_BASE_TEST_ARRAY_CHECK=STATIC_CHECK
+          cmake --build build-STATIC_CHECK --parallel $(nproc)
+          ctest --test-dir build-STATIC_CHECK --parallel $(nproc) --output-on-failure
+      - name: RUNTIME_CHECK
+        if: ${{ !cancelled() }}
+        run: |
+          cmake -S . -B build-RUNTIME_CHECK $CMAKE_ARGS -DPOOR_BASE_TEST_ARRAY_CHECK=RUNTIME_CHECK
+          cmake --build build-RUNTIME_CHECK --parallel $(nproc)
+          ctest --test-dir build-RUNTIME_CHECK --parallel $(nproc) --output-on-failure
 
   clang:
     name: clang-${{ matrix.version }} ${{ matrix.sanitizers == 'ON' && 'sanitizers' || 'release' }}
@@ -37,6 +50,8 @@ jobs:
       matrix:
         version: [20, 21, 22]
         sanitizers: ['ON', 'OFF']
+    env:
+      CMAKE_ARGS: -DCMAKE_C_COMPILER=clang-${{ matrix.version }} -DPOOR_BASE_TEST=1 -DPOOR_BASE_TEST_SANITIZERS=${{ matrix.sanitizers }} -DCMAKE_BUILD_TYPE=${{ matrix.sanitizers == 'ON' && 'Debug' || 'Release' }}
     steps:
       - uses: actions/checkout@v5
       - name: Install Clang
@@ -44,9 +59,20 @@ jobs:
           wget -qO llvm.sh https://apt.llvm.org/llvm.sh
           sudo bash llvm.sh ${{ matrix.version }}
           sudo apt-get install -y libclang-rt-${{ matrix.version }}-dev
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_C_COMPILER=clang-${{ matrix.version }} -DPOOR_BASE_TEST=1 -DPOOR_BASE_TEST_SANITIZERS=${{ matrix.sanitizers }} -DCMAKE_BUILD_TYPE=${{ matrix.sanitizers == 'ON' && 'Debug' || 'Release' }}
-      - name: Build
-        run: cmake --build build --parallel $(nproc)
-      - name: Test
-        run: ctest --test-dir build --parallel $(nproc) --output-on-failure
+      - name: NO_CHECK
+        run: |
+          cmake -S . -B build-NO_CHECK $CMAKE_ARGS -DPOOR_BASE_TEST_ARRAY_CHECK=NO_CHECK
+          cmake --build build-NO_CHECK --parallel $(nproc)
+          ctest --test-dir build-NO_CHECK --parallel $(nproc) --output-on-failure
+      - name: STATIC_CHECK
+        if: ${{ !cancelled() }}
+        run: |
+          cmake -S . -B build-STATIC_CHECK $CMAKE_ARGS -DPOOR_BASE_TEST_ARRAY_CHECK=STATIC_CHECK
+          cmake --build build-STATIC_CHECK --parallel $(nproc)
+          ctest --test-dir build-STATIC_CHECK --parallel $(nproc) --output-on-failure
+      - name: RUNTIME_CHECK
+        if: ${{ !cancelled() }}
+        run: |
+          cmake -S . -B build-RUNTIME_CHECK $CMAKE_ARGS -DPOOR_BASE_TEST_ARRAY_CHECK=RUNTIME_CHECK
+          cmake --build build-RUNTIME_CHECK --parallel $(nproc)
+          ctest --test-dir build-RUNTIME_CHECK --parallel $(nproc) --output-on-failure

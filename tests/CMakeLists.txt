@@ -1,4 +1,9 @@
 option(POOR_BASE_TEST_SANITIZERS "Run tests with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+set(POOR_BASE_TEST_ARRAY_CHECK STATIC_CHECK CACHE STRING "POOR_ARRAY_CHECK for the tests that don't set their own")
+set_property(CACHE POOR_BASE_TEST_ARRAY_CHECK PROPERTY STRINGS NO_CHECK STATIC_CHECK RUNTIME_CHECK)
+if(NOT POOR_BASE_TEST_ARRAY_CHECK MATCHES "^(NO_CHECK|STATIC_CHECK|RUNTIME_CHECK)$")
+    message(FATAL_ERROR "POOR_BASE_TEST_ARRAY_CHECK must be NO_CHECK, STATIC_CHECK or RUNTIME_CHECK")
+endif()
 
 if(POOR_BASE_TEST_SANITIZERS)
     add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
@@ -45,6 +50,10 @@ target_link_libraries(array_vla_function_tests poor_base)
 target_compile_options(array_vla_function_tests PRIVATE -Wall -Werror -UNDEBUG)
 # Keep the caller's values unavailable when compiling the function under test.
 set_target_properties(array_vla_function_tests PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
+
+foreach(target IN ITEMS poor_array_tests foreach_array_vla_tests array_vla_function_tests)
+    target_compile_definitions(${target} PRIVATE POOR_ARRAY_CHECK=${POOR_BASE_TEST_ARRAY_CHECK})
+endforeach()
 
 add_executable(arrview_runtime_check_tests arrview_runtime_check_tests.c)
 target_link_libraries(arrview_runtime_check_tests poor_base)
