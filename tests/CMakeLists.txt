@@ -135,6 +135,7 @@ add_test(NAME array_insert_test COMMAND poor_array_tests array_insert_test)
 add_test(NAME sprint_array_test COMMAND poor_array_tests sprint_array_test)
 add_test(NAME print_array_test COMMAND poor_array_tests print_array_test)
 set_tests_properties(print_array_test PROPERTIES PASS_REGULAR_EXPRESSION "^\\[\\]\n\\[\\]\n\\[\\]\n\\[7\\]\n\\[1,2,3\\]\n\\[0xab,0x01\\]\n\\[\\[1,2\\]\n,\\[3,4\\]\n\\]\n\\[\\[5,6\\]\n,\\[7,8\\]\n\\]\ndone\n$")
+add_test(NAME array_bit_test COMMAND poor_array_tests array_bit_test)
 add_test(NAME arrview_runtime_check_test COMMAND arrview_runtime_check_tests)
 add_test(NAME array_insert_no_check_test COMMAND array_insert_no_check_test)
 

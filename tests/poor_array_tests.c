@@ -1117,6 +1117,23 @@ static int print_array_test(void) {
 	return 0;
 }
 
+static int array_bit_test(void) {
+	unsigned char bits[4] = {0};
+	uint64_t words[2] = {0};
+	int i = 7;
+
+	array_set_bit(bits, i + 1);
+	assert(bits[1] == 1 && array_get_bit(bits, 8) && array_get_bit(bits, i + 1));
+	array_set_bit(bits, i > 0 ? 30 : 0);
+	assert(bits[3] == 0x40 && array_get_bit(bits, i > 0 ? 30 : 0));
+	array_unset_bit(bits, i + 1);
+	assert(bits[1] == 0 && !array_get_bit(bits, i + 1));
+
+	array_set_bit(words, i + 57);
+	assert(words[0] == 0 && words[1] == 1 && array_get_bit(words, i + 57));
+	return 0;
+}
+
 typedef int test_fn (void);
 
 #define TEST_FN(fn) {#fn, fn}
@@ -1163,6 +1180,7 @@ static struct tests_struct {
 	TEST_FN(array_insert_test),
 	TEST_FN(sprint_array_test),
 	TEST_FN(print_array_test),
+	TEST_FN(array_bit_test),
 };
 
 static void usage(void) {

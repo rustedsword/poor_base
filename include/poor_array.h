@@ -1658,23 +1658,23 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 
 #define _array_bit_chk_index(arr, idx, ...) _Generic(1,             \
     int*:  sizeof(char [h_not_negative(idx) ? 1 : -1]),             \
-    int**:  sizeof(char [idx >= ARRAY_SIZE_BITS(arr) ? -1 : 1]),    \
+    int**:  sizeof(char [(idx) >= ARRAY_SIZE_BITS(arr) ? -1 : 1]),  \
     default: __VA_ARGS__                                            \
     )
 
 #define array_set_bit(arr, idx) \
     _array_bit_chk_index(arr, idx,  \
-        auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] |= (1ULL << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8ULL))) \
+        auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] |= (1ULL << ((idx) % (ARRAY_ELEMENT_SIZE(arr) * 8ULL))) \
     )
 
 #define array_unset_bit(arr, idx)   \
     _array_bit_chk_index(arr, idx,  \
-        auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] &= ~(1ULL << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8ULL))) \
+        auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] &= ~(1ULL << ((idx) % (ARRAY_ELEMENT_SIZE(arr) * 8ULL))) \
     )
 
 #define array_get_bit(arr, idx) \
     _array_bit_chk_index(arr, idx,  \
-        ((bool)(!!(auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] & (1ULL << (idx % (ARRAY_ELEMENT_SIZE(arr) * 8ULL)))))) \
+        ((bool)(!!(auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] & (1ULL << ((idx) % (ARRAY_ELEMENT_SIZE(arr) * 8ULL)))))) \
     )
 
 #define foreach_array_bit(arr, _bit_idx_name_) \
