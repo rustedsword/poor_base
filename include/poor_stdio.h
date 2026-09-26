@@ -529,7 +529,7 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 
 /* Simplified compound literal variant, struct directly casted to const char* */
 #define s_printf_specifier_string_multi_cl(endl, ...) \
-	(const char*)&(static h_fmt_struct_decl(endl, __VA_ARGS__))h_fmt_struct_init(endl, __VA_ARGS__)
+	((const char*)&(static h_fmt_struct_decl(endl, __VA_ARGS__))h_fmt_struct_init(endl, __VA_ARGS__))
 
 /* Variant of creating format string with an expression statement,
  * resulting string will be generated at compile time, but expression statements is not a part of standard C */
