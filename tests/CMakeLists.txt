@@ -64,6 +64,11 @@ target_link_libraries(array_insert_no_check_test poor_base)
 target_compile_definitions(array_insert_no_check_test PRIVATE POOR_ARRAY_CHECK=NO_CHECK)
 target_compile_options(array_insert_no_check_test PRIVATE -Wall -Werror -UNDEBUG)
 
+add_executable(arrview_null_zero_length_test arrview_null_zero_length_test.c)
+target_link_libraries(arrview_null_zero_length_test poor_base)
+target_compile_definitions(arrview_null_zero_length_test PRIVATE POOR_ARRAY_CHECK=NO_CHECK)
+target_compile_options(arrview_null_zero_length_test PRIVATE -Wall -Werror -UNDEBUG)
+
 foreach(mode IN ITEMS NO_CHECK STATIC_CHECK RUNTIME_CHECK)
     string(TOLOWER "arr_errmsg_${mode}_test" target)
     add_executable(${target} arr_errmsg_default_test.c)
@@ -138,6 +143,7 @@ set_tests_properties(print_array_test PROPERTIES PASS_REGULAR_EXPRESSION "^\\[\\
 add_test(NAME array_bit_test COMMAND poor_array_tests array_bit_test)
 add_test(NAME arrview_runtime_check_test COMMAND arrview_runtime_check_tests)
 add_test(NAME array_insert_no_check_test COMMAND array_insert_no_check_test)
+add_test(NAME arrview_null_zero_length_test COMMAND arrview_null_zero_length_test)
 
 add_library(concat_malloc_array_compile_pedantic OBJECT EXCLUDE_FROM_ALL concat_malloc_array_compile_pedantic.c)
 target_link_libraries(concat_malloc_array_compile_pedantic poor_base)
