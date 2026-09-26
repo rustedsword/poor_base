@@ -13,6 +13,7 @@
 #include <stdarg.h>
 
 #define h_stdio_primitive_cat(a, ...) a ## __VA_ARGS__
+#define h_stdio_cat(a, ...) h_stdio_primitive_cat(a, __VA_ARGS__)
 
 /**** ---- printf format specifiers helper functions ****/
 /* unpack basic types */
@@ -496,7 +497,15 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 # endif
 #endif
 
-#if CLANG_DOES_NOT_SUPPORT_STATIC_COMPOUND_LITERALS
+/* Format strings are created with printf_specifier_string_multi_ce() by default,
+ * define POOR_STDIO_CONSTEXPR_FORMAT to 0 to use the struct based variants */
+#ifndef POOR_STDIO_CONSTEXPR_FORMAT
+# define POOR_STDIO_CONSTEXPR_FORMAT 1
+#endif
+
+#if POOR_STDIO_CONSTEXPR_FORMAT
+#define printf_specifier_string_multi(endl, ...) printf_specifier_string_multi_ce(endl, __VA_ARGS__)
+#elif CLANG_DOES_NOT_SUPPORT_STATIC_COMPOUND_LITERALS
 #define printf_specifier_string_multi(endl, ...) s_printf_specifier_string_multi_es(endl, __VA_ARGS__)
 #else
 #define printf_specifier_string_multi(endl, ...) s_printf_specifier_string_multi_cl(endl, __VA_ARGS__)
@@ -550,6 +559,43 @@ static inline unsigned long long  _psn_hex_ullong(_hex_ullong_raw c){ return c.v
 static h_fmt_struct_decl(endl, __VA_ARGS__)					\
 	generic_printf_format_string = h_fmt_struct_init(endl, __VA_ARGS__);	\
 	(const char*)&generic_printf_format_string;				\
+})
+
+/* MAP_INDEX() that also passes the index of the next argument */
+#define h_fmt_map(f, ...) \
+	EVAL_SELECT(__VA_ARGS__)(h_fmt_map1(f, 0, (MAP_INDEXES, 210), __VA_ARGS__, ()()(), ()()(), ()()(), 0))
+#define h_fmt_map0(f, idx, cnt, x, peek, ...) \
+	f(idx, MAP_FIRST(cnt), x) MAP_NEXT(peek, h_fmt_map1)(f, MAP_FIRST(cnt), (MAP_NO_FIRST(cnt)), peek, __VA_ARGS__)
+#define h_fmt_map1(f, idx, cnt, x, peek, ...) \
+	f(idx, MAP_FIRST(cnt), x) MAP_NEXT(peek, h_fmt_map0)(f, MAP_FIRST(cnt), (MAP_NO_FIRST(cnt)), peek, __VA_ARGS__)
+
+#define h_fmt_spec(idx, next, x) \
+	h_fmt_spec_(h_stdio_cat(h_fmt_s, idx), h_stdio_cat(h_fmt_o, idx), h_stdio_cat(h_fmt_o, next), x)
+#define h_fmt_spec_(s, o, o_next, x)						\
+	static constexpr char s[] = printf_dec_format(x);			\
+	static_assert(sizeof(s) <= 5, "format specifier is longer than 4 chars");	\
+	static constexpr size_t o_next = o + sizeof(s) - 1;
+
+/* every specifier writes 4 chars at its offset, the trailing nulls get overridden by the next one */
+#define h_fmt_chars(idx, x) h_fmt_chars_(h_stdio_cat(h_fmt_s, idx), h_stdio_cat(h_fmt_o, idx))
+#define h_fmt_chars_(s, o) [o] = h_fmt_char(s, 0), h_fmt_char(s, 1), h_fmt_char(s, 2), h_fmt_char(s, 3),
+#define h_fmt_char(s, n) s[(n) < sizeof(s) ? (n) : sizeof(s) - 1]
+#define h_fmt_newline '\n',
+
+/* Variant of creating format string without struct: specifiers are stored in constexpr arrays
+ * and laid out into a static array with designated initializers.
+ * Relies on expression statements and on compilers folding constexpr array elements in initializers */
+#define printf_specifier_string_multi_ce(endl, ...) __extension__ ({				\
+	static constexpr size_t h_fmt_o0 = 0;							\
+	h_fmt_map(h_fmt_spec, __VA_ARGS__)							\
+	_Pragma("GCC diagnostic push")								\
+	_Pragma("GCC diagnostic ignored \"-Woverride-init\"")					\
+	static const char generic_printf_format_string[] = {					\
+		MAP_INDEX(h_fmt_chars, __VA_ARGS__)						\
+		[h_stdio_cat(h_fmt_o, ARGS_COUNT(__VA_ARGS__))] = POOR_IF(endl)(h_fmt_newline,) 0 \
+	};											\
+	_Pragma("GCC diagnostic pop")								\
+	generic_printf_format_string;								\
 })
 
 /* make_printf_pack(pack, var1, ..., varn)
