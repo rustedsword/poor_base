@@ -55,6 +55,19 @@ target_link_libraries(array_insert_no_check_test poor_base)
 target_compile_definitions(array_insert_no_check_test PRIVATE POOR_ARRAY_CHECK=NO_CHECK)
 target_compile_options(array_insert_no_check_test PRIVATE -Wall -Werror -UNDEBUG)
 
+foreach(mode IN ITEMS NO_CHECK STATIC_CHECK RUNTIME_CHECK)
+    string(TOLOWER "arr_errmsg_${mode}_test" target)
+    add_executable(${target} arr_errmsg_default_test.c)
+    target_link_libraries(${target} poor_base)
+    target_compile_definitions(${target} PRIVATE POOR_ARRAY_CHECK=${mode})
+    target_compile_options(${target} PRIVATE -Wall -Wextra -Werror -pedantic-errors -UNDEBUG)
+    foreach(case IN ITEMS view format)
+        add_test(NAME ${target}_${case}
+            COMMAND ${CMAKE_COMMAND} -DPROGRAM=$<TARGET_FILE:${target}> -DCASE=${case}
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/arr_errmsg_default_test.cmake)
+    endforeach()
+endforeach()
+
 if(POOR_BASE_TEST_SANITIZERS)
     # Accept GCC/Clang runtime-zero array bounds while checking actual iteration
     # with ASan and all the remaining UBSan checks.
@@ -62,6 +75,7 @@ if(POOR_BASE_TEST_SANITIZERS)
     target_compile_options(array_vla_function_tests PRIVATE -fno-sanitize=vla-bound)
     # Rejected views reach zero or negative VLA bounds before arr_errmsg()
     target_compile_options(arrview_runtime_check_tests PRIVATE -fno-sanitize=vla-bound)
+    target_compile_options(arr_errmsg_runtime_check_test PRIVATE -fno-sanitize=vla-bound)
 endif()
 
 add_test(NAME auto_arr_test COMMAND poor_array_tests auto_arr_test)
