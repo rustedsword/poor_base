@@ -4,6 +4,9 @@
 
 #undef NDEBUG
 
+/* sprint_array_test() truncates on purpose, GCC -O0 reports it at the end of file */
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+
 static int auto_arr_test(void) {
 	unsigned char ar[2] = {3, 5}; //array
 	unsigned char (*ar_p)[2] = &ar; //pointer to array
