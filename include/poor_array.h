@@ -579,8 +579,8 @@
 	make_arrview_cback(data_slc, 3, &data);
 	print_array(data_slc); //prints: [0,1,2]
 */
-#define make_arrview_cback(_name_, _skip_end_, ...) unsafe_make_arrview_cback(_name_, _skip_end_, &auto_arr(__VA_ARGS__))
-#define arrview_cback(_skip_end_, ...) unsafe_arrview_cback(_skip_end_, &auto_arr(__VA_ARGS__))
+#define make_arrview_cback(_name_, _skip_end_, ...) unsafe_make_arrview_cback(_name_, (_skip_end_), &auto_arr(__VA_ARGS__))
+#define arrview_cback(_skip_end_, ...) unsafe_arrview_cback((_skip_end_), &auto_arr(__VA_ARGS__))
 
 /* make_arrview_dim(_size_, _arrm_)
  * Creates an arrview for array by splitting it's top dimension into two dimensions
