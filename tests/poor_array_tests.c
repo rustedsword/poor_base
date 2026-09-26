@@ -796,6 +796,14 @@ static int arrview_shrink_test(void) {
 	assert(a_view_t2 == &a);
 	assert(ARRAY_SIZE(a_view_t3) == ARRAY_SIZE(a) );
 	assert(a_view_t2 == &a);
+
+	//counts given as expressions
+	int one = 1;
+	make_arrview_cback(a_view_e1, 1 + 1, a);
+	static_assert(ARRAY_SIZE(a_view_e1) == ARRAY_SIZE(a) - 2);
+	make_arrview_cback(a_view_e2, one + 1, a);
+	assert(ARRAY_SIZE(a_view_e2) == ARRAY_SIZE(a) - 2);
+	assert(ARRAY_SIZE(arrview_cback(one > 0 ? 2 : 0, a)) == ARRAY_SIZE(a) - 2);
 	return 0;
 }
 
