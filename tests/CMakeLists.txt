@@ -16,6 +16,16 @@ target_compile_options(poor_map_test PRIVATE -Wall -Werror -UNDEBUG)
 
 add_test(poor_map_test poor_map_test)
 
+add_executable(poor_list_tests poor_list_tests.c)
+target_link_libraries(poor_list_tests poor_base)
+target_compile_options(poor_list_tests PRIVATE -Wall -Wextra -Wshadow -Werror -pedantic-errors -UNDEBUG)
+
+foreach(test IN ITEMS
+        list_init_test list_insert_test list_remove_test list_linked_test list_first_last_test
+        list_foreach_test list_foreach_safe_test list_foreach_macro_name_test list_single_eval_test list_member_test list_overaligned_test)
+    add_test(NAME ${test} COMMAND poor_list_tests ${test})
+endforeach()
+
 add_executable(printf_format printf_format.c )
 target_link_libraries(printf_format poor_base)
 target_compile_options(printf_format PRIVATE -Wall -Wextra -Werror -UNDEBUG)
@@ -245,3 +255,13 @@ add_library(auto_arr_compile_fn_ptr OBJECT EXCLUDE_FROM_ALL auto_arr_compile_fn_
 target_link_libraries(auto_arr_compile_fn_ptr poor_base)
 add_test(NAME auto_arr_compile_fn_ptr COMMAND ${CMAKE_COMMAND} --build . --target auto_arr_compile_fn_ptr WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 set_tests_properties(auto_arr_compile_fn_ptr PROPERTIES WILL_FAIL TRUE)
+
+foreach(name IN ITEMS
+        poor_list_of_compile_wrong_member poor_list_of_compile_const_member poor_list_append_compile_wrong_type poor_list_node_is_linked_compile_wrong_type
+        poor_list_init_compile_const_list poor_list_append_compile_const_list poor_list_prepend_compile_const_entry
+        poor_list_insert_before_compile_const_entry poor_list_insert_after_compile_const_list poor_list_remove_compile_const_entry)
+    add_library(${name} OBJECT EXCLUDE_FROM_ALL ${name}.c)
+    target_link_libraries(${name} poor_base)
+    add_test(NAME ${name} COMMAND ${CMAKE_COMMAND} --build . --target ${name} WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    set_tests_properties(${name} PROPERTIES WILL_FAIL TRUE)
+endforeach()
