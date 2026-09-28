@@ -5,4 +5,4 @@ struct item {
 	int id;
 };
 
-poor_list_of(struct item, id) items;
+poor_list_define(item_list, struct item, id);

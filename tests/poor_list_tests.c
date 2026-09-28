@@ -14,7 +14,7 @@ struct wide_item {
 	struct poor_list odd_link;
 };
 
-typedef poor_list_of(struct item, link) item_list;
+poor_list_define(item_list, struct item, link);
 static_assert(sizeof(item_list) == sizeof(struct poor_list) && alignof(item_list) == alignof(struct poor_list));
 
 struct first_item {
@@ -22,10 +22,23 @@ struct first_item {
 	int id;
 };
 
+poor_list_define(first_item_list, struct first_item, link);
+
 struct registry {
-	poor_list_of(struct first_item, link) firsts;
+	first_item_list firsts;
 	item_list items;
 };
+
+poor_list_declare(node_list);
+
+struct node {
+	int id;
+	struct poor_list sibling;
+	node_list children;
+};
+
+poor_list_define(node_list, struct node, sibling);
+static_assert(sizeof(node_list) == sizeof(struct poor_list) && alignof(node_list) == alignof(struct poor_list));
 
 #define is_empty(list) \
 	((list)->head.next == &(list)->head && (list)->head.prev == &(list)->head && poor_list_empty(list) && poor_list_length(list) == 0)
@@ -350,8 +363,10 @@ static int list_member_test(void) {
 }
 
 static int list_overaligned_test(void) {
-	alignas(64) poor_list_of(struct wide_item, link) all = POOR_LIST_INIT(all);
-	alignas(64) poor_list_of(struct wide_item, odd_link) odd = POOR_LIST_INIT(odd);
+	poor_list_define(wide_item_list, struct wide_item, link);
+	poor_list_define(odd_item_list, struct wide_item, odd_link);
+	alignas(64) wide_item_list all = POOR_LIST_INIT(all);
+	alignas(64) odd_item_list odd = POOR_LIST_INIT(odd);
 	struct wide_item items[4];
 
 	poor_list_foreach(&all, ref)
@@ -384,6 +399,65 @@ static int list_overaligned_test(void) {
 	return 0;
 }
 
+static int walk_tree(const struct node *node, int visited) {
+	visited = visited * 10 + node->id;
+	poor_list_foreach(&node->children, child) {
+		static_assert(_Generic(child, const struct node *: 1, default: 0));
+		visited = walk_tree(child, visited);
+	}
+	return visited;
+}
+
+static int list_declare_test(void) {
+	struct node root = {.id = 1, .children = POOR_LIST_INIT(root.children)}, nodes[4];
+	for(int i = 0; i < 4; i++) {
+		nodes[i].id = i + 2;
+		poor_list_init(&nodes[i].children);
+	}
+
+	poor_list_append(&root.children, &nodes[0]);
+	poor_list_append(&root.children, &nodes[1]);
+	poor_list_append(&nodes[0].children, &nodes[2]);
+	poor_list_prepend(&nodes[0].children, &nodes[3]);
+	static_assert(_Generic(poor_list_first(&root.children), struct node *: 1, default: 0));
+	assert(walk_tree(&root, 0) == 12543);
+
+	poor_list_foreach_safe(&nodes[0].children, child) {
+		poor_list_remove(&nodes[0].children, child);
+		poor_list_append(&nodes[1].children, child);
+	}
+	assert(walk_tree(&root, 0) == 12354 && poor_list_empty(&nodes[0].children));
+	return 0;
+}
+
+static int list_shadow_test(void) {
+	poor_list_define(shadow_list, struct wide_item, link);
+	shadow_list all = POOR_LIST_INIT(all);
+	struct wide_item item = {.id = 1};
+	poor_list_append(&all, &item);
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+	{
+		poor_list_define(shadow_list, struct wide_item, odd_link);
+		shadow_list odd = POOR_LIST_INIT(odd);
+		poor_list_append(&odd, &item);
+		assert(poor_list_first(&odd) == &item && item.odd_link.prev == &odd.head);
+		poor_list_remove(&odd, &item);
+	}
+	{
+		poor_list_declare(shadow_list);
+		poor_list_define(shadow_list, struct wide_item, odd_link);
+		shadow_list odd = POOR_LIST_INIT(odd);
+		poor_list_append(&odd, &item);
+		assert(poor_list_first(&odd) == &item && item.odd_link.prev == &odd.head);
+	}
+#pragma GCC diagnostic pop
+
+	assert(poor_list_first(&all) == &item && item.link.prev == &all.head && item.link.next == &all.head);
+	return 0;
+}
+
 typedef int test_fn (void);
 
 #define TEST_FN(fn) {#fn, fn}
@@ -402,6 +476,8 @@ static struct tests_struct {
 	TEST_FN(list_single_eval_test),
 	TEST_FN(list_member_test),
 	TEST_FN(list_overaligned_test),
+	TEST_FN(list_declare_test),
+	TEST_FN(list_shadow_test),
 };
 
 int main(int argc, char **argv) {

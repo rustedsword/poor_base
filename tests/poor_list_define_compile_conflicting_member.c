@@ -3,12 +3,8 @@
 struct item {
 	int id;
 	struct poor_list link;
+	struct poor_list other_link;
 };
 
 poor_list_define(item_list, struct item, link);
-
-int main(void) {
-	const item_list list = POOR_LIST_INIT(list);
-	poor_list_init(&list);
-	return 0;
-}
+poor_list_define(item_list, struct item, other_link);
