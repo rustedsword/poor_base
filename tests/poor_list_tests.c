@@ -5,20 +5,20 @@
 
 struct item {
 	int id;
-	struct poor_list link;
+	struct poor_list_node link;
 };
 
 struct wide_item {
 	alignas(64) int id;
-	struct poor_list link;
-	struct poor_list odd_link;
+	struct poor_list_node link;
+	struct poor_list_node odd_link;
 };
 
 poor_list_define(item_list, struct item, link);
-static_assert(sizeof(item_list) == sizeof(struct poor_list) && alignof(item_list) == alignof(struct poor_list));
+static_assert(sizeof(item_list) == sizeof(struct poor_list_node) && alignof(item_list) == alignof(struct poor_list_node));
 
 struct first_item {
-	struct poor_list link;
+	struct poor_list_node link;
 	int id;
 };
 
@@ -33,18 +33,18 @@ poor_list_declare(node_list);
 
 struct node {
 	int id;
-	struct poor_list sibling;
+	struct poor_list_node sibling;
 	node_list children;
 };
 
 poor_list_define(node_list, struct node, sibling);
-static_assert(sizeof(node_list) == sizeof(struct poor_list) && alignof(node_list) == alignof(struct poor_list));
+static_assert(sizeof(node_list) == sizeof(struct poor_list_node) && alignof(node_list) == alignof(struct poor_list_node));
 
 #define is_empty(list) \
 	((list)->head.next == &(list)->head && (list)->head.prev == &(list)->head && poor_list_empty(list) && poor_list_length(list) == 0)
 
 static bool has_ids(const item_list *list, size_t n, const int *ids) {
-	const struct poor_list *head = &list->head, *node = head;
+	const struct poor_list_node *head = &list->head, *node = head;
 	for(size_t i = 0; i < n; i++) {
 		if(node->next->prev != node)
 			return false;

@@ -3,7 +3,7 @@
 poor_list_declare(node_list);
 
 struct node {
-	struct poor_list sibling;
+	struct poor_list_node sibling;
 	node_list children;
 };
 

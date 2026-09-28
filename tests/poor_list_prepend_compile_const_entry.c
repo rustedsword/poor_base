@@ -2,7 +2,7 @@
 
 struct item {
 	int id;
-	struct poor_list link;
+	struct poor_list_node link;
 };
 
 poor_list_define(item_list, struct item, link);
