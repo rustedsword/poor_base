@@ -139,14 +139,14 @@ struct poor_list_node {
 
 /* Insert 'ref' right before existing item 'at'. */
 #define poor_list_insert_before(list, at, ref) \
-	(h_list_mut_list(list), h_list_insert(h_list_mut_node(list, at)->prev, h_list_mut_node(list, ref)))
+	((void)h_list_mut_head(list), h_list_insert(h_list_mut_node(list, at)->prev, h_list_mut_node(list, ref)))
 
 /* Insert 'ref' right after existing item 'at'. */
 #define poor_list_insert_after(list, at, ref) \
-	(h_list_mut_list(list), h_list_insert(h_list_mut_node(list, at), h_list_mut_node(list, ref)))
+	((void)h_list_mut_head(list), h_list_insert(h_list_mut_node(list, at), h_list_mut_node(list, ref)))
 
 /* Unlink 'ref' from the list. Its link pointers remain stale. */
-#define poor_list_remove(list, ref) (h_list_mut_list(list), h_list_remove(h_list_mut_node(list, ref)))
+#define poor_list_remove(list, ref) ((void)h_list_mut_head(list), h_list_remove(h_list_mut_node(list, ref)))
 
 /* Loops: */
 
