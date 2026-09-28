@@ -270,7 +270,7 @@ static int list_foreach_macro_name_test(void) {
 static int evals[3];
 #define arg(i, x) (evals[i]++, (x))
 #define assert_once(...) \
-	(memset(evals, 0, sizeof(evals)), (void)(__VA_ARGS__), assert(evals[0] <= 1 && evals[1] <= 1 && evals[2] <= 1))
+	(memset(evals, 0, sizeof(evals)), (void)(__VA_ARGS__), assert(evals[0] == 1 && evals[1] <= 1 && evals[2] <= 1))
 
 static int list_single_eval_test(void) {
 	item_list lists[2];
