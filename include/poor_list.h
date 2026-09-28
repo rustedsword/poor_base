@@ -15,7 +15,7 @@
  * No extra allocations, cache-friendly, and very fast.
  *
  * Why is this better than typical C list hacks (like Linux kernel's list_head)?
- * It's actually type-safe! When you declare `poor_list_of(struct job, link)`,
+ * It's actually type-safe! When you create a list type with `poor_list_define(job_list, struct job, link)`,
  * the list remembers what struct it holds. If you accidentally try to put a `struct cat`
  * into your `job_list`, the compiler will yell at you instead of silently corrupting memory.
  * Also, if your list is const, it gives you back const pointers.
@@ -31,17 +31,7 @@
  *    Because the head points to its own address, copying it (list2 = list1 or memcpy)
  *    means list2 still points to list1's memory address. Always pass it around by pointer (&my_list).
  *
- * 3. Typedef your list!
- *    poor_list_of(...) creates an anonymous union. C won't let you use that easily
- *    in function parameters, so do:
- *        typedef poor_list_of(struct job, link) job_list;
- *    Then use `job_list *` in your function signatures.
- *
- * 4. A struct cannot contain a list of itself.
- *    C needs to know the full struct layout to figure out member offsets.
- *    If struct job has a list of struct job inside it, the compiler gets confused.
- *
- * 5. Safe macros:
+ * 3. Safe macros:
  *    Except for POOR_LIST_INIT(), all macro arguments are only evaluated once,
  *    so calling poor_list_append(list, get_next_job()) won't call get_next_job() twice.
  *
@@ -52,7 +42,7 @@
  * 		struct poor_list link; // embed the list hook here
  * 	};
  *
- * 	typedef poor_list_of(struct job, link) job_list;
+ * 	poor_list_define(job_list, struct job, link);
  *
  * 	job_list jobs = POOR_LIST_INIT(jobs); // MUST pass variable name itself!
  * 	struct job a = {.id = 1}, b = {.id = 2}, c = {.id = 3};
@@ -87,19 +77,27 @@ struct poor_list {
 	struct poor_list *prev, *next;
 };
 
-/* Creates the list type for your struct.
- * Under the hood, this is a union that matches the size and alignment of `struct poor_list`,
- * but carries compile-time type info (the struct type and the member's offset) without
- * storing any extra data at runtime.
- * If 'member' isn't a `struct poor_list`, the static_assert stops compilation. */
-#define poor_list_of(type, member)									\
-	union {												\
-		struct poor_list head;									\
-		type *h_type;										\
-		unsigned char (*h_offset)[offsetof(type, member) + 1];					\
-		static_assert(_Generic(&((type *)0)->member, struct poor_list *: 1, default: 0),	\
-			      "poor_list_of() member must be an unqualified struct poor_list");		\
-	}
+/* Defines list type 'name' for your struct 'type', using 'member' as its link.
+ *
+ * Your struct must be fully defined, and 'member' must be a `struct poor_list`.
+ * Works whether or not you called poor_list_declare(name) first. */
+#define poor_list_define(name, type, member) \
+	poor_list_declare(name); h_list_define(h_list_cat(h_list_item_, name), h_list_cat(h_list_meta_, name), type, member)
+
+/* Forward-declares list type 'name' before its struct is complete.
+ * Use this when a struct needs to hold a list of its own type (like folders with subfolders):
+ *
+ *     poor_list_declare(folder_list);
+ *     struct folder {
+ *         char name[64];
+ *         struct poor_list link;
+ *         folder_list subfolders;
+ *     };
+ *     poor_list_define(folder_list, struct folder, link);
+ *
+ * You can embed or pass a declared list around immediately (e.g. in headers),
+ * but you must call poor_list_define() once the struct is complete to access its items. */
+#define poor_list_declare(name) h_list_declare(name, h_list_cat(h_list_head_, name), h_list_cat(h_list_meta_, name))
 
 /* Static initializer for a list variable.
  * Usage: my_list_t my_list = POOR_LIST_INIT(my_list);
@@ -198,8 +196,22 @@ struct poor_list {
 #define h_list_foreach_bw_safe(list, ref, of, once, next) h_list_capture(list, of, once) \
 	for(h_list_ref_type(list) ref = poor_list_last(of), next; ref && (next = poor_list_prev(of, ref), true); ref = next)
 
-#define h_list_type(list) typeof_unqual(*(list)->h_type)
-#define h_list_offset(list) (sizeof(typeof(*(list)->h_offset)) - 1)
+/* Declaring the meta tag first binds h_meta to this scope's meta, not to a shadowed outer list's one */
+#define h_list_declare(name, tag, meta) \
+	struct meta; typedef union tag { struct poor_list head; struct meta *h_meta; } name
+
+/* The item typedef forces a compile error if a list is redefined with a conflicting type (which Clang's duplicate struct check misses) */
+#define h_list_define(item, meta, type, member)								\
+	typedef type *item;										\
+	struct meta {											\
+		item h_type;										\
+		unsigned char h_offset[offsetof(type, member) + 1];					\
+		static_assert(_Generic(&((type *)0)->member, struct poor_list *: 1, default: 0),	\
+			      "list member (" #member ") must be an unqualified struct poor_list");	\
+	}
+
+#define h_list_type(list) typeof_unqual(*(list)->h_meta->h_type)
+#define h_list_offset(list) (sizeof((list)->h_meta->h_offset) - 1)
 #define h_list_ref_type(list) typeof(_Generic((typeof(&(list)->head))nullptr,			\
 	const struct poor_list *: (const h_list_type(list) *)nullptr, default: (h_list_type(list) *)nullptr))
 #define h_list_ref(list, entry) ((h_list_ref_type(list))(entry))

@@ -5,7 +5,7 @@ struct item {
 	struct poor_list link;
 };
 
-typedef poor_list_of(struct item, link) item_list;
+poor_list_define(item_list, struct item, link);
 
 int main(void) {
 	item_list list = POOR_LIST_INIT(list);
