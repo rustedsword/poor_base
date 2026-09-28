@@ -61,7 +61,7 @@
  *
  * 	// Remove the first item (which is 'c'):
  * 	poor_list_remove(&jobs, poor_list_first(&jobs));
- * 	println(poor_list_length(&jobs), " ", poor_list_node_is_linked(&c.link)); // prints: 2 false
+ * 	println(poor_list_length(&jobs)); // prints: 2
  *
  * 	// Deleting stuff inside a loop? Use foreach_safe!
  * 	// Regular foreach will break if you remove the current item.
@@ -115,12 +115,6 @@ struct poor_list_node {
  * Note: this walks through the list (O(N)), so avoid calling it repeatedly in hot loops. */
 #define poor_list_length(list) h_list_length(&(list)->head)
 
-/* Returns true if 'node' (e.g. &item.link) is in some list (checks node->next != null).
- * Removed items return false. If never inserted into a list yet, the link must have
- * been zeroed first, otherwise this reads uninitialized garbage memory. */
-#define poor_list_node_is_linked(node) ((bool)_Generic((typeof(node))nullptr,	\
-	struct poor_list_node *: (node), const struct poor_list_node *: (node))->next)
-
 /* Navigation: return a typed pointer to your struct, or nullptr when empty or at the end. */
 
 /* Get the first item in the list, or nullptr if empty. */
@@ -151,7 +145,7 @@ struct poor_list_node {
 #define poor_list_insert_after(list, at, ref) \
 	(h_list_mut_list(list), h_list_insert(h_list_mut_node(list, at), h_list_mut_node(list, ref)))
 
-/* Unlink 'ref' from the list. Sets its link pointers to nullptr so poor_list_node_is_linked() knows it's unlinked. */
+/* Unlink 'ref' from the list. Its link pointers remain stale. */
 #define poor_list_remove(list, ref) (h_list_mut_list(list), h_list_remove(h_list_mut_node(list, ref)))
 
 /* Loops: */
@@ -258,8 +252,6 @@ static inline void h_list_insert(struct poor_list_node *at, struct poor_list_nod
 static inline void h_list_remove(struct poor_list_node *entry) {
 	entry->prev->next = entry->next;
 	entry->next->prev = entry->prev;
-	entry->prev = nullptr;
-	entry->next = nullptr;
 }
 
 static inline size_t h_list_length(const struct poor_list_node *head) {

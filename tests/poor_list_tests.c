@@ -106,7 +106,7 @@ static int list_remove_test(void) {
 	append_items(&items, 5, arr);
 
 	poor_list_remove(&items, &arr[2]);
-	assert(is_list(&items, 1, 2, 4, 5) && !arr[2].link.prev && !arr[2].link.next);
+	assert(is_list(&items, 1, 2, 4, 5));
 	poor_list_remove(&items, &arr[0]);
 	assert(is_list(&items, 2, 4, 5));
 	poor_list_remove(&items, &arr[4]);
@@ -120,25 +120,6 @@ static int list_remove_test(void) {
 	assert(is_list(&items, 4));
 	poor_list_remove(&items, poor_list_first(&items));
 	assert(is_empty(&items));
-	return 0;
-}
-
-static int list_linked_test(void) {
-	item_list items = POOR_LIST_INIT(items);
-	struct item a = {0}, b = {.id = 2};
-	const struct item *const_b = &b;
-	assert(!poor_list_node_is_linked(&a.link) && !poor_list_node_is_linked(&const_b->link));
-	static_assert(_Generic(poor_list_node_is_linked(&a.link), bool: 1, default: 0));
-
-	poor_list_append(&items, &a);
-	assert(poor_list_node_is_linked(&a.link) && !poor_list_node_is_linked(&const_b->link));
-	poor_list_append(&items, &b);
-	assert(poor_list_node_is_linked(&a.link) && poor_list_node_is_linked(&const_b->link));
-
-	poor_list_remove(&items, &a);
-	assert(!poor_list_node_is_linked(&a.link) && poor_list_node_is_linked(&const_b->link));
-	poor_list_remove(&items, &b);
-	assert(!poor_list_node_is_linked(&const_b->link) && is_empty(&items));
 	return 0;
 }
 
@@ -293,7 +274,7 @@ static int evals[3];
 
 static int list_single_eval_test(void) {
 	item_list lists[2];
-	struct item a = {.id = 1}, b = {.id = 2}, c = {.id = 3}, d = {.id = 4}, *refs[] = {&a, &b, &c};
+	struct item a = {.id = 1}, b = {.id = 2}, c = {.id = 3}, *refs[] = {&a, &b, &c};
 
 	int i = 0;
 	poor_list_init(&lists[i++]);
@@ -311,7 +292,6 @@ static int list_single_eval_test(void) {
 	assert_once(assert(poor_list_next(arg(0, &lists[0]), arg(1, &c)) == &a));
 	assert_once(assert(poor_list_prev(arg(0, &lists[0]), arg(1, &a)) == &c));
 	assert_once(assert(!poor_list_empty(arg(0, &lists[0])) && poor_list_length(arg(1, &lists[0])) == 3));
-	assert_once(assert(poor_list_node_is_linked(arg(0, &a.link)) && !poor_list_node_is_linked(arg(1, &d.link))));
 	assert_once(poor_list_init(arg(0, &lists[1])));
 
 	i = 0;
@@ -468,7 +448,6 @@ static struct tests_struct {
 	TEST_FN(list_init_test),
 	TEST_FN(list_insert_test),
 	TEST_FN(list_remove_test),
-	TEST_FN(list_linked_test),
 	TEST_FN(list_first_last_test),
 	TEST_FN(list_foreach_test),
 	TEST_FN(list_foreach_safe_test),

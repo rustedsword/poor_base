@@ -21,7 +21,7 @@ target_link_libraries(poor_list_tests poor_base)
 target_compile_options(poor_list_tests PRIVATE -Wall -Wextra -Wshadow -Werror -pedantic-errors -UNDEBUG)
 
 foreach(test IN ITEMS
-        list_init_test list_insert_test list_remove_test list_linked_test list_first_last_test
+        list_init_test list_insert_test list_remove_test list_first_last_test
         list_foreach_test list_foreach_safe_test list_foreach_macro_name_test list_single_eval_test list_member_test list_overaligned_test
         list_declare_test list_shadow_test)
     add_test(NAME ${test} COMMAND poor_list_tests ${test})
@@ -258,7 +258,7 @@ add_test(NAME auto_arr_compile_fn_ptr COMMAND ${CMAKE_COMMAND} --build . --targe
 set_tests_properties(auto_arr_compile_fn_ptr PROPERTIES WILL_FAIL TRUE)
 
 foreach(name IN ITEMS
-        poor_list_define_compile_wrong_member poor_list_define_compile_const_member poor_list_append_compile_wrong_type poor_list_node_is_linked_compile_wrong_type
+        poor_list_define_compile_wrong_member poor_list_define_compile_const_member poor_list_append_compile_wrong_type
         poor_list_init_compile_const_list poor_list_append_compile_const_list poor_list_prepend_compile_const_entry
         poor_list_insert_before_compile_const_entry poor_list_insert_after_compile_const_list poor_list_remove_compile_const_entry
         poor_list_define_compile_conflicting_type poor_list_define_compile_conflicting_member poor_list_declare_compile_no_define)
