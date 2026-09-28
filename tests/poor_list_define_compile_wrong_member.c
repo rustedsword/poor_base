@@ -1,7 +1,7 @@
 #include <poor_list.h>
 
 struct item {
-	struct poor_list link;
+	struct poor_list_node link;
 	int id;
 };
 

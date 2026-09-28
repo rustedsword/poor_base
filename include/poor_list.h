@@ -11,7 +11,7 @@
  * What is an "intrusive" list?
  * Normally, linked lists allocate little wrapper nodes on the heap (malloc) for every item.
  * That's slow and fragments memory.
- * Here, you just put a `struct poor_list link;` right inside your own struct.
+ * Here, you just put a `struct poor_list_node link;` right inside your own struct.
  * No extra allocations, cache-friendly, and very fast.
  *
  * Why is this better than typical C list hacks (like Linux kernel's list_head)?
@@ -39,7 +39,7 @@
  *
  * 	struct job {
  * 		int id;
- * 		struct poor_list link; // embed the list hook here
+ * 		struct poor_list_node link; // embed the list hook here
  * 	};
  *
  * 	poor_list_define(job_list, struct job, link);
@@ -73,13 +73,13 @@
 
 /* The link node you embed inside your struct.
  * Just two pointers: prev and next. That's the only overhead. */
-struct poor_list {
-	struct poor_list *prev, *next;
+struct poor_list_node {
+	struct poor_list_node *prev, *next;
 };
 
 /* Defines list type 'name' for your struct 'type', using 'member' as its link.
  *
- * Your struct must be fully defined, and 'member' must be a `struct poor_list`.
+ * Your struct must be fully defined, and 'member' must be a `struct poor_list_node`.
  * Works whether or not you called poor_list_declare(name) first. */
 #define poor_list_define(name, type, member) \
 	poor_list_declare(name); h_list_define(h_list_cat(h_list_item_, name), h_list_cat(h_list_meta_, name), type, member)
@@ -90,7 +90,7 @@ struct poor_list {
  *     poor_list_declare(folder_list);
  *     struct folder {
  *         char name[64];
- *         struct poor_list link;
+ *         struct poor_list_node link;
  *         folder_list subfolders;
  *     };
  *     poor_list_define(folder_list, struct folder, link);
@@ -119,7 +119,7 @@ struct poor_list {
  * Removed items return false. If never inserted into a list yet, the link must have
  * been zeroed first, otherwise this reads uninitialized garbage memory. */
 #define poor_list_node_is_linked(node) ((bool)_Generic((typeof(node))nullptr,	\
-	struct poor_list *: (node), const struct poor_list *: (node))->next)
+	struct poor_list_node *: (node), const struct poor_list_node *: (node))->next)
 
 /* Navigation: return a typed pointer to your struct, or nullptr when empty or at the end. */
 
@@ -198,7 +198,7 @@ struct poor_list {
 
 /* Declaring the meta tag first binds h_meta to this scope's meta, not to a shadowed outer list's one */
 #define h_list_declare(name, tag, meta) \
-	struct meta; typedef union tag { struct poor_list head; struct meta *h_meta; } name
+	struct meta; typedef union tag { struct poor_list_node head; struct meta *h_meta; } name
 
 /* The item typedef forces a compile error if a list is redefined with a conflicting type (which Clang's duplicate struct check misses) */
 #define h_list_define(item, meta, type, member)								\
@@ -206,14 +206,14 @@ struct poor_list {
 	struct meta {											\
 		item h_type;										\
 		unsigned char h_offset[offsetof(type, member) + 1];					\
-		static_assert(_Generic(&((type *)0)->member, struct poor_list *: 1, default: 0),	\
-			      "list member (" #member ") must be an unqualified struct poor_list");	\
+		static_assert(_Generic(&((type *)0)->member, struct poor_list_node *: 1, default: 0),	\
+			      "list member (" #member ") must be an unqualified struct poor_list_node");\
 	}
 
 #define h_list_type(list) typeof_unqual(*(list)->h_meta->h_type)
 #define h_list_offset(list) (sizeof((list)->h_meta->h_offset) - 1)
 #define h_list_ref_type(list) typeof(_Generic((typeof(&(list)->head))nullptr,			\
-	const struct poor_list *: (const h_list_type(list) *)nullptr, default: (h_list_type(list) *)nullptr))
+	const struct poor_list_node *: (const h_list_type(list) *)nullptr, default: (h_list_type(list) *)nullptr))
 #define h_list_ref(list, entry) ((h_list_ref_type(list))(entry))
 #define h_list_mut_list(list) \
 	static_assert_expr(!is_pointer_to_const((typeof(&(list)->head))nullptr), "list (" #list ") is const")
@@ -223,48 +223,48 @@ struct poor_list {
 #define h_list_node(list, ref) _Generic((typeof(ref))nullptr,						\
 	h_list_type(list) *: h_list_node_mut, const h_list_type(list) *: h_list_node_const)(ref, h_list_offset(list))
 
-static inline struct poor_list *h_list_node_mut(void *ref, size_t offset) {
+static inline struct poor_list_node *h_list_node_mut(void *ref, size_t offset) {
 	return (void *)((unsigned char *)ref + offset);
 }
 
-static inline const struct poor_list *h_list_node_const(const void *ref, size_t offset) {
+static inline const struct poor_list_node *h_list_node_const(const void *ref, size_t offset) {
 	return (const void *)((const unsigned char *)ref + offset);
 }
 
-static inline void h_list_init(struct poor_list *head) {
+static inline void h_list_init(struct poor_list_node *head) {
 	head->prev = head;
 	head->next = head;
 }
 
-static inline void *h_list_entry(const struct poor_list *head, struct poor_list *node, size_t offset) {
+static inline void *h_list_entry(const struct poor_list_node *head, struct poor_list_node *node, size_t offset) {
 	return node == head ? nullptr : (unsigned char *)node - offset;
 }
 
-static inline void *h_list_first(const struct poor_list *head, size_t offset) {
+static inline void *h_list_first(const struct poor_list_node *head, size_t offset) {
 	return h_list_entry(head, head->next, offset);
 }
 
-static inline void *h_list_last(const struct poor_list *head, size_t offset) {
+static inline void *h_list_last(const struct poor_list_node *head, size_t offset) {
 	return h_list_entry(head, head->prev, offset);
 }
 
-static inline void h_list_insert(struct poor_list *at, struct poor_list *entry) {
+static inline void h_list_insert(struct poor_list_node *at, struct poor_list_node *entry) {
 	entry->prev = at;
 	entry->next = at->next;
 	at->next->prev = entry;
 	at->next = entry;
 }
 
-static inline void h_list_remove(struct poor_list *entry) {
+static inline void h_list_remove(struct poor_list_node *entry) {
 	entry->prev->next = entry->next;
 	entry->next->prev = entry->prev;
 	entry->prev = nullptr;
 	entry->next = nullptr;
 }
 
-static inline size_t h_list_length(const struct poor_list *head) {
+static inline size_t h_list_length(const struct poor_list_node *head) {
 	size_t length = 0;
-	for(const struct poor_list *node = head->next; node != head; node = node->next)
+	for(const struct poor_list_node *node = head->next; node != head; node = node->next)
 		length++;
 	return length;
 }
