@@ -1341,7 +1341,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define CHECK_SELECT_POOR_ARRAY_CHECK(_0, _macro_, _2)	_macro_
 
 /* Doesn't compile if _expr_ is a false constant. A non-constant _expr_ is fine: the array size of a parameter is ignored then */
-#define ARR_ASSERT(_expr_) ((int)(0 * sizeof(void (*)(char out_of_bounds[(_expr_) ? 1 : -1]))))
+#define ARR_ASSERT(_expr_) (!sizeof(void (*)(char out_of_bounds[(_expr_) ? 1 : -1])))
 
 /* memcpy() and memset() happily discard const, so the destination has to be checked here */
 #define h_chk_dst_const_sel(_arrm_dst_, _macro_name_) \
@@ -1387,7 +1387,6 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 
 /* Values are compared as uintmax_t, so negative ones wrap around and fail */
 #define h_chk_u(_or_, x, d) ((uintmax_t)_or_(x, d))
-#define h_chk_id(x, d) (x)
 
 /* No array is bigger than PTRDIFF_MAX, so negative indexes or zero sizes fail even for VLAs */
 #define h_chk_any(x, d) ARR_ASSERT((uintmax_t)constexpr_or(x, d) - (d) < PTRDIFF_MAX)
@@ -1406,16 +1405,17 @@ static inline uintmax_t h_chk_dyn_fn(uintmax_t x) { return x; }
 /* size <= n */
 #define h_chk_space(_or_, n, size) ((size) <= (n))
 
-/* 0 <= idx, 0 < size, idx + size <= n */
-#define h_chk_view(_or_, n, idx, size) \
-	(h_chk_index(_or_, n, idx) && h_chk_size(_or_, (n) - h_chk_u(_or_, idx, 0), size))
-static inline bool h_chk_view_fn(size_t n, uintmax_t idx, uintmax_t size) { return h_chk_view(h_chk_id, n, idx, size); }
+/* 0 <= idx, 0 < size, idx + size <= n.
+ * Checking the sum uses n only once, which keeps the expansion short. The sum can't wrap around,
+ * because h_chk_any() keeps idx and size - 1 below PTRDIFF_MAX. Runtime values have no such limit,
+ * so h_chk_view_fn() compares them separately. */
+#define h_chk_view(_or_, n, idx, size) (h_chk_u(_or_, idx, 0) + h_chk_u(_or_, size, 1) - 1 < (n))
+static inline bool h_chk_view_fn(size_t n, uintmax_t idx, uintmax_t size) { return idx < n && size - 1 < n - idx; }
 
-/* 0 <= skip_start, 0 <= skip_end, skip_start + skip_end < n */
-#define h_chk_shrink(_or_, n, skip_start, skip_end) \
-	(h_chk_index(_or_, n, skip_start) && h_chk_index(_or_, (n) - h_chk_u(_or_, skip_start, 0), skip_end))
+/* 0 <= skip_start, 0 <= skip_end, skip_start + skip_end < n. Works the same way as h_chk_view(). */
+#define h_chk_shrink(_or_, n, skip_start, skip_end) (h_chk_u(_or_, skip_start, 0) + h_chk_u(_or_, skip_end, 0) < (n))
 static inline bool h_chk_shrink_fn(size_t n, uintmax_t skip_start, uintmax_t skip_end) {
-	return h_chk_shrink(h_chk_id, n, skip_start, skip_end);
+	return skip_start < n && skip_end < n - skip_start;
 }
 
 #define h_av_msg(_macro_name_, n, idx, size) CRED _macro_name_ ": Out of bound view"	\
