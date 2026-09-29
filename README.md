@@ -131,10 +131,26 @@ if(s) {
 concat_vla(vla_string, "Five plus Six:", 5 + 6);
 println(vla_string); //Five plus Six:11
 ```
+
+### Array printing
+poor_stdio.h includes poor_array.h, so these macros accept arrays and pointers to arrays.
+
+macro                        | description
+-----------------------------|-------------------------------------------
+print_array(arrm)            | prints array in form of [1,2,3,4]
+PRINT_ARRAY_INFO(arrm)       | prints information about array
+
+```c
+int32_t a[5] = {1,2,3,4,5};
+print_array(a); //[1,2,3,4,5]
+
+long c[(size_t){3}];
+PRINT_ARRAY_INFO(c); //VLA "c" at 0x7ffe9a90b4a0 has size:3 uses 12 bytes, while single element uses 4 bytes
+```
 # <h3 id="i-poor-array"><poor_array.h></h3>
 This header contains useful macros to work with arrays.
 All macros here can operate on arrays or pointers to arrays by auto-dereferencing them using auto_arr() macro,
-while checking that arguments are really arrays.
+while checking that arguments are really arrays. Printing them is a part of [poor_stdio.h](#i-poor-stdio).
 
 
 ### auto_arr(arrm) / arr(arrm) macro
@@ -162,8 +178,6 @@ ARRAY_SIZE_BYTES(arrm)       | returns number of bytes in the array
 ARRAYS_SIZE_BYTES(arrm, ...) | returns total number of bytes in all arrays
 ARRAY_ELEMENT_SIZE(arrm)     | returns number of bytes in a single array element
 ARRAY_ELEMENT_TYPE(arrm)     | returns a type of array element
-PRINT_ARRAY_INFO(arrm)       | prints information about array
-print_array(arrm)            | prints array in form of [1,2,3,4]
 
 ```c
 int32_t a[5] = {1,2,3,4,5};
@@ -174,10 +188,6 @@ println(ARRAY_SIZE_BYTES(b)); //20
 
 long c[(size_t){3}];
 println(ARRAYS_SIZE(b, c)); //8
-
-PRINT_ARRAY_INFO(c); //VLA "c" at 0x7ffe9a90b4a0 has size:3 uses 12 bytes, while single element uses 4 bytes
-
-print_array(b); //[1,2,3,4,5]
 ```
 
 ### Array allocation

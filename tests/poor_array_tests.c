@@ -1,4 +1,5 @@
 #include <poor_array.h>
+#include <poor_stdio.h>
 #include <stdio.h>
 #include <assert.h>
 

@@ -6,8 +6,8 @@
 #define POOR_ARRAY_H
 
 #include <poor_map.h>
-#include <poor_stdio.h>
 #include <poor_traits.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* Some colors */
@@ -116,84 +116,6 @@
 	println(ARRAYS_SIZE_BYTES(te, me)); //prints: 19  (if sizeof(long) == 8, then (8 * 2) + 3 )
  */
 #define ARRAYS_SIZE_BYTES(...) ( MAP_SEP((+), ARRAY_SIZE_BYTES, __VA_ARGS__) )
-
-/* PRINT_ARRAY_INFO(_arrm_): Prints information about array
- * @_arrm_: an array or a pointer to an array
- * example:
-
-	PRINT_ARRAY_INFO(&(long long[]){1, 2, 3, 4});
-	//prints: Array "&(long long[]){1, 2, 3, 4}" at 0x7fffffffdc40 has size:4 uses 32 bytes, while single element uses 8 bytes
-
-	...
-	int main(int argc, char **argv) {
-		short (*test)[argc * 3];
-		malloc_array(test);
-
-		PRINT_ARRAY_INFO(test);
-		//if argc == 1, prints: VLA "test" at 0x5555555592a0 has size:3 uses 6 bytes, while single element uses 2 bytes
-
-		free(test);
-		return 0;
-	}
- */
-#define PRINT_ARRAY_INFO(...)									\
-	println(h_print_array_info((__VA_ARGS__), " \"" #__VA_ARGS__ "\" at "),			\
-		((const void*)(__VA_ARGS__)),							\
-		" has size:", ARRAY_SIZE((__VA_ARGS__)),					\
-		" uses ", ARRAY_SIZE_BYTES((__VA_ARGS__)), " bytes,"				\
-		" while single element uses ", ARRAY_ELEMENT_SIZE((__VA_ARGS__)), " bytes")
-
-/* print_array(_arrm_)
- * Prints array as formatted output [x,y,z,...]
- * @_arrm_: an array or a pointer to an array
- * Type of array elements should be one of standard C types. See println() for more info.
- * example:
-
-	print_array((int[]){1,2,3,4}); //prints: [1,2,3,4];
-
-	const char * strings[4] = {
-		"First",
-		"Second",
-		"Third",
-		"Fourth",
-	};
-	print_array(strings); //prints: [First,Second,Third,Fourth]
- */
-#define print_array(...) do {						\
-	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);		\
-	if(!UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_)) {				\
-		println("[]");							\
-		break;								\
-	}									\
-	unsafe_make_array_first_ref(_tmp_arr_ptr_, _ref_);		\
-										\
-	print((char)'[', *_ref_);						\
-	for(_ref_++; _ref_ != unsafe_array_end_ref(_tmp_arr_ptr_); _ref_++)	\
-		print((char)',', *_ref_);					\
-										\
-	println("]");								\
-} while (0)
-
-/* sprint_array(_arrm_, var1, ..., varn):
- * prints to char array.
- * returns number of bytes in the printed string without last '\0'
- * always writes '\0' at the end of printed string.
- * if printed string was larger than array, then writes '\0' to the last array element.
- *
- * if returned value is equal or greater than size of the provided array, then output was truncated.
- *
- * @_arrm_: a char array or a pointer to a char array
- * @_var_: standard C types variables that supported by print() macro family
- * example:
-
-	char buf[5];
-	if((size_t)sprint_array(buf,1,2,3,4,5) >= sizeof(buf))
-		printerrln("Output truncated");
-
-	println(buf); //prints:1234
- */
-#define sprint_array(_arrm_, ...) snprintf(auto_arr(_arrm_), ARRAY_SIZE_BYTES(_arrm_), printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
-#define sprintln_array(_arrm_, ...) snprintf(auto_arr(_arrm_), ARRAY_SIZE_BYTES(_arrm_), printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
 /*** Basic array manipulation ***/
 
@@ -1066,10 +988,6 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
  * Returns true if _arr_ptr_ is pointer to VLA. */
 #define is_ptr_to_vla(_arr_ptr_) is_vla(*(_arr_ptr_))
 
-/* PRINT_ARRAY_INFO helpers */
-#define h_print_array_info(arr, append) if_vla_or_vla_ptr(arr, "VLA" append, "Array" append)
-#define if_vla_or_vla_ptr(_arr_, t, f) if_constexpr(sizeof(_arr_) + sizeof(*(_arr_)), f, t)
-
 /* Unsafe variant of fill_array(),
  * Should be used only with pointer to array, arguments are not checked for arrayness */
 #define unsafe_fill_array(_arrp_, ...) \
@@ -1457,85 +1375,6 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 #define declare_string_literal(_name_, _string_) \
     const typeof( (_string_)[0] ) (*const (_name_)) [ is_same_type( array_first_ref(&(_string_)), char*, 1, 0) ? ARRAY_SIZE(_string_) : -1 ]
 
-
-/* Just prints array without any formatting.
- * Type of array elements should be one of standard C types. See println() for more info.
- * @__VA_ARGS__: array or pointer to an array
- * example:
-
-    print_array_raw(&(int[]){1, 2, 3, 4, 5, 6}); //will print: 123456
-
-    bool sexy[] = {true, false, true, true};
-    print_array_raw(&sexy); //will print: truefalsetruetrue
-
-    print_array_raw(&"String is an array too!"); //will print that string. less effective than println(), but works =)
- */
-#define print_array_raw(...) do {		\
-	foreach_array_ref((__VA_ARGS__), ref) {	\
-		print(*ref);			\
-	}					\
-} while (0)
-
-/* Prints array as formatted output with custom print function for each element
- * Useful for printing arrays with custom types or multidimensional arrays.
- * @__VA_ARGS__: array or pointer to an array to print
- * @fmt_fn: function or function-like macro.
- *   should accept single argument: pointer to constant element of the array to be printed.
- *
- * example:
-
-	// Printing an array of structs
-	struct toto {
-		int a;
-		char *b;
-	};
-	struct toto some_data[4] = {
-		{1, "First"},
-		{2, "Second"},
-		{3, "Third"},
-		{4, "Fourth"},
-	};
-
-	#define toto_print(ptr) print("{a:", ptr->a, " b:", ptr->b, "}")
-
-	print_array_fmt(toto_print, some_data); //prints [{a:1 b:First},{a:2 b:Second},{a:3 b:Third},{a:4 b:Fourth}]
-
-	//Printing a multi-dimensional array using inline function
-
-	static inline void print_somedata(const int (*data)[4]) {
-		print("\n\t");
-		print_array(data);
-	}
-
-	int data[2][4] = {
-		{1,2,3,4},
-		{5,6,7,8},
-	};
-
-	print_array_fmt(print_somedata, data);
-	//prints:
-	//[
-	//    [1,2,3,4]
-	//,
-	//    [5,6,7,8]
-	//]
-
- */
-#define print_array_fmt(_fmt_fn_, ...) do {					\
-	const make_arrview_full(_tmp_arr_ptr_, __VA_ARGS__);			\
-	if(!UNSAFE_ARRAY_SIZE(*_tmp_arr_ptr_)) {				\
-		println("[]");							\
-		break;								\
-	}									\
-	unsafe_make_array_first_ref(_tmp_arr_ptr_, _ref_);			\
-										\
-	print((char)'['); _fmt_fn_(_ref_);					\
-	for(_ref_++; _ref_ != unsafe_array_end_ref(_tmp_arr_ptr_); _ref_++) {	\
-		print((char)','); _fmt_fn_(_ref_);				\
-	}									\
-	println("]");								\
-} while (0)
-
 /* array insert() implementation */
 #define unsafe_array_insert_nc(_arrp_, _idx_, _val_)						\
 	(memmove( &(*_arrp_)[_idx_] + 1, &(*_arrp_)[_idx_],					\
@@ -1589,10 +1428,6 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
  * if var is not an array or a pointer to any object then stops compilation
  */
 #define auto_arr_addressof(...) h_auto_arr_addressof((__VA_ARGS__))
-
-/* prints array as hexademical values */
-#define h_print_arr_hex(_ptr_) print("0x", fmt_hex_p(*_ptr_, sizeof(*_ptr_) * 2))
-#define print_array_hex(...) print_array_fmt(h_print_arr_hex, __VA_ARGS__)
 
 /* returns compound literal of _type_ with same qualification as _var_ */
 #define qualify_type_as(_type_, _var_)					\
@@ -1687,27 +1522,10 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
         _bit_idx_name_ < ARRAY_SIZE_BITS(arr); \
         _bit_idx_name_ --)
 
-#define print_array_bits(...) do {						\
-	make_arrview_full(_arr_, __VA_ARGS__);					\
-	print((char)'|');							\
-										\
-	const size_t _tmp_el_size_ = UNSAFE_ARRAY_ELEMENT_SIZE(*_arr_);		\
-	foreach_array_bit_bw(_arr_, _bit_idx_) {				\
-		print( array_get_bit(_arr_, _bit_idx_) ? CGREEN "X" : CRED "O");\
-										\
-		if(!(_bit_idx_ % (_tmp_el_size_ * 8)))				\
-			print(CRESET "|");					\
-		else if( !(_bit_idx_ % 8) )					\
-			print(CBLUE "|");					\
-	}									\
-	print((char)'\n');							\
-										\
-	const size_t _tmp_arr_size_ = UNSAFE_ARRAY_SIZE_BYTES(*_arr_);		\
-	for(size_t _byte_idx_ = _tmp_arr_size_; _byte_idx_ <= _tmp_arr_size_; _byte_idx_--) {	\
-		print(!(_byte_idx_ % _tmp_el_size_) ? CRESET : CBLUE,				\
-			fmt_w( _byte_idx_ ? (_byte_idx_ * 8) - 1 : 0, _byte_idx_ ? -9 : 0));	\
-	}											\
-	print((char)'\n');									\
-} while(0)
+/* Only RUNTIME_CHECK prints: the default arr_errmsg() uses printerrln().
+ * Switching to RUNTIME_CHECK after this include needs poor_stdio.h too */
+#if POOR_ARRAY_CHECK == RUNTIME_CHECK
+#include <poor_stdio.h>
+#endif
 
 #endif //POOR_ARRAY_H

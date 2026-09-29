@@ -1,4 +1,5 @@
 #include <poor_array.h>
+#include <poor_stdio.h>
 
 static_assert(is_unsigned((unsigned char)0) && is_unsigned(0u) && is_unsigned((size_t)0) && is_unsigned(true));
 static_assert(!is_unsigned(0) && !is_unsigned((signed char)0) && !is_unsigned(0LL) && !is_unsigned(0.0));

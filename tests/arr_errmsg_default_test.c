@@ -1,4 +1,5 @@
 #include <poor_array.h>
+#include <poor_stdio.h>
 #include <signal.h>
 
 static volatile sig_atomic_t argument_calls;
