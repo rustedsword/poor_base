@@ -41,7 +41,7 @@
 
 /* returns pointer to int if (expr) is constant integer expression,
  * or returns pointer to void if (expr) is not constant integer expression */
-#define magic_ice_expression(expr) (1 ? ((void *)((intptr_t)( (expr) ) * 0)) : (int *)1)
+#define magic_ice_expression(expr) (1 ? (void *)((intptr_t)(expr) * 0) : (int *)1)
 
 /* returns true if (expr) is constant integer expression, or false if it is not */
 #define is_const_expr(expr) _Generic( magic_ice_expression(expr), int*: true, void*:false)
