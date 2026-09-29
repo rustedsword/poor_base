@@ -1197,21 +1197,25 @@ static inline bool h_av_fits(size_t n, uintmax_t idx, uintmax_t size) { return h
 	&(*_arrp_)[UNSAFE_ARRAY_SIZE(*_arrp_) - _size_ + h_av_size_chk_sel(_arrp_, _size_, _macro_name_)]
 
 /* arrview first/last checks */
+static inline bool h_av_size_fits(size_t n, uintmax_t size) { return size <= n; }
+static inline bool h_av_idx_fits(size_t n, uintmax_t idx) { return idx < n; }
+
 #define h_av_size_chk_sel(_arrp_, _size_, _macro_name_) \
 	POOR_ARR_CHK_SEL(h_av_size_chk_none, h_av_size_chk_static, h_av_size_chk_dyn)(_arrp_, _size_, _macro_name_)
 
 #define h_av_size_chk_none(...) 0
-#define h_av_size_chk_static(_arrp_, _size_, _macro_name_) _Generic(1,		\
-	int*:  ARR_ASSERT(_size_ > 0),						\
-	int**: ARR_ASSERT(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_)),		\
+#define h_av_size_chk_static(_arrp_, _size_, _macro_name_) _Generic(1,			\
+	int*:  ARR_ASSERT(_size_ > 0),							\
+	int**: ARR_ASSERT(constexpr_or(_size_, 1) <= UNSAFE_ARRAY_SIZE(*_arrp_)),	\
 	default: 0 )
 
 #define h_av_size_chk_dyn(_arrp_, _size_, _macro_name_) ((					\
+	(void)h_av_size_chk_static(_arrp_, _size_, _macro_name_),				\
 	ARR_ASSERT_MSG(_size_ > 0,								\
 		CRED _macro_name_ ": Size of the view should be greater than 0"			\
 		" (view size:", _size_, ")"							\
 		" at " POOR_FILE_AND_LINE CRESET),						\
-	ARR_ASSERT_MSG(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),					\
+	ARR_ASSERT_MSG(h_av_size_fits(UNSAFE_ARRAY_SIZE(*_arrp_), h_dyn_arg(_size_)),		\
 		CRED _macro_name_ ": Out of bound view "					\
 		" (view size:", _size_, " source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
 		" at " POOR_FILE_AND_LINE CRESET)						\
@@ -1288,17 +1292,18 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 
 #define h_av_skip_chk_none(_arrp_, _skip_, _macro_name_) 0
 
-#define h_av_skip_chk_static(_arrp_, _skip_, _macro_name_) _Generic(1,	\
-	int*:  ARR_ASSERT(h_not_negative(_skip_)),			\
-	int**: ARR_ASSERT(_skip_ < UNSAFE_ARRAY_SIZE(*_arrp_)),		\
-	default: 0							\
+#define h_av_skip_chk_static(_arrp_, _skip_, _macro_name_) _Generic(1,			\
+	int*:  ARR_ASSERT(h_not_negative(_skip_)),					\
+	int**: ARR_ASSERT(constexpr_or(_skip_, 0) < UNSAFE_ARRAY_SIZE(*_arrp_)),	\
+	default: 0									\
 	)
 
 #define h_av_skip_chk_dyn(_arrp_, _skip_, _macro_name_) ((					\
+	(void)h_av_skip_chk_static(_arrp_, _skip_, _macro_name_),				\
 	ARR_ASSERT_MSG(h_not_negative(_skip_),							\
 		CRED _macro_name_ ": Skipping negative amount of elements"			\
 		" (skipped:", _skip_, ") at " POOR_FILE_AND_LINE CRESET),			\
-	ARR_ASSERT_MSG(_skip_ < UNSAFE_ARRAY_SIZE(*_arrp_),					\
+	ARR_ASSERT_MSG(h_av_idx_fits(UNSAFE_ARRAY_SIZE(*_arrp_), h_dyn_arg(_skip_)),		\
 		CRED _macro_name_ ": Skipping the whole array"					\
 		" (skipped:", _skip_,", array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"		\
 		" at " POOR_FILE_AND_LINE CRESET)						\
@@ -1318,17 +1323,18 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 	POOR_ARR_CHK_SEL(h_av_dim_chk_none, h_av_dim_chk_static, h_av_dim_chk_dyn)(_arrp_, _size_, _macro_name_)
 
 #define h_av_dim_chk_none(...) 0
-#define h_av_dim_chk_static(_arrp_, _size_, _macro_name_) _Generic(1,		\
-	int*:  ARR_ASSERT(_size_ > 0),						\
-	int**: ARR_ASSERT(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_)),		\
+#define h_av_dim_chk_static(_arrp_, _size_, _macro_name_) _Generic(1,			\
+	int*:  ARR_ASSERT(_size_ > 0),							\
+	int**: ARR_ASSERT(constexpr_or(_size_, 1) <= UNSAFE_ARRAY_SIZE(*_arrp_)),	\
 	default: 0 )
 
 #define h_av_dim_chk_dyn(_arrp_, _size_, _macro_name_) ((						\
+	(void)h_av_dim_chk_static(_arrp_, _size_, _macro_name_),					\
 	ARR_ASSERT_MSG(_size_ > 0,									\
 		CRED _macro_name_ ": Size of a new dimension should be greater than 0"			\
-		" (dimension size:", _size_, ")"								\
+		" (dimension size:", _size_, ")"							\
 		" at " POOR_FILE_AND_LINE CRESET),							\
-	ARR_ASSERT_MSG(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),						\
+	ARR_ASSERT_MSG(h_av_size_fits(UNSAFE_ARRAY_SIZE(*_arrp_), h_dyn_arg(_size_)),			\
 		CRED _macro_name_ ": Size of a new dimension is less than source array size"		\
 		" (dimension size:", _size_, " source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
 		" at " POOR_FILE_AND_LINE CRESET)							\
@@ -1387,15 +1393,16 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 #define h_chk_arr_ins_chk_none(...) 0
 #define h_chk_arr_ins_chk_static(_arrp_, _idx_, _macro_name_) _Generic(1,		\
 	int *: ARR_ASSERT(h_not_negative(_idx_)),					\
-	int **: ARR_ASSERT(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_)),				\
+	int **: ARR_ASSERT(constexpr_or(_idx_, 0) < UNSAFE_ARRAY_SIZE(*_arrp_)),	\
 	default: 0)
 
 #define h_chk_arr_ins_chk_dyn(_arrp_, _idx_, _macro_name_) ((				\
+	(void)h_chk_arr_ins_chk_static(_arrp_, _idx_, _macro_name_),			\
 	ARR_ASSERT_MSG(h_not_negative(_idx_),						\
 		CRED _macro_name_ ":Attempting to insert value at negative index"	\
 		" (index:", _idx_, ")"							\
 		" at " POOR_FILE_AND_LINE CRESET),					\
-	ARR_ASSERT_MSG(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_),				\
+	ARR_ASSERT_MSG(h_av_idx_fits(UNSAFE_ARRAY_SIZE(*_arrp_), h_dyn_arg(_idx_)),	\
 		CRED _macro_name_ ":Attempting to insert value beyond end of the array"	\
 		" (index:", _idx_, " array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
 		" at " POOR_FILE_AND_LINE CRESET)					\
@@ -1491,10 +1498,10 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 
 #define array_bit_idx_to_byte_idx(arr, idx) ((idx) / (ARRAY_ELEMENT_SIZE(arr) * 8))
 
-#define _array_bit_chk_index(arr, idx, ...) _Generic(1,             \
-    int*:  sizeof(char [h_not_negative(idx) ? 1 : -1]),             \
-    int**:  sizeof(char [(idx) >= ARRAY_SIZE_BITS(arr) ? -1 : 1]),  \
-    default: __VA_ARGS__                                            \
+#define _array_bit_chk_index(arr, idx, ...) _Generic(1,					\
+    int*:  sizeof(char [h_not_negative(idx) ? 1 : -1]),					\
+    int**:  sizeof(char [constexpr_or(idx, 0) >= ARRAY_SIZE_BITS(arr) ? -1 : 1]),	\
+    default: __VA_ARGS__								\
     )
 
 #define array_set_bit(arr, idx) \
