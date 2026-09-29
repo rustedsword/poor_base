@@ -6,8 +6,6 @@ static_assert(!is_unsigned(0) && !is_unsigned((signed char)0) && !is_unsigned(0L
 static_assert(is_unsigned((char)0) == ((char)-1 > 0));
 static_assert(if_unsigned(0u, 1, 2) == 1 && if_unsigned(0, 1, 2) == 2 && if_unsigned(0.5, 1, 2) == 2);
 static_assert(_Generic(if_unsigned(0u, (short)0, 0.0), short: 1, default: 0));
-static_assert(!h_not_negative(-1) && !h_not_negative((signed char)-1) && !h_not_negative(-0.5));
-static_assert(h_not_negative(0) && h_not_negative(0u) && h_not_negative((size_t)-1) && h_not_negative(true));
 
 struct bits { unsigned u : 4; int s : 4; };
 extern _Atomic unsigned atomic_u;

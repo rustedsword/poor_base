@@ -428,7 +428,8 @@
 */
 #define copy_arrays(_arrm_dst_, ...) (							\
 	(void)h_chk_dst_const_sel(_arrm_dst_, "copy_arrays()"),				\
-	(void)h_copy_arrs_chk_size_sel(_arrm_dst_, __VA_ARGS__),			\
+	(void)h_arr_chk1(h_chk_space, h_copy_arrs_msg, "copy_arrays()",			\
+		ARRAY_SIZE(_arrm_dst_), ARRAYS_SIZE(__VA_ARGS__)),			\
 	(void)RECURSION_ARG(h_copy_arrs, _arrm_dst_, _arrm_dst_, __VA_ARGS__)		\
 )
 
@@ -712,7 +713,8 @@
 
  */
 #define array_insert(_arrm_, _idx_, _val_) (						\
-	(void)h_chk_arr_ins_chk_sel(&auto_arr(_arrm_), (_idx_), "array_insert()"),	\
+	(void)h_arr_chk1(h_chk_index, h_arr_ins_msg, "array_insert()",			\
+		ARRAY_SIZE(_arrm_), (_idx_)),						\
 	unsafe_array_insert_nc(&auto_arr(_arrm_), (_idx_), (_val_))			\
 )
 
@@ -884,33 +886,8 @@
 /*** Implementation macros. Everything below should not be used and can be changed anytime ***/
 /****** ------------------------------------------------------------------------------ *******/
 
-#define h_arr_cat(a, ...) h_arr_primitive_cat(a, __VA_ARGS__)
-#define h_arr_primitive_cat(a, ...) a ## __VA_ARGS__
-
-/* expands one of three provided macros by checking current POOR_ARRAY_CHECK setting */
-#define POOR_ARR_CHK_SEL(_no_check_, _static_check_, _runtime_check_) \
-	h_arr_cat(CHECK_SELECT_, POOR_ARRAY_CHECK)(_no_check_, _static_check_, _runtime_check_)
-
-#define CHECK_SELECT_0(_macro_, _1, _2)	_macro_
-#define CHECK_SELECT_1(_0, _macro_, _2)	_macro_
-#define CHECK_SELECT_2(_0, _1, _macro_)	_macro_
-#define CHECK_SELECT_POOR_ARRAY_CHECK(_0, _macro_, _2)	_macro_
-
 /* Returns type of array element without qualifiers */
 #define ARRAY_ELEMENT_TYPE_NO_QUAL(var) typeof_unqual(ARRAY_ELEMENT_TYPE(var))
-
-/* If _expr_ is not constant expression and is equals zero then this macro calls arr_errmsg() macro
- * If _expr_ is constant expression and is equals zero then terminates compilation  */
-#define ARR_ASSERT_MSG(_expr_, ...) (void)(sizeof(char [_expr_ ? 1 : -1]) == 1 ? 0 : arr_errmsg(__VA_ARGS__))
-
-/* If _expr_ is constant expression and is equals zero then terminates compilation  */
-#define ARR_ASSERT(_expr_)  (void)(sizeof(char [_expr_ ? 1 : -1]))
-
-/* (x) >= 0 warns with -Wtype-limits for an unsigned x, so unsigned types compare 0 instead */
-#define h_not_negative(x) (if_unsigned(x, 0, (x)) >= 0)
-
-/* Runtime check functions take uintmax_t: wider arguments don't compile instead of being truncated */
-#define h_dyn_arg(x) (ARR_ASSERT(sizeof((void)0, (x)) <= sizeof(uintmax_t)), (x))
 
 /* Declares a pointer to array with same type as another pointer to array but with different size */
 #define unsafe_make_arrptr(_name_, _size_, _arrp_) UNSAFE_ARRAY_ELEMENT_TYPE(*_arrp_)(* _name_)[_size_]
@@ -1101,39 +1078,6 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	(unsigned char*)memcpy(_prev_, _arrm_src_, ARRAY_SIZE_BYTES(_arrm_src_)) + ARRAY_SIZE_BYTES(_arrm_src_)	\
 )
 
-/* memcpy() and memset() happily discard const, so the destination has to be checked here */
-#define h_chk_dst_const_sel(_arrm_dst_, _macro_name_) \
-	POOR_ARR_CHK_SEL(h_chk_dst_const_none, h_chk_dst_const_static, h_chk_dst_const_static)(_arrm_dst_, _macro_name_)
-
-#define h_chk_dst_const_none(...) 0
-
-#define h_chk_dst_const_static(_arrm_dst_, _macro_name_)			\
-	static_assert_expr(!is_pointer_to_const(&auto_arr(_arrm_dst_)[0]),	\
-	_macro_name_ ": destination array is const")
-
-#define h_copy_arrs_chk_type_sel(_arrm_dst_, _arrm_src_) \
-	POOR_ARR_CHK_SEL(h_copy_arrs_chk_type_none, h_copy_arrs_chk_type_static, h_copy_arrs_chk_type_static)(_arrm_dst_, _arrm_src_)
-
-#define h_copy_arrs_chk_type_none(...) 0
-#define h_copy_arrs_chk_type_static(_arrm_dst_, _arrm_src_)			\
-	static_assert_expr(is_same_array_element_type(_arrm_dst_ , _arrm_src_),	\
-	"copy_arrays(): source array doesn't have same type as destination array")
-
-#define h_copy_arrs_chk_size_sel(_arrm_dst_, ...) \
-	POOR_ARR_CHK_SEL(h_copy_arrs_chk_size_none, h_copy_arrs_chk_size_static, h_copy_arrs_chk_size_dyn)(_arrm_dst_, __VA_ARGS__)
-
-#define h_copy_arrs_chk_size_none(...) 0
-#define h_copy_arrs_chk_size_static(_arrm_dst_, ...)					\
-	ARR_ASSERT(ARRAY_SIZE(_arrm_dst_) >= ARRAYS_SIZE(__VA_ARGS__))
-
-#define h_copy_arrs_chk_size_dyn(_arrm_dst_, ...)					\
-	ARR_ASSERT_MSG(ARRAY_SIZE(_arrm_dst_) >= ARRAYS_SIZE(__VA_ARGS__),		\
-		"copy_arrays(): Destination array has insufficient space"		\
-		" (", ARRAY_SIZE(_arrm_dst_), " element(s))"				\
-		" while size of all source arrays is ", ARRAYS_SIZE(__VA_ARGS__),	\
-		" at " POOR_FILE_AND_LINE)						\
-
-
 /***** Arrview helpers *****/
 /* arrview() implemenmtation */
 #define unsafe_make_arrview(_name_, _idx_, _size_, _arrp_) \
@@ -1142,38 +1086,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define unsafe_arrview(_idx_, _size_, _arrp_)  (unsafe_make_arrptr(, _size_, _arrp_))h_unsafe_arrview(_idx_, _size_, _arrp_, "arrview()")
 
 #define h_unsafe_arrview(_idx_, _size_, _arrp_, _macro_name_) \
-	&(*_arrp_)[_idx_ + h_av_chk_sel(_arrp_, _idx_, _size_, _macro_name_)]
-
-#define h_av_chk_sel(_arrp_, _idx_, _size_, _macro_name_) \
-	POOR_ARR_CHK_SEL(h_av_chk_none, h_av_chk_static, h_av_chk_dyn)(_arrp_, _idx_, _size_, _macro_name_)
-
-#define h_av_chk_none(...) 0
-#define h_av_chk_static(_arrp_, _idx_, _size_, _macro_name_) _Generic(1,	\
-	int*:	ARR_ASSERT(h_not_negative(_idx_)),				\
-	int**:	ARR_ASSERT(_size_ > 0),						\
-	int***:	ARR_ASSERT(h_av_fits_static(UNSAFE_ARRAY_SIZE(*_arrp_), constexpr_or(_idx_, 0), constexpr_or(_size_, 1))),	\
-	default: 0 )
-
-/* Static checks pass constexpr_or(x, <most permissive value>): only constants can fail them, and comparing the rest could warn */
-#define h_av_fits_static(n, idx, size) ((idx) < (n) && (size) <= (n) - (idx))
-static inline bool h_av_fits(size_t n, uintmax_t idx, uintmax_t size) { return h_av_fits_static(n, idx, size); }
-
-#define h_av_chk_dyn(_arrp_, _idx_, _size_, _macro_name_) ((			\
-	(void)h_av_chk_static(_arrp_, _idx_, _size_, _macro_name_),		\
-	ARR_ASSERT_MSG(h_not_negative(_idx_),					\
-		CRED _macro_name_ ": Start index ", _idx_ ," is less than 0"	\
-		" (start index:", _idx_, ")"					\
-		" at " POOR_FILE_AND_LINE CRESET),				\
-	ARR_ASSERT_MSG(_size_ > 0,						\
-		CRED _macro_name_ ": Size of the view should be greater than 0"	\
-		" (size:", _size_, ")"						\
-		" at " POOR_FILE_AND_LINE CRESET),				\
-	ARR_ASSERT_MSG(h_av_fits(UNSAFE_ARRAY_SIZE(*_arrp_), h_dyn_arg(_idx_), h_dyn_arg(_size_)),	\
-		CRED _macro_name_ ": Out of bound view "			\
-		" (start index:", _idx_, " view size:", _size_,			\
-		" source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"		\
-		" at " POOR_FILE_AND_LINE CRESET)				\
-    ), 0)
+	&(*_arrp_)[_idx_ + h_arr_chk2(h_chk_view, h_av_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _idx_, _size_)]
 
 /* arrview_first() implemenetation */
 #define unsafe_make_arrview_first(_name_, _size_, _arrp_) \
@@ -1181,7 +1094,8 @@ static inline bool h_av_fits(size_t n, uintmax_t idx, uintmax_t size) { return h
 
 #define unsafe_arrview_first(_size_, _arrp_) (unsafe_make_arrptr(, _size_, _arrp_))h_unsafe_arrview_first(_size_, _arrp_, "arrview_first()")
 
-#define h_unsafe_arrview_first(_size_, _arrp_, _macro_name_) &(*_arrp_)[h_av_size_chk_sel(_arrp_, _size_, _macro_name_)]
+#define h_unsafe_arrview_first(_size_, _arrp_, _macro_name_) \
+	&(*_arrp_)[h_arr_chk1(h_chk_size, h_av_size_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _size_)]
 
 /* unsafe_nc_make_arrview_first(): same as make_arrview_first without checks at all */
 #define unsafe_nc_make_arrview_first(_name_, _size_, _arrp_) \
@@ -1194,28 +1108,7 @@ static inline bool h_av_fits(size_t n, uintmax_t idx, uintmax_t size) { return h
 #define unsafe_arrview_last(_size_, _arrp_) (unsafe_make_arrptr(, _size_, _arrp_))h_unsafe_arrview_last(_size_, _arrp_, "arrview_last()")
 
 #define h_unsafe_arrview_last(_size_, _arrp_, _macro_name_) \
-	&(*_arrp_)[UNSAFE_ARRAY_SIZE(*_arrp_) - _size_ + h_av_size_chk_sel(_arrp_, _size_, _macro_name_)]
-
-/* arrview first/last checks */
-#define h_av_size_chk_sel(_arrp_, _size_, _macro_name_) \
-	POOR_ARR_CHK_SEL(h_av_size_chk_none, h_av_size_chk_static, h_av_size_chk_dyn)(_arrp_, _size_, _macro_name_)
-
-#define h_av_size_chk_none(...) 0
-#define h_av_size_chk_static(_arrp_, _size_, _macro_name_) _Generic(1,		\
-	int*:  ARR_ASSERT(_size_ > 0),						\
-	int**: ARR_ASSERT(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_)),		\
-	default: 0 )
-
-#define h_av_size_chk_dyn(_arrp_, _size_, _macro_name_) ((					\
-	ARR_ASSERT_MSG(_size_ > 0,								\
-		CRED _macro_name_ ": Size of the view should be greater than 0"			\
-		" (view size:", _size_, ")"							\
-		" at " POOR_FILE_AND_LINE CRESET),						\
-	ARR_ASSERT_MSG(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),					\
-		CRED _macro_name_ ": Out of bound view "					\
-		" (view size:", _size_, " source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
-		" at " POOR_FILE_AND_LINE CRESET)						\
-    ), 0)
+	&(*_arrp_)[UNSAFE_ARRAY_SIZE(*_arrp_) - _size_ + h_arr_chk1(h_chk_size, h_av_size_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _size_)]
 
 /* arrview_shrink() implementation */
 #define unsafe_make_arrview_shrink(_name_, _skip_start_, _skip_end_, _arrp_)	\
@@ -1226,38 +1119,11 @@ static inline bool h_av_fits(size_t n, uintmax_t idx, uintmax_t size) { return h
 	(h_av_shrnk_decl(,_skip_start_, _skip_end_, _arrp_))h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, "arrview_shrink()")
 
 #define h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, _macro_name_)	\
-	&(*_arrp_)[_skip_start_ + h_av_shrink_chk_sel(_arrp_, _skip_start_, _skip_end_, _macro_name_)]
+	&(*_arrp_)[_skip_start_ + h_arr_chk2(h_chk_shrink, h_av_shrink_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _skip_start_, _skip_end_)]
 
-/* arrview shrink args check macros */
+/* arrview shrink declaration macros */
 #define h_av_shrnk_decl(_name_, _skip_start_, _skip_end_, _arrp_) unsafe_make_arrptr(_name_, h_av_shrink_size(_arrp_, _skip_start_, _skip_end_), _arrp_)
 #define h_av_shrink_size(_arrp_, _skip_start_, _skip_end_) UNSAFE_ARRAY_SIZE(*_arrp_) - _skip_start_ - _skip_end_
-
-#define h_av_shrink_chk_sel(_arrp_, _skip_start_, _skip_end_, _macro_name_) \
-	POOR_ARR_CHK_SEL(h_av_shrink_chk_none, h_av_shrink_chk_static, h_av_shrink_chk_dyn)(_arrp_, _skip_start_, _skip_end_, _macro_name_)
-
-#define h_av_shrink_chk_none(_arrp_, _skip_start_, _skip_end_, _macro_name_) 0
-
-#define h_av_shrink_chk_static(_arrp_, _skip_start_, _skip_end_, _macro_name_) _Generic(1,	\
-	int*:   ARR_ASSERT(h_not_negative(_skip_start_) && h_not_negative(_skip_end_)),		\
-	int**:	ARR_ASSERT(h_av_shrink_fits_static(UNSAFE_ARRAY_SIZE(*_arrp_), constexpr_or(_skip_start_, 0), constexpr_or(_skip_end_, 0))),	\
-	default: 0										\
-	)
-
-#define h_av_shrink_fits_static(n, skip_start, skip_end) ((skip_start) < (n) && (skip_end) < (n) - (skip_start))
-static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t skip_end) { return h_av_shrink_fits_static(n, skip_start, skip_end); }
-
-#define h_av_shrink_chk_dyn(_arrp_, _skip_start_, _skip_end_, _macro_name_) ((					\
-	(void)h_av_shrink_chk_static(_arrp_, _skip_start_, _skip_end_, _macro_name_),				\
-	ARR_ASSERT_MSG(h_not_negative(_skip_start_) && h_not_negative(_skip_end_),				\
-		CRED _macro_name_ ": Skipping negative amount of elements"					\
-		" (skipped front:", _skip_start_, " skipped back:", _skip_end_, ")"				\
-		" at " POOR_FILE_AND_LINE CRESET),								\
-	ARR_ASSERT_MSG(h_av_shrink_fits(UNSAFE_ARRAY_SIZE(*_arrp_), h_dyn_arg(_skip_start_), h_dyn_arg(_skip_end_)),	\
-		CRED _macro_name_ ": Skipping the whole array"							\
-		" (skipped front:", _skip_start_, " skipped back:", _skip_end_, ","				\
-		" array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"							\
-		" at " POOR_FILE_AND_LINE CRESET)								\
-	), 0)
 
 /* arrview cfront() implementation */
 #define unsafe_make_arrview_cfront(_name_, _skip_start_, _arrp_) \
@@ -1267,7 +1133,7 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 	(h_av_skip_decl(, _skip_start_, _arrp_))h_unsafe_arrview_cfront(_skip_start_, _arrp_, "arrview_cfront()")
 
 #define h_unsafe_arrview_cfront(_skip_start_, _arrp_, _macro_name_) \
-	&(*_arrp_)[_skip_start_ + h_av_skip_chk_sel(_arrp_, _skip_start_, _macro_name_)]
+	&(*_arrp_)[_skip_start_ + h_arr_chk1(h_chk_index, h_av_skip_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _skip_start_)]
 
 /* arrview_cback() implementation */
 #define unsafe_make_arrview_cback(_name_, _skip_end_, _arrp_)	\
@@ -1277,62 +1143,21 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 	(h_av_skip_decl(, _skip_end_, _arrp_))h_unsafe_arrview_cback(_skip_end_, _arrp_, "arrview_cback()")
 
 #define h_unsafe_arrview_cback(_skip_end_, _arrp_, _macro_name_) \
-	&(*_arrp_)[h_av_skip_chk_sel(_arrp_, _skip_end_, _macro_name_)]
+	&(*_arrp_)[h_arr_chk1(h_chk_index, h_av_skip_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _skip_end_)]
 
-/* Arrview cut back/front common declaration and argument checking macros */
+/* Arrview cut back/front common declaration macros */
 #define h_av_skip_decl(_name_, _skip_, _arrp_) unsafe_make_arrptr(_name_, h_av_skip_size(_arrp_, _skip_), _arrp_)
 #define h_av_skip_size(_arrp_, _skip_) UNSAFE_ARRAY_SIZE(*_arrp_) - _skip_
-
-#define h_av_skip_chk_sel(_arrp_, _skip_, _macro_name_) \
-	POOR_ARR_CHK_SEL(h_av_skip_chk_none, h_av_skip_chk_static, h_av_skip_chk_dyn)(_arrp_, _skip_, _macro_name_)
-
-#define h_av_skip_chk_none(_arrp_, _skip_, _macro_name_) 0
-
-#define h_av_skip_chk_static(_arrp_, _skip_, _macro_name_) _Generic(1,	\
-	int*:  ARR_ASSERT(h_not_negative(_skip_)),			\
-	int**: ARR_ASSERT(_skip_ < UNSAFE_ARRAY_SIZE(*_arrp_)),		\
-	default: 0							\
-	)
-
-#define h_av_skip_chk_dyn(_arrp_, _skip_, _macro_name_) ((					\
-	ARR_ASSERT_MSG(h_not_negative(_skip_),							\
-		CRED _macro_name_ ": Skipping negative amount of elements"			\
-		" (skipped:", _skip_, ") at " POOR_FILE_AND_LINE CRESET),			\
-	ARR_ASSERT_MSG(_skip_ < UNSAFE_ARRAY_SIZE(*_arrp_),					\
-		CRED _macro_name_ ": Skipping the whole array"					\
-		" (skipped:", _skip_,", array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"		\
-		" at " POOR_FILE_AND_LINE CRESET)						\
-	), 0)
 
 /* arrview_dim() implementation */
 #define h_make_arrview_dim(_name_, _size_, _arrm_) \
 	h_av_dim_decl(_name_, _size_, &auto_arr(_arrm_)) = \
-	((typeof(_name_))_arrm_ + h_av_dim_chk_sel(&auto_arr(_arrm_), _size_, "make_arrview_dim()"))
+	((typeof(_name_))_arrm_ + h_arr_chk1(h_chk_size, h_av_dim_msg, "make_arrview_dim()", ARRAY_SIZE(_arrm_), _size_))
 
 #define h_arrview_dim(_size_, _arrm_) \
-	(h_av_dim_decl(, _size_, &auto_arr(_arrm_)))(_arrm_ + h_av_dim_chk_sel(&auto_arr(_arrm_), _size_, "arrview_dim()"))
+	(h_av_dim_decl(, _size_, &auto_arr(_arrm_)))(_arrm_ + h_arr_chk1(h_chk_size, h_av_dim_msg, "arrview_dim()", ARRAY_SIZE(_arrm_), _size_))
 
 #define h_av_dim_decl(_name_, _size_, _arrp_) UNSAFE_ARRAY_ELEMENT_TYPE(*_arrp_)(*_name_)[ UNSAFE_ARRAY_SIZE(*_arrp_) / _size_ ][_size_]
-
-#define h_av_dim_chk_sel(_arrp_, _size_, _macro_name_) \
-	POOR_ARR_CHK_SEL(h_av_dim_chk_none, h_av_dim_chk_static, h_av_dim_chk_dyn)(_arrp_, _size_, _macro_name_)
-
-#define h_av_dim_chk_none(...) 0
-#define h_av_dim_chk_static(_arrp_, _size_, _macro_name_) _Generic(1,		\
-	int*:  ARR_ASSERT(_size_ > 0),						\
-	int**: ARR_ASSERT(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_)),		\
-	default: 0 )
-
-#define h_av_dim_chk_dyn(_arrp_, _size_, _macro_name_) ((						\
-	ARR_ASSERT_MSG(_size_ > 0,									\
-		CRED _macro_name_ ": Size of a new dimension should be greater than 0"			\
-		" (dimension size:", _size_, ")"								\
-		" at " POOR_FILE_AND_LINE CRESET),							\
-	ARR_ASSERT_MSG(_size_ <= UNSAFE_ARRAY_SIZE(*_arrp_),						\
-		CRED _macro_name_ ": Size of a new dimension is less than source array size"		\
-		" (dimension size:", _size_, " source array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
-		" at " POOR_FILE_AND_LINE CRESET)							\
-    ), 0)
 
 /* arrview_flat() implementation */
 #define h_make_arrview_flat(_name_, _arrm_) h_av_flat_decl(_name_, &auto_arr(_arrm_)) = (typeof(_name_))_arrm_
@@ -1380,26 +1205,6 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 	(memmove( &(*_arrp_)[_idx_] + 1, &(*_arrp_)[_idx_],					\
 		(UNSAFE_ARRAY_SIZE(*_arrp_) - _idx_ - 1) * UNSAFE_ARRAY_ELEMENT_SIZE(*_arrp_) ),\
 	(*_arrp_)[_idx_] = _val_)
-
-#define h_chk_arr_ins_chk_sel(_arrp_, _idx_, _macro_name_) \
-	POOR_ARR_CHK_SEL(h_chk_arr_ins_chk_none, h_chk_arr_ins_chk_static, h_chk_arr_ins_chk_dyn)(_arrp_, _idx_, _macro_name_)
-
-#define h_chk_arr_ins_chk_none(...) 0
-#define h_chk_arr_ins_chk_static(_arrp_, _idx_, _macro_name_) _Generic(1,		\
-	int *: ARR_ASSERT(h_not_negative(_idx_)),					\
-	int **: ARR_ASSERT(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_)),				\
-	default: 0)
-
-#define h_chk_arr_ins_chk_dyn(_arrp_, _idx_, _macro_name_) ((				\
-	ARR_ASSERT_MSG(h_not_negative(_idx_),						\
-		CRED _macro_name_ ":Attempting to insert value at negative index"	\
-		" (index:", _idx_, ")"							\
-		" at " POOR_FILE_AND_LINE CRESET),					\
-	ARR_ASSERT_MSG(_idx_ < UNSAFE_ARRAY_SIZE(*_arrp_),				\
-		CRED _macro_name_ ":Attempting to insert value beyond end of the array"	\
-		" (index:", _idx_, " array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
-		" at " POOR_FILE_AND_LINE CRESET)					\
-	), 0)
 
 /* array_inseret_array() implementation */
 #define h_array_insert_array(_arr_, _idx_, _src_arr_) do {                                                             \
@@ -1491,24 +1296,21 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 
 #define array_bit_idx_to_byte_idx(arr, idx) ((idx) / (ARRAY_ELEMENT_SIZE(arr) * 8))
 
-#define _array_bit_chk_index(arr, idx, ...) _Generic(1,             \
-    int*:  sizeof(char [h_not_negative(idx) ? 1 : -1]),             \
-    int**:  sizeof(char [(idx) >= ARRAY_SIZE_BITS(arr) ? -1 : 1]),  \
-    default: __VA_ARGS__                                            \
-    )
+#define _array_bit_chk_index(arr, idx, _macro_name_, ...) \
+    ((void)h_arr_chk1(h_chk_index, h_arr_bit_msg, _macro_name_, ARRAY_SIZE_BITS(arr), idx), __VA_ARGS__)
 
 #define array_set_bit(arr, idx) \
-    _array_bit_chk_index(arr, idx,  \
+    _array_bit_chk_index(arr, idx, "array_set_bit()", \
         auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] |= (1ULL << ((idx) % (ARRAY_ELEMENT_SIZE(arr) * 8ULL))) \
     )
 
 #define array_unset_bit(arr, idx)   \
-    _array_bit_chk_index(arr, idx,  \
+    _array_bit_chk_index(arr, idx, "array_unset_bit()", \
         auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] &= ~(1ULL << ((idx) % (ARRAY_ELEMENT_SIZE(arr) * 8ULL))) \
     )
 
 #define array_get_bit(arr, idx) \
-    _array_bit_chk_index(arr, idx,  \
+    _array_bit_chk_index(arr, idx, "array_get_bit()", \
         ((bool)(!!(auto_arr(arr)[ (idx) / (ARRAY_ELEMENT_SIZE(arr) * 8ULL) ] & (1ULL << ((idx) % (ARRAY_ELEMENT_SIZE(arr) * 8ULL)))))) \
     )
 
@@ -1521,6 +1323,117 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
     for(size_t _bit_idx_name_ = ARRAY_SIZE_BITS(arr) - 1;   \
         _bit_idx_name_ < ARRAY_SIZE_BITS(arr); \
         _bit_idx_name_ --)
+
+/****** ------------------------------------------------------------------------------ *******/
+/*** Argument checks ***/
+/****** ------------------------------------------------------------------------------ *******/
+
+#define h_arr_cat(a, ...) h_arr_primitive_cat(a, __VA_ARGS__)
+#define h_arr_primitive_cat(a, ...) a ## __VA_ARGS__
+
+/* expands one of three provided macros by checking current POOR_ARRAY_CHECK setting */
+#define POOR_ARR_CHK_SEL(_no_check_, _static_check_, _runtime_check_) \
+	h_arr_cat(CHECK_SELECT_, POOR_ARRAY_CHECK)(_no_check_, _static_check_, _runtime_check_)
+
+#define CHECK_SELECT_0(_macro_, _1, _2)	_macro_
+#define CHECK_SELECT_1(_0, _macro_, _2)	_macro_
+#define CHECK_SELECT_2(_0, _1, _macro_)	_macro_
+#define CHECK_SELECT_POOR_ARRAY_CHECK(_0, _macro_, _2)	_macro_
+
+/* Doesn't compile if _expr_ is a false constant. A non-constant _expr_ is fine: the array size of a parameter is ignored then */
+#define ARR_ASSERT(_expr_) ((int)(0 * sizeof(void (*)(char out_of_bounds[(_expr_) ? 1 : -1]))))
+
+/* memcpy() and memset() happily discard const, so the destination has to be checked here */
+#define h_chk_dst_const_sel(_arrm_dst_, _macro_name_) \
+	POOR_ARR_CHK_SEL(h_chk_dst_const_none, h_chk_dst_const_static, h_chk_dst_const_static)(_arrm_dst_, _macro_name_)
+
+#define h_chk_dst_const_none(...) 0
+
+#define h_chk_dst_const_static(_arrm_dst_, _macro_name_)			\
+	static_assert_expr(!is_pointer_to_const(&auto_arr(_arrm_dst_)[0]),	\
+	_macro_name_ ": destination array is const")
+
+#define h_copy_arrs_chk_type_sel(_arrm_dst_, _arrm_src_) \
+	POOR_ARR_CHK_SEL(h_copy_arrs_chk_type_none, h_copy_arrs_chk_type_static, h_copy_arrs_chk_type_static)(_arrm_dst_, _arrm_src_)
+
+#define h_copy_arrs_chk_type_none(...) 0
+#define h_copy_arrs_chk_type_static(_arrm_dst_, _arrm_src_)			\
+	static_assert_expr(is_same_array_element_type(_arrm_dst_ , _arrm_src_),	\
+	"copy_arrays(): source array doesn't have same type as destination array")
+
+/* h_arr_chk1() checks one value and h_arr_chk2() checks two against an array of n elements, e.g.:
+ *
+ *	h_arr_chk2(h_chk_view, h_av_msg, "arrview()", n, idx, size)
+ *
+ * The condition macro wraps every value in or(value, default), where default is the most permissive value.
+ * STATIC_CHECK uses constexpr_or() there, so only constants can fail.
+ * RUNTIME_CHECK fails in the same cases and checks the rest at run time, calling arr_errmsg() with the message.
+ * NO_CHECK doesn't even expand the arguments. */
+#define h_arr_chk1 POOR_ARR_CHK_SEL(h_arr_chk_none, h_arr_chk_static, h_arr_chk1_dyn)
+#define h_arr_chk2 POOR_ARR_CHK_SEL(h_arr_chk_none, h_arr_chk_static, h_arr_chk2_dyn)
+
+#define h_arr_chk_none(...) 0
+#define h_arr_chk_static(_cond_, _msg_, _macro_name_, ...) ARR_ASSERT(_cond_(h_chk_static_val, __VA_ARGS__))
+
+/* With one value, one expression does both checks: an array of SIZE_MAX chars doesn't compile,
+ * but at run time it's a valid size, unlike -1. The runtime checks end with 0,
+ * so -Wsign-conversion doesn't warn when they are added to unsigned indexes. */
+#define h_arr_chk1_dyn(_cond_, _msg_, _macro_name_, ...) \
+	((void)(sizeof(char [_cond_(h_chk_dyn_val, __VA_ARGS__) ? 1 : SIZE_MAX]) == 1 ? 0 : arr_errmsg(_msg_(_macro_name_, __VA_ARGS__))), 0)
+
+/* With two values, one of them can be a wrong constant while the other is known only at run time */
+#define h_arr_chk2_dyn(_cond_, _msg_, _macro_name_, n, a, b) ((void)h_arr_chk_static(_cond_, _msg_, _macro_name_, n, a, b), \
+	(void)(_cond_##_fn(n, (uintmax_t)(a), (uintmax_t)(b)) ? 0 : arr_errmsg(_msg_(_macro_name_, n, a, b))), 0)
+
+/* Values are compared as uintmax_t, so negative ones wrap around and fail */
+#define h_chk_u(_or_, x, d) ((uintmax_t)_or_(x, d))
+#define h_chk_id(x, d) (x)
+
+/* No array is bigger than PTRDIFF_MAX, so negative indexes or zero sizes fail even for VLAs */
+#define h_chk_any(x, d) ARR_ASSERT((uintmax_t)constexpr_or(x, d) - (d) < PTRDIFF_MAX)
+#define h_chk_static_val(x, d) (constexpr_or(x, d) + h_chk_any(x, d))
+
+/* gcc warns (-Wtype-limits) when a narrow type is compared with a big constant, so runtime values go through a function */
+#define h_chk_dyn_val(x, d) (if_constexpr(x, x, h_chk_dyn_fn((uintmax_t)(x))) + h_chk_any(x, d))
+static inline uintmax_t h_chk_dyn_fn(uintmax_t x) { return x; }
+
+/* 0 <= idx < n */
+#define h_chk_index(_or_, n, idx) (h_chk_u(_or_, idx, 0) < (n))
+
+/* 0 < size <= n */
+#define h_chk_size(_or_, n, size) (h_chk_u(_or_, size, 1) - 1 < (n))
+
+/* size <= n */
+#define h_chk_space(_or_, n, size) ((size) <= (n))
+
+/* 0 <= idx, 0 < size, idx + size <= n */
+#define h_chk_view(_or_, n, idx, size) \
+	(h_chk_index(_or_, n, idx) && h_chk_size(_or_, (n) - h_chk_u(_or_, idx, 0), size))
+static inline bool h_chk_view_fn(size_t n, uintmax_t idx, uintmax_t size) { return h_chk_view(h_chk_id, n, idx, size); }
+
+/* 0 <= skip_start, 0 <= skip_end, skip_start + skip_end < n */
+#define h_chk_shrink(_or_, n, skip_start, skip_end) \
+	(h_chk_index(_or_, n, skip_start) && h_chk_index(_or_, (n) - h_chk_u(_or_, skip_start, 0), skip_end))
+static inline bool h_chk_shrink_fn(size_t n, uintmax_t skip_start, uintmax_t skip_end) {
+	return h_chk_shrink(h_chk_id, n, skip_start, skip_end);
+}
+
+#define h_av_msg(_macro_name_, n, idx, size) CRED _macro_name_ ": Out of bound view"	\
+	" (start index:", idx, " view size:", size, " source array size:", n, ") at " POOR_FILE_AND_LINE CRESET
+#define h_av_size_msg(_macro_name_, n, size) CRED _macro_name_ ": Out of bound view"	\
+	" (view size:", size, " source array size:", n, ") at " POOR_FILE_AND_LINE CRESET
+#define h_av_shrink_msg(_macro_name_, n, skip_start, skip_end) CRED _macro_name_ ": Out of bound view"	\
+	" (skipped front:", skip_start, " skipped back:", skip_end, " source array size:", n, ") at " POOR_FILE_AND_LINE CRESET
+#define h_av_skip_msg(_macro_name_, n, skip) CRED _macro_name_ ": Out of bound view"	\
+	" (skipped:", skip, " source array size:", n, ") at " POOR_FILE_AND_LINE CRESET
+#define h_av_dim_msg(_macro_name_, n, size) CRED _macro_name_ ": Invalid size of a new dimension"	\
+	" (dimension size:", size, " source array size:", n, ") at " POOR_FILE_AND_LINE CRESET
+#define h_arr_ins_msg(_macro_name_, n, idx) CRED _macro_name_ ": Out of bound index"	\
+	" (index:", idx, " array size:", n, ") at " POOR_FILE_AND_LINE CRESET
+#define h_copy_arrs_msg(_macro_name_, n, size) CRED _macro_name_ ": Destination array has insufficient space"	\
+	" (", n, " element(s)) while size of all source arrays is ", size, " at " POOR_FILE_AND_LINE CRESET
+#define h_arr_bit_msg(_macro_name_, n, idx) CRED _macro_name_ ": Out of bound bit index"	\
+	" (bit index:", idx, " array size in bits:", n, ") at " POOR_FILE_AND_LINE CRESET
 
 /* Only RUNTIME_CHECK prints: the default arr_errmsg() uses printerrln().
  * Switching to RUNTIME_CHECK after this include needs poor_stdio.h too */
