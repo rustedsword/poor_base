@@ -123,6 +123,27 @@ static int list_remove_test(void) {
 	return 0;
 }
 
+static int list_node_remove_test(void) {
+	item_list items = POOR_LIST_INIT(items);
+	struct item arr[6];
+	append_items(&items, 6, arr);
+
+	poor_list_node_remove(&arr[2].link);
+	assert(is_list(&items, 1, 2, 4, 5, 6));
+	poor_list_node_remove(&arr[0].link);
+	assert(is_list(&items, 2, 4, 5, 6));
+	poor_list_node_remove(&arr[5].link);
+	assert(is_list(&items, 2, 4, 5));
+
+	poor_list_foreach_safe(&items, ref)
+		if(ref->id != 4)
+			poor_list_node_remove(&ref->link);
+	assert(is_list(&items, 4));
+	poor_list_node_remove(&poor_list_last(&items)->link);
+	assert(is_empty(&items));
+	return 0;
+}
+
 static int list_first_last_test(void) {
 	item_list items = POOR_LIST_INIT(items), empty = POOR_LIST_INIT(empty);
 	struct item a = {.id = 1}, b = {.id = 2}, c = {.id = 3};
@@ -308,6 +329,9 @@ static int list_single_eval_test(void) {
 		visited = visited * 10 + ref->id;
 	assert(evals[0] == 1 && evals[1] == 1 && evals[2] == 1 && visited == 312213312);
 
+	assert_once(poor_list_node_remove(arg(0, &b.link)));
+	assert(is_list(&lists[0], 3, 1));
+
 	memset(evals, 0, sizeof(evals));
 	poor_list_foreach_bw_safe(arg(0, &lists[0]), ref)
 		poor_list_remove(&lists[0], ref);
@@ -448,6 +472,7 @@ static struct tests_struct {
 	TEST_FN(list_init_test),
 	TEST_FN(list_insert_test),
 	TEST_FN(list_remove_test),
+	TEST_FN(list_node_remove_test),
 	TEST_FN(list_first_last_test),
 	TEST_FN(list_foreach_test),
 	TEST_FN(list_foreach_safe_test),
