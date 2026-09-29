@@ -148,6 +148,9 @@ struct poor_list_node {
 /* Unlink 'ref' from the list. Its link pointers remain stale. */
 #define poor_list_remove(list, ref) ((void)h_list_mut_head(list), h_list_remove(h_list_mut_node(list, ref)))
 
+/* Unlink 'node' (e.g. &item.link) from whatever list it is in. Its link pointers remain stale. */
+#define poor_list_node_remove(node) h_list_remove(_Generic((typeof(node))nullptr, struct poor_list_node *: (node)))
+
 /* Loops: */
 
 /* Loop forward from first to last item.
