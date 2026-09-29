@@ -155,6 +155,11 @@ target_link_libraries(concat_malloc_array_compile_pedantic poor_base)
 target_compile_options(concat_malloc_array_compile_pedantic PRIVATE -pedantic-errors)
 add_test(NAME concat_malloc_array_compile_pedantic COMMAND ${CMAKE_COMMAND} --build . --target concat_malloc_array_compile_pedantic WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
+add_library(arrview_dst_compile_pedantic OBJECT EXCLUDE_FROM_ALL arrview_dst_compile_pedantic.c)
+target_link_libraries(arrview_dst_compile_pedantic poor_base)
+target_compile_options(arrview_dst_compile_pedantic PRIVATE -pedantic-errors)
+add_test(NAME arrview_dst_compile_pedantic COMMAND ${CMAKE_COMMAND} --build . --target arrview_dst_compile_pedantic WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
 add_library(unsigned_index_compile_type_limits OBJECT EXCLUDE_FROM_ALL unsigned_index_compile_type_limits.c)
 target_link_libraries(unsigned_index_compile_type_limits poor_base)
 target_compile_options(unsigned_index_compile_type_limits PRIVATE -Wall -Wextra -Werror)

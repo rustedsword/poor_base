@@ -292,7 +292,7 @@
 
 */
 #define memset_array(_arrm_, _symbol_) (					\
-	(void)h_chk_dst_const_sel(_arrm_, "memset_array()"),			\
+	(void)h_chk_dst_const_sel(_arrm_, #_arrm_, "memset_array()"),		\
 	memset((_arrm_), _symbol_, ARRAY_SIZE_BYTES(_arrm_))			\
 )
 
@@ -463,11 +463,11 @@
 		println(ref->val, " ", ref->string);
 
  */
-#define copy_array(_arrp_dst_, ...) do {			\
-	(void)h_chk_dst_const_sel(_arrp_dst_, "copy_array()");	\
-	make_arrview_full(_tmp_dst_full_, _arrp_dst_);		\
-	const make_arrview_full(_tmp_src_full_, (__VA_ARGS__));	\
-	unsafe_copy_array(_tmp_dst_full_, _tmp_src_full_);	\
+#define copy_array(_arrp_dst_, ...) do {					\
+	(void)h_chk_dst_const_sel(_arrp_dst_, #_arrp_dst_, "copy_array()");	\
+	make_arrview_full(_tmp_dst_full_, _arrp_dst_);				\
+	const make_arrview_full(_tmp_src_full_, (__VA_ARGS__));			\
+	unsafe_copy_array(_tmp_dst_full_, _tmp_src_full_);			\
 } while(0)
 
 /* copy_arrays(_arrm_dst_, _arrm_src_1_, ..., _arrm_src_n_)
@@ -505,7 +505,7 @@
 	}
 */
 #define copy_arrays(_arrm_dst_, ...) (							\
-	(void)h_chk_dst_const_sel(_arrm_dst_, "copy_arrays()"),				\
+	(void)h_chk_dst_const_sel(_arrm_dst_, #_arrm_dst_, "copy_arrays()"),		\
 	(void)h_copy_arrs_chk_size_sel(_arrm_dst_, __VA_ARGS__),			\
 	(void)RECURSION_ARG(h_copy_arrs, _arrm_dst_, _arrm_dst_, __VA_ARGS__)		\
 )
@@ -854,11 +854,8 @@
  *
  * | 0 | 1 | 5 | 6 | 7 | 5 | 6 | 7 |
  */
-#define array_remove_view(_arr_ptr_, _view_) (							\
-	(void)h_chk_dst_const_sel(_arr_ptr_, "array_remove_view()"),				\
-	memmove(_view_, array_end_ref(_view_),							\
-	(array_last_ref(_arr_ptr_) - array_last_ref(_view_)) * ARRAY_ELEMENT_SIZE(_arr_ptr_))	\
-)
+#define array_remove_view(_arr_ptr_, _view_) \
+	h_array_remove_view(_arr_ptr_, #_arr_ptr_, _view_, "array_remove_view()")
 
 /* array_remove_view_fill(array, view, val)
  * works exactly same as array_remove_view()
@@ -886,10 +883,10 @@
     print_array(v); //prints: [0,1,5,6,7,8,9,9,9]
 
 */
-#define array_remove_view_fill(_arr_ptr_, _view_, _val_) do {		\
-	array_remove_view(_arr_ptr_, _view_);				\
-	make_arrview_last(_to_replace_, ARRAY_SIZE(_view_), _arr_ptr_);	\
-	unsafe_fill_array(_to_replace_, _val_);				\
+#define array_remove_view_fill(_arr_ptr_, _view_, _val_) do {				\
+	h_array_remove_view(_arr_ptr_, #_arr_ptr_, _view_, "array_remove_view_fill()");	\
+	make_arrview_last(_to_replace_, ARRAY_SIZE(_view_), _arr_ptr_);			\
+	unsafe_fill_array(_to_replace_, _val_);						\
 } while(0)
 
 /* array_remove_ref(array, ref)
@@ -1183,15 +1180,16 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	(unsigned char*)memcpy(_prev_, _arrm_src_, ARRAY_SIZE_BYTES(_arrm_src_)) + ARRAY_SIZE_BYTES(_arrm_src_)	\
 )
 
-/* memcpy() and memset() happily discard const, so the destination has to be checked here */
-#define h_chk_dst_const_sel(_arrm_dst_, _macro_name_) \
-	POOR_ARR_CHK_SEL(h_chk_dst_const_none, h_chk_dst_const_static, h_chk_dst_const_static)(_arrm_dst_, _macro_name_)
+/* memcpy() and memset() happily discard const, so the destination has to be checked here.
+ * Callers stringify the destination: here it is already macro-expanded and can be kilobytes long */
+#define h_chk_dst_const_sel(_arrm_dst_, _arrm_dst_str_, _macro_name_) \
+	POOR_ARR_CHK_SEL(h_chk_dst_const_none, h_chk_dst_const_static, h_chk_dst_const_static)(_arrm_dst_, _arrm_dst_str_, _macro_name_)
 
 #define h_chk_dst_const_none(...) 0
 
-#define h_chk_dst_const_static(_arrm_dst_, _macro_name_)			\
+#define h_chk_dst_const_static(_arrm_dst_, _arrm_dst_str_, _macro_name_)	\
 	static_assert_expr(!is_pointer_to_const(&auto_arr(_arrm_dst_)[0]),	\
-	_macro_name_ ": destination array (" #_arrm_dst_ ") is const")
+	_macro_name_ ": destination array (" _arrm_dst_str_ ") is const")
 
 #define h_copy_arrs_chk_type_sel(_arrm_dst_, _arrm_src_) \
 	POOR_ARR_CHK_SEL(h_copy_arrs_chk_type_none, h_copy_arrs_chk_type_static, h_copy_arrs_chk_type_static)(_arrm_dst_, _arrm_src_)
@@ -1561,6 +1559,13 @@ static inline bool h_av_shrink_fits(size_t n, uintmax_t skip_start, uintmax_t sk
 		" (index:", _idx_, " array size:", UNSAFE_ARRAY_SIZE(*_arrp_), ")"	\
 		" at " POOR_FILE_AND_LINE CRESET)					\
 	), 0)
+
+/* array_remove_view() implementation */
+#define h_array_remove_view(_arr_ptr_, _arr_ptr_str_, _view_, _macro_name_) (			\
+	(void)h_chk_dst_const_sel(_arr_ptr_, _arr_ptr_str_, _macro_name_),			\
+	memmove(_view_, array_end_ref(_view_),							\
+	(array_last_ref(_arr_ptr_) - array_last_ref(_view_)) * ARRAY_ELEMENT_SIZE(_arr_ptr_))	\
+)
 
 /* array_inseret_array() implementation */
 #define h_array_insert_array(_arr_, _idx_, _src_arr_) do {                                                             \
