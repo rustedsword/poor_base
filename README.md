@@ -132,13 +132,18 @@ concat_vla(vla_string, "Five plus Six:", 5 + 6);
 println(vla_string); //Five plus Six:11
 ```
 
-### Array printing
+### Arrays
 poor_stdio.h includes poor_array.h, so these macros accept arrays and pointers to arrays.
 
-macro                        | description
------------------------------|-------------------------------------------
-print_array(arrm)            | prints array in form of [1,2,3,4]
-PRINT_ARRAY_INFO(arrm)       | prints information about array
+macro                             | description
+----------------------------------|-------------------------------------------
+print_array(arrm)                 | prints array in form of [1,2,3,4]
+PRINT_ARRAY_INFO(arrm)            | prints information about array
+fwrite_array(arrm, stream)        | writes all array elements with fwrite()
+fread_array(arrm, stream)         | reads up to array size elements with fread()
+fgets_array(arrm, stream)         | reads a line into char array with fgets()
+vsnprintf_array(arrm, fmt, ap)    | vsnprintf() into char array
+setvbuf_array(stream, arrm, mode) | makes array a buffer of stream with setvbuf()
 
 ```c
 int32_t a[5] = {1,2,3,4,5};
@@ -150,7 +155,7 @@ PRINT_ARRAY_INFO(c); //VLA "c" at 0x7ffe9a90b4a0 has size:3 uses 12 bytes, while
 # <h3 id="i-poor-array"><poor_array.h></h3>
 This header contains useful macros to work with arrays.
 All macros here can operate on arrays or pointers to arrays by auto-dereferencing them using auto_arr() macro,
-while checking that arguments are really arrays. Printing them is a part of [poor_stdio.h](#i-poor-stdio).
+while checking that arguments are really arrays. Printing them and passing them to stdio functions is a part of [poor_stdio.h](#i-poor-stdio).
 
 
 ### auto_arr(arrm) / arr(arrm) macro

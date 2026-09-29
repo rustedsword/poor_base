@@ -1108,6 +1108,70 @@ static int sprint_array_test(void) {
 	return 0;
 }
 
+static int fwrite_fread_array_test(void) {
+	const int out[] = {1, 2, 3};
+	int in[4] = {0};
+	FILE *f = tmpfile();
+
+	assert(f);
+	assert(fwrite_array(out, f) == 3);
+	assert(fwrite_array(arrview_first(2, out), f) == 2);
+	rewind(f);
+	assert(fread_array(in, f) == 4);
+	assert(in[0] == 1 && in[1] == 2 && in[2] == 3 && in[3] == 1);
+	assert(fread_array(&in, f) == 1);
+	assert(in[0] == 2);
+	fclose(f);
+	return 0;
+}
+
+static int fgets_array_test(void) {
+	char line[4], (*p)[8] = &(char[8]){0};
+	FILE *f = tmpfile();
+
+	assert(f);
+	assert(fputs("abcdef\nxy\n", f) >= 0);
+	rewind(f);
+	assert(fgets_array(line, f) == line);
+	assert(strcmp(line, "abc") == 0);
+	assert(fgets_array(p, f) == *p);
+	assert(strcmp(*p, "def\n") == 0);
+	fclose(f);
+	return 0;
+}
+
+[[gnu::format(printf, 2, 3)]] static int h_vsnprintf_array(char (*buf)[5], const char *fmt, ...) {
+	va_list ap;
+
+	va_start(ap, fmt);
+	int ret = vsnprintf_array(buf, fmt, ap);
+	va_end(ap);
+	return ret;
+}
+
+static int vsnprintf_array_test(void) {
+	char buf[5];
+
+	assert(h_vsnprintf_array(&buf, "%d-%d", 12, 345) == 6);
+	assert(strcmp(buf, "12-3") == 0);
+	return 0;
+}
+
+static int setvbuf_array_test(void) {
+	static char buffer[64];
+	char line[8];
+	FILE *f = tmpfile();
+
+	assert(f);
+	assert(setvbuf_array(f, buffer, _IOFBF) == 0);
+	assert(fputs("buffered", f) >= 0);
+	rewind(f);
+	assert(fgets_array(line, f) == line);
+	assert(strcmp(line, "buffere") == 0);
+	fclose(f);
+	return 0;
+}
+
 static int print_array_test(void) {
 	int empty[0];
 	print_array(empty);
@@ -1188,6 +1252,10 @@ static struct tests_struct {
 
 	TEST_FN(array_insert_test),
 	TEST_FN(sprint_array_test),
+	TEST_FN(fwrite_fread_array_test),
+	TEST_FN(fgets_array_test),
+	TEST_FN(vsnprintf_array_test),
+	TEST_FN(setvbuf_array_test),
 	TEST_FN(print_array_test),
 	TEST_FN(array_bit_test),
 };
