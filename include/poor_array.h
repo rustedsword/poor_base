@@ -1191,7 +1191,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 
 #define h_chk_dst_const_static(_arrm_dst_, _macro_name_)			\
 	static_assert_expr(!is_pointer_to_const(&auto_arr(_arrm_dst_)[0]),	\
-	_macro_name_ ": destination array (" #_arrm_dst_ ") is const")
+	_macro_name_ ": destination array is const")
 
 #define h_copy_arrs_chk_type_sel(_arrm_dst_, _arrm_src_) \
 	POOR_ARR_CHK_SEL(h_copy_arrs_chk_type_none, h_copy_arrs_chk_type_static, h_copy_arrs_chk_type_static)(_arrm_dst_, _arrm_src_)
@@ -1199,7 +1199,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define h_copy_arrs_chk_type_none(...) 0
 #define h_copy_arrs_chk_type_static(_arrm_dst_, _arrm_src_)			\
 	static_assert_expr(is_same_array_element_type(_arrm_dst_ , _arrm_src_),	\
-	"copy_arrays(): source array (" #_arrm_src_ ") doesn't have same type as destination array (" #_arrm_dst_ ")")
+	"copy_arrays(): source array doesn't have same type as destination array")
 
 #define h_copy_arrs_chk_size_sel(_arrm_dst_, ...) \
 	POOR_ARR_CHK_SEL(h_copy_arrs_chk_size_none, h_copy_arrs_chk_size_static, h_copy_arrs_chk_size_dyn)(_arrm_dst_, __VA_ARGS__)
@@ -1210,7 +1210,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 
 #define h_copy_arrs_chk_size_dyn(_arrm_dst_, ...)					\
 	ARR_ASSERT_MSG(ARRAY_SIZE(_arrm_dst_) >= ARRAYS_SIZE(__VA_ARGS__),		\
-		"copy_arrays(): Array \"" #_arrm_dst_ "\" has incufficient space"	\
+		"copy_arrays(): Destination array has insufficient space"		\
 		" (", ARRAY_SIZE(_arrm_dst_), " element(s))"				\
 		" while size of all source arrays is ", ARRAYS_SIZE(__VA_ARGS__),	\
 		" at " POOR_FILE_AND_LINE)						\
