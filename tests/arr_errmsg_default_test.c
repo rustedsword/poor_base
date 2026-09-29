@@ -38,7 +38,7 @@ static int view_error(void) {
 	int a[16] = {0};
 	size_t i = 14;
 #if POOR_ARRAY_CHECK == RUNTIME_CHECK
-	fprintf(stdout, CRED "arrview(): Out of bound view  (start index:14 view size:3 source array size:16) at %s:%d" CRESET "\n",
+	fprintf(stdout, CRED "arrview(): Out of bound view (start index:14 view size:3 source array size:16) at %s:%d" CRESET "\n",
 		__FILE__, __LINE__ + 3);
 	fflush(stdout);
 #endif

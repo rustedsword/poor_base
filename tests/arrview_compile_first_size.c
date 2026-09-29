@@ -7,6 +7,6 @@
 
 int main(void) {
 	int values[16] = {0};
-	(void)arrview_shrink(2, (size_t)-1, values);
+	(void)arrview_first(17, values);
 	return 0;
 }

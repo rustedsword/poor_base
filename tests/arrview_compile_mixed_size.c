@@ -5,8 +5,8 @@
 #define POOR_ARRAY_CHECK RUNTIME_CHECK
 #endif
 
-int main(void) {
+int main(int argc, char **) {
 	int values[16] = {0};
-	(void)arrview_shrink(2, (size_t)-1, values);
+	(void)arrview(argc, 17, values);
 	return 0;
 }
