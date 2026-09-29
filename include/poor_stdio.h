@@ -913,6 +913,50 @@ static inline char *_poor_concat(const char *fmt, ...) {
 #define sprint_array(_arrm_, ...) snprintf(auto_arr(_arrm_), ARRAY_SIZE_BYTES(_arrm_), printf_specifier_string(0, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 #define sprintln_array(_arrm_, ...) snprintf(auto_arr(_arrm_), ARRAY_SIZE_BYTES(_arrm_), printf_specifier_string(1, __VA_ARGS__), printf_args_pre_process(__VA_ARGS__))
 
+/* fwrite_array(_arrm_, stream):
+ * writes all elements of the array to stream with fwrite()
+ * returns number of written elements, which is less than size of the array on error
+ *
+ * @_arrm_: an array or a pointer to an array
+ * example:
+
+	const int data[] = {1, 2, 3};
+	if(fwrite_array(data, stdout) != ARRAY_SIZE(data))
+		printerrln("Failed to write data");
+ */
+#define fwrite_array(_arrm_, stream) fwrite(auto_arr(_arrm_), ARRAY_ELEMENT_SIZE(_arrm_), ARRAY_SIZE(_arrm_), stream)
+
+/* fread_array(_arrm_, stream):
+ * reads up to size of the array elements from stream with fread()
+ * returns number of read elements
+ *
+ * @_arrm_: an array or a pointer to an array
+ */
+#define fread_array(_arrm_, stream) fread(auto_arr(_arrm_), ARRAY_ELEMENT_SIZE(_arrm_), ARRAY_SIZE(_arrm_), stream)
+
+/* fgets_array(_arrm_, stream):
+ * reads a line from stream into char array with fgets(), cutting it to fit with '\0'
+ * returns pointer to the first array element, or NULL on end of file or error
+ *
+ * @_arrm_: a char array or a pointer to a char array
+ */
+#define fgets_array(_arrm_, stream) fgets(auto_arr(_arrm_), ARRAY_SIZE(_arrm_), stream)
+
+/* vsnprintf_array(_arrm_, fmt, ap):
+ * vsnprintf() into char array, output is cut to fit and always ends with '\0'
+ * returns length of the whole formatted string without '\0', like vsnprintf()
+ *
+ * @_arrm_: a char array or a pointer to a char array
+ */
+#define vsnprintf_array(_arrm_, fmt, ap) vsnprintf(auto_arr(_arrm_), ARRAY_SIZE_BYTES(_arrm_), fmt, ap)
+
+/* setvbuf_array(stream, _arrm_, mode):
+ * makes the array a buffer of stream with setvbuf(), the array must outlive the stream
+ *
+ * @_arrm_: a char array or a pointer to a char array
+ */
+#define setvbuf_array(stream, _arrm_, mode) setvbuf(stream, auto_arr(_arrm_), mode, ARRAY_SIZE_BYTES(_arrm_))
+
 /* Just prints array without any formatting.
  * Type of array elements should be one of standard C types. See println() for more info.
  * @__VA_ARGS__: array or pointer to an array
