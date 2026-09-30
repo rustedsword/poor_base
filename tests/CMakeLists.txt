@@ -62,7 +62,18 @@ target_compile_options(array_vla_function_tests PRIVATE -Wall -Werror -UNDEBUG)
 # Keep the caller's values unavailable when compiling the function under test.
 set_target_properties(array_vla_function_tests PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
 
-foreach(target IN ITEMS poor_array_tests foreach_array_vla_tests array_vla_function_tests)
+add_executable(poor_posix_tests poor_posix_tests.c)
+target_link_libraries(poor_posix_tests poor_base)
+target_compile_options(poor_posix_tests PRIVATE -Wall -Wextra -Werror -pedantic-errors -UNDEBUG)
+
+foreach(test IN ITEMS
+        read_write_array_test pread_pwrite_array_test send_recv_array_test sendto_recvfrom_array_test
+        readv_writev_array_test readv_writev_arrays_test poll_array_test getcwd_array_test readlink_array_test gethostname_array_test
+        getentropy_array_test)
+    add_test(NAME ${test} COMMAND poor_posix_tests ${test})
+endforeach()
+
+foreach(target IN ITEMS poor_array_tests foreach_array_vla_tests array_vla_function_tests poor_posix_tests)
     target_compile_definitions(${target} PRIVATE POOR_ARRAY_CHECK=${POOR_BASE_TEST_ARRAY_CHECK})
 endforeach()
 
