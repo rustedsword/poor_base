@@ -889,6 +889,11 @@
 /* Returns type of array element without qualifiers */
 #define ARRAY_ELEMENT_TYPE_NO_QUAL(var) typeof_unqual(ARRAY_ELEMENT_TYPE(var))
 
+/* (*_arrp_), or a pointer to the elements of a constant zero-length array: those may be null,
+ * and GCC UBSan reports &(*_arrp_)[x] as a null load */
+#define h_arr_base(_arrp_) _Generic((char (*)[1 + constexpr_or(sizeof(*_arrp_) == 0, 0)])0,	\
+	char (*)[2]: (UNSAFE_ARRAY_ELEMENT_TYPE(*_arrp_) *)(_arrp_), default: (*_arrp_))
+
 /* Declares a pointer to array with same type as another pointer to array but with different size */
 #define unsafe_make_arrptr(_name_, _size_, _arrp_) UNSAFE_ARRAY_ELEMENT_TYPE(*_arrp_)(* _name_)[_size_]
 
@@ -1086,7 +1091,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define unsafe_arrview(_idx_, _size_, _arrp_)  (unsafe_make_arrptr(, _size_, _arrp_))h_unsafe_arrview(_idx_, _size_, _arrp_, "arrview()")
 
 #define h_unsafe_arrview(_idx_, _size_, _arrp_, _macro_name_) \
-	&(*_arrp_)[_idx_ + h_arr_chk2(h_chk_view, h_av_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _idx_, _size_)]
+	&h_arr_base(_arrp_)[_idx_ + h_arr_chk2(h_chk_view, h_av_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _idx_, _size_)]
 
 /* arrview_first() implemenetation */
 #define unsafe_make_arrview_first(_name_, _size_, _arrp_) \
@@ -1095,11 +1100,11 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define unsafe_arrview_first(_size_, _arrp_) (unsafe_make_arrptr(, _size_, _arrp_))h_unsafe_arrview_first(_size_, _arrp_, "arrview_first()")
 
 #define h_unsafe_arrview_first(_size_, _arrp_, _macro_name_) \
-	&(*_arrp_)[h_arr_chk1(h_chk_size, h_av_size_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _size_)]
+	&h_arr_base(_arrp_)[h_arr_chk1(h_chk_size, h_av_size_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _size_)]
 
 /* unsafe_nc_make_arrview_first(): same as make_arrview_first without checks at all */
 #define unsafe_nc_make_arrview_first(_name_, _size_, _arrp_) \
-	unsafe_make_arrptr(_name_, _size_, _arrp_) = (unsafe_make_arrptr(, _size_, _arrp_))&(*_arrp_)[0]
+	unsafe_make_arrptr(_name_, _size_, _arrp_) = (unsafe_make_arrptr(, _size_, _arrp_))&h_arr_base(_arrp_)[0]
 
 /* arrview_last() implementation */
 #define unsafe_make_arrview_last(_name_, _size_, _arrp_) \
@@ -1108,7 +1113,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 #define unsafe_arrview_last(_size_, _arrp_) (unsafe_make_arrptr(, _size_, _arrp_))h_unsafe_arrview_last(_size_, _arrp_, "arrview_last()")
 
 #define h_unsafe_arrview_last(_size_, _arrp_, _macro_name_) \
-	&(*_arrp_)[UNSAFE_ARRAY_SIZE(*_arrp_) - _size_ + h_arr_chk1(h_chk_size, h_av_size_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _size_)]
+	&h_arr_base(_arrp_)[UNSAFE_ARRAY_SIZE(*_arrp_) - _size_ + h_arr_chk1(h_chk_size, h_av_size_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _size_)]
 
 /* arrview_shrink() implementation */
 #define unsafe_make_arrview_shrink(_name_, _skip_start_, _skip_end_, _arrp_)	\
@@ -1119,7 +1124,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	(h_av_shrnk_decl(,_skip_start_, _skip_end_, _arrp_))h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, "arrview_shrink()")
 
 #define h_unsafe_arrview_shrink(_skip_start_, _skip_end_, _arrp_, _macro_name_)	\
-	&(*_arrp_)[_skip_start_ + h_arr_chk2(h_chk_shrink, h_av_shrink_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _skip_start_, _skip_end_)]
+	&h_arr_base(_arrp_)[_skip_start_ + h_arr_chk2(h_chk_shrink, h_av_shrink_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _skip_start_, _skip_end_)]
 
 /* arrview shrink declaration macros */
 #define h_av_shrnk_decl(_name_, _skip_start_, _skip_end_, _arrp_) unsafe_make_arrptr(_name_, h_av_shrink_size(_arrp_, _skip_start_, _skip_end_), _arrp_)
@@ -1133,7 +1138,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	(h_av_skip_decl(, _skip_start_, _arrp_))h_unsafe_arrview_cfront(_skip_start_, _arrp_, "arrview_cfront()")
 
 #define h_unsafe_arrview_cfront(_skip_start_, _arrp_, _macro_name_) \
-	&(*_arrp_)[_skip_start_ + h_arr_chk1(h_chk_index, h_av_skip_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _skip_start_)]
+	&h_arr_base(_arrp_)[_skip_start_ + h_arr_chk1(h_chk_index, h_av_skip_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _skip_start_)]
 
 /* arrview_cback() implementation */
 #define unsafe_make_arrview_cback(_name_, _skip_end_, _arrp_)	\
@@ -1143,7 +1148,7 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	(h_av_skip_decl(, _skip_end_, _arrp_))h_unsafe_arrview_cback(_skip_end_, _arrp_, "arrview_cback()")
 
 #define h_unsafe_arrview_cback(_skip_end_, _arrp_, _macro_name_) \
-	&(*_arrp_)[h_arr_chk1(h_chk_index, h_av_skip_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _skip_end_)]
+	&h_arr_base(_arrp_)[h_arr_chk1(h_chk_index, h_av_skip_msg, _macro_name_, UNSAFE_ARRAY_SIZE(*_arrp_), _skip_end_)]
 
 /* Arrview cut back/front common declaration macros */
 #define h_av_skip_decl(_name_, _skip_, _arrp_) unsafe_make_arrptr(_name_, h_av_skip_size(_arrp_, _skip_), _arrp_)
