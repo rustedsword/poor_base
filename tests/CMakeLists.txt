@@ -27,6 +27,8 @@ foreach(test IN ITEMS
     add_test(NAME ${test} COMMAND poor_list_tests ${test})
 endforeach()
 
+add_subdirectory(meta_link)
+
 add_executable(printf_format printf_format.c )
 target_link_libraries(printf_format poor_base)
 target_compile_options(printf_format PRIVATE -Wall -Wextra -Werror -UNDEBUG)
