@@ -1,17 +1,17 @@
 # poor_base
 Header-only library for C with macros for type-generic printing and advanced array operations.
+
 1. [Requirements](#requirements)
 2. [Basic Example](#basic-example)
-3. [Headers]
-   1. [poor_stdio.h](#i-poor-stdio)
-   2. [poor_array.h](#i-poor-array)
+3. [Headers](#headers)
+   1. [poor_stdio.h](#poor_stdioh)
+   2. [poor_array.h](#poor_arrayh)
 4. [Arrays in C Language](#arrays-in-c-language)
 
-# Requirements
+## Requirements
 C23 or later
 
-
-# Basic Example
+## Basic Example
 ```c
 #include <poor_array.h>
 #include <poor_stdio.h>
@@ -60,10 +60,13 @@ This is poor ** array! And it's size is 14.
 # ./test 1 1 1
 This is poor ***** array! And it's size is 17.
 ```
-# <h3 id="i-poor-stdio"><poor_stdio.h></h3>
+
+## Headers
+
+### poor_stdio.h
 This header contains macros for various functions found in stdio.h
 
-### print() family macros
+#### print() family macros
 Type-generic wrappers around standard printing functions, with formatting support(width, precision, hexademical integers).
 
 These macros automatically generate string with format specifiers at compile time.
@@ -106,7 +109,7 @@ println(buf);
 //1234
 ```
 
-### concat()
+#### concat()
 Concatenation macro family. Supports same features as print() macro family.
 
 macro                 | description
@@ -132,7 +135,7 @@ concat_vla(vla_string, "Five plus Six:", 5 + 6);
 println(vla_string); //Five plus Six:11
 ```
 
-### Arrays
+#### Arrays
 poor_stdio.h includes poor_array.h, so these macros accept arrays and pointers to arrays.
 
 macro                             | description
@@ -152,13 +155,13 @@ print_array(a); //[1,2,3,4,5]
 long c[(size_t){3}];
 PRINT_ARRAY_INFO(c); //VLA "c" at 0x7ffe9a90b4a0 has size:3 uses 12 bytes, while single element uses 4 bytes
 ```
-# <h3 id="i-poor-array"><poor_array.h></h3>
+
+### poor_array.h
 This header contains useful macros to work with arrays.
 All macros here can operate on arrays or pointers to arrays by auto-dereferencing them using auto_arr() macro,
-while checking that arguments are really arrays. Printing them and passing them to stdio functions is a part of [poor_stdio.h](#i-poor-stdio).
+while checking that arguments are really arrays. Printing them and passing them to stdio functions is a part of [poor_stdio.h](#poor_stdioh).
 
-
-### auto_arr(arrm) / arr(arrm) macro
+#### auto_arr(arrm) / arr(arrm) macro
 Allows to work with pointers to arrays in the same way as with ordinary arrays
 
 If argument is a pointer to an array then this macro will dereference it.  
@@ -173,7 +176,8 @@ auto_arr(b)[1] = 6;
 print_array(a); //[5,6]
 print_array(b); //[5,6]
 ```
-### Array informational macros
+
+#### Array informational macros
 
 macro                        | description
 -----------------------------|-------------------------------------------
@@ -195,7 +199,7 @@ long c[(size_t){3}];
 println(ARRAYS_SIZE(b, c)); //8
 ```
 
-### Array allocation
+#### Array allocation
 
 macro                  | description
 -----------------------|-------
@@ -223,7 +227,7 @@ auto single = array_ptr(&value); //same as array_ptr(&value, 1)
 print_array(single); //[5]
 ```
 
-### Array iterators and accessors
+#### Array iterators and accessors
 
 macro                                 | description
 --------------------------------------|-----------------------
@@ -258,7 +262,7 @@ foreach_array_index_bw(x, index)
     println("reverse index:", index, " value:", x[index]);
 ```
 
-### Array copy
+#### Array copy
 
 macro                                | description
 -------------------------------------|-----------------------
@@ -277,7 +281,7 @@ copy_arrays(aa, a1, a2);
 print_array(aa); //[5,6,3,5,6]
 ```
 
-### Array View
+#### Array View
 
 macro                                        | description
 ---------------------------------------------|-----------------------
@@ -307,7 +311,7 @@ make_arrview_flat(name, arrm)                | creates an arview by merging two 
     print_array(e_view_cut_back); //[10,20,30]
 ```
 
-### Experimental
+#### Experimental
 
 These macros are unstable and can be changed anytime
 
@@ -322,7 +326,7 @@ make_merged_array(tall, t1, t2);
 print_array(tall) //[1,2,3,4]
 ```
 
-Vector-like array macros
+##### Vector-like array macros
 
 macro                                   | description
 ----------------------------------------|-----------------------
@@ -333,7 +337,7 @@ array_remove_ref_fill(arrm, ref, val)   | removes single element from array and 
 array_remove_view(arrm, view)           | removes view from array
 array_remove_view_fill(arrm, view, val) | removes view from array, and fills free space with value
 
-### Arrays in C Language
+## Arrays in C Language
 
 Before even considering to use this library you should completely understand how arrays work.
 
