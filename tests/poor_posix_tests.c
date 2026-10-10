@@ -1,3 +1,4 @@
+#include <poor_mman.h>
 #include <poor_poll.h>
 #include <poor_socket.h>
 #include <poor_stdio.h>
@@ -180,6 +181,74 @@ static int getentropy_array_test(void) {
 	return 0;
 }
 
+static int mmap_munmap_array_test(void) {
+	int (*data)[4] = mmap_array(data, NULL, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	assert(data != MAP_FAILED);
+	foreach_array_ref(data, ref)
+		assert(*ref == 0);
+	fill_array(data, 42);
+	assert((*data)[0] == 42 && (*data)[3] == 42);
+	assert(munmap_array(data) == 0);
+
+	errno = 0;
+	assert(mmap_array(data, NULL, PROT_READ, MAP_PRIVATE, -1, 0) == MAP_FAILED);
+	assert(data == MAP_FAILED && errno == EBADF);
+	return 0;
+}
+
+static int mmap_msync_array_test(void) {
+	long page_size = sysconf(_SC_PAGESIZE);
+	assert(page_size > 0);
+	size_t n = 2 * (size_t)page_size / sizeof(int);
+	int (*data)[n];
+	int in[1];
+	FILE *f = tmpfile();
+
+	assert(f);
+	assert(ftruncate(fileno(f), (off_t)page_size + (off_t)sizeof(*data)) == 0);
+	assert(mmap_array(data, NULL, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(f), (off_t)page_size) != MAP_FAILED);
+	(*data)[0] = 11;
+	(*data)[n - 1] = 22;
+	assert(msync_array(*data, MS_SYNC) == 0);
+	assert(pread_array(fileno(f), in, (off_t)page_size) == (ssize_t)sizeof(in));
+	assert(in[0] == 11);
+	assert(pread_array(fileno(f), in, (off_t)page_size + (off_t)sizeof(*data) - (off_t)sizeof(int)) == (ssize_t)sizeof(in));
+	assert(in[0] == 22);
+	assert(munmap_array(*data) == 0);
+	fclose(f);
+	return 0;
+}
+
+static int mprotect_madvise_array_test(void) {
+	int (*data)[4] = mmap_array(data, NULL, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	assert(data != MAP_FAILED);
+	(*data)[3] = 42;
+	assert(mprotect_array(data, PROT_READ) == 0);
+	assert((*data)[3] == 42);
+	assert(madvise_array(*data, MADV_NORMAL) == 0);
+	assert(posix_madvise_array(data, POSIX_MADV_SEQUENTIAL) == 0);
+	assert(mprotect_array(arrview_full(data), PROT_READ | PROT_WRITE) == 0);
+	(*data)[3] = 43;
+	assert((*data)[3] == 43);
+	assert(munmap_array(data) == 0);
+	return 0;
+}
+
+static int mlock_munlock_array_test(void) {
+	int (*data)[4] = mmap_array(data, NULL, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	assert(data != MAP_FAILED);
+	const int (*view)[4] = data;
+	/* Locking may be denied by the process's permissions or locked-memory limit. */
+	if(mlock_array(view) != 0)
+		assert(errno == EPERM || errno == ENOMEM || errno == EAGAIN);
+	assert(munlock_array(*view) == 0);
+	assert(munmap_array(data) == 0);
+	return 0;
+}
+
 typedef int test_fn (void);
 
 #define TEST_FN(fn) {#fn, fn}
@@ -198,6 +267,10 @@ static struct tests_struct {
 	TEST_FN(readlink_array_test),
 	TEST_FN(gethostname_array_test),
 	TEST_FN(getentropy_array_test),
+	TEST_FN(mmap_munmap_array_test),
+	TEST_FN(mmap_msync_array_test),
+	TEST_FN(mprotect_madvise_array_test),
+	TEST_FN(mlock_munlock_array_test),
 };
 
 int main(int argc, char **argv) {

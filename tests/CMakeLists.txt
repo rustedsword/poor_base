@@ -71,7 +71,8 @@ target_compile_options(poor_posix_tests PRIVATE -Wall -Wextra -Werror -pedantic-
 foreach(test IN ITEMS
         read_write_array_test pread_pwrite_array_test send_recv_array_test sendto_recvfrom_array_test
         readv_writev_array_test readv_writev_arrays_test poll_array_test getcwd_array_test readlink_array_test gethostname_array_test
-        getentropy_array_test)
+        getentropy_array_test mmap_munmap_array_test mmap_msync_array_test mprotect_madvise_array_test
+        mlock_munlock_array_test)
     add_test(NAME ${test} COMMAND poor_posix_tests ${test})
 endforeach()
 
