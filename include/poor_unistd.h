@@ -18,5 +18,9 @@
 #define readlinkat_array(dirfd, path, ...) readlinkat(dirfd, path, auto_arr(__VA_ARGS__), ARRAY_SIZE_BYTES(__VA_ARGS__))
 #define gethostname_array(...) gethostname(auto_arr(__VA_ARGS__), ARRAY_SIZE_BYTES(__VA_ARGS__))
 #define getentropy_array(...) getentropy(auto_arr(__VA_ARGS__), ARRAY_SIZE_BYTES(__VA_ARGS__))
+#define getlogin_r_array(...) getlogin_r(auto_arr(__VA_ARGS__), ARRAY_SIZE_BYTES(__VA_ARGS__))
+#define ttyname_r_array(fd, ...) ttyname_r(fd, auto_arr(__VA_ARGS__), ARRAY_SIZE_BYTES(__VA_ARGS__))
+#define confstr_array(name, ...) confstr(name, auto_arr(__VA_ARGS__), ARRAY_SIZE_BYTES(__VA_ARGS__))
+#define getgroups_array(...) getgroups(ARRAY_SIZE(__VA_ARGS__), auto_arr(__VA_ARGS__))
 
 #endif // POOR_UNISTD_H

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <poor_mman.h>
 #include <poor_poll.h>
 #include <poor_socket.h>
@@ -123,6 +124,21 @@ static int poll_array_test(void) {
 	return 0;
 }
 
+static int ppoll_array_test(void) {
+	int p[2];
+
+	assert(pipe(p) == 0);
+	struct pollfd fds[] = {{.fd = p[0], .events = POLLIN}, {.fd = p[1], .events = POLLOUT}};
+	assert(ppoll_array(fds, &(struct timespec){0}, NULL) == 1);
+	assert(!(fds[0].revents & POLLIN) && (fds[1].revents & POLLOUT));
+	assert(write_array(p[1], "x") == 2);
+	assert(ppoll_array(&fds, &(struct timespec){0}, NULL) == 2);
+	assert(fds[0].revents & POLLIN);
+	close(p[0]);
+	close(p[1]);
+	return 0;
+}
+
 static int getcwd_array_test(void) {
 	char expected[4096], tiny[1];
 	size_t len = sizeof(expected);
@@ -178,6 +194,72 @@ static int getentropy_array_test(void) {
 	assert(getentropy_array(key) == 0);
 	assert(memcmp(key, zero, sizeof(key)) != 0);
 	assert(getentropy_array(too_big) == -1);
+	return 0;
+}
+
+static int getlogin_r_array_test(void) {
+	char expected[256], name[256], tiny[1];
+	int rc = getlogin_r(expected, sizeof(expected));
+
+	assert(getlogin_r_array(name) == rc);
+	if(rc == 0) {
+		assert(strcmp(name, expected) == 0);
+		assert(getlogin_r_array(&tiny) == ERANGE);
+	}
+	return 0;
+}
+
+static int ttyname_r_array_test(void) {
+	char expected[256], name[256], tiny[1];
+	int p[2];
+
+	assert(pipe(p) == 0);
+	assert(ttyname_r_array(p[0], name) == ENOTTY);
+	close(p[0]);
+	close(p[1]);
+
+	int master = posix_openpt(O_RDWR | O_NOCTTY);
+	if(master < 0)
+		return 0;
+	assert(grantpt(master) == 0 && unlockpt(master) == 0);
+	int slave = open(ptsname(master), O_RDWR | O_NOCTTY);
+	assert(slave >= 0);
+	int rc = ttyname_r(slave, expected, sizeof(expected));
+	assert(ttyname_r_array(slave, name) == rc);
+	if(rc == 0) {
+		assert(strcmp(name, expected) == 0);
+		assert(ttyname_r_array(slave, &tiny) == ERANGE);
+	}
+	close(slave);
+	close(master);
+	return 0;
+}
+
+static int confstr_array_test(void) {
+	char expected[256], path[256], tiny[2];
+	size_t len = confstr(_CS_PATH, expected, sizeof(expected));
+
+	assert(len > 1 && len <= sizeof(expected));
+	assert(confstr_array(_CS_PATH, path) == len);
+	assert(strcmp(path, expected) == 0);
+	assert(confstr_array(_CS_PATH, &tiny) == len);
+	assert(tiny[0] == expected[0] && tiny[1] == '\0');
+	return 0;
+}
+
+static int getgroups_array_test(void) {
+	int n = getgroups(0, NULL);
+	assert(n >= 0);
+	gid_t expected[n + 1], groups[n + 1];
+
+	assert(getgroups(n, expected) == n);
+	assert(getgroups_array(groups) == n);
+	assert(memcmp(groups, expected, sizeof(gid_t) * (size_t)n) == 0);
+	assert(getgroups_array(&groups) == n);
+	if(n > 1) {
+		errno = 0;
+		assert(getgroups_array(arrview_first(1, groups)) == -1 && errno == EINVAL);
+	}
 	return 0;
 }
 
@@ -263,10 +345,15 @@ static struct tests_struct {
 	TEST_FN(readv_writev_array_test),
 	TEST_FN(readv_writev_arrays_test),
 	TEST_FN(poll_array_test),
+	TEST_FN(ppoll_array_test),
 	TEST_FN(getcwd_array_test),
 	TEST_FN(readlink_array_test),
 	TEST_FN(gethostname_array_test),
 	TEST_FN(getentropy_array_test),
+	TEST_FN(getlogin_r_array_test),
+	TEST_FN(ttyname_r_array_test),
+	TEST_FN(confstr_array_test),
+	TEST_FN(getgroups_array_test),
 	TEST_FN(mmap_munmap_array_test),
 	TEST_FN(mmap_msync_array_test),
 	TEST_FN(mprotect_madvise_array_test),
