@@ -1157,6 +1157,16 @@ static int vsnprintf_array_test(void) {
 	return 0;
 }
 
+static int snprintf_array_test(void) {
+	char buf[5], (*p)[8] = &(char[8]){0};
+
+	assert(snprintf_array(buf, "%d-%d", 12, 345) == 6);
+	assert(strcmp(buf, "12-3") == 0);
+	assert(snprintf_array(p, "abc") == 3);
+	assert(strcmp(*p, "abc") == 0);
+	return 0;
+}
+
 static int setvbuf_array_test(void) {
 	static char buffer[64];
 	char line[8];
@@ -1169,6 +1179,23 @@ static int setvbuf_array_test(void) {
 	assert(fgets_array(line, f) == line);
 	assert(strcmp(line, "buffere") == 0);
 	fclose(f);
+	return 0;
+}
+
+static int fmemopen_array_test(void) {
+	char data[] = "one\ntwo", out[8], in[8];
+	FILE *f = fmemopen_array(arrview_str(data), "r");
+
+	assert(f);
+	assert(fread_array(in, f) == 7);
+	assert(memcmp(in, "one\ntwo", 7) == 0);
+	assert(fclose(f) == 0);
+
+	f = fmemopen_array(&out, "w");
+	assert(f);
+	assert(fprintf(f, "%d", 1234) == 4);
+	assert(fclose(f) == 0);
+	assert(strcmp(out, "1234") == 0);
 	return 0;
 }
 
@@ -1255,7 +1282,9 @@ static struct tests_struct {
 	TEST_FN(fwrite_fread_array_test),
 	TEST_FN(fgets_array_test),
 	TEST_FN(vsnprintf_array_test),
+	TEST_FN(snprintf_array_test),
 	TEST_FN(setvbuf_array_test),
+	TEST_FN(fmemopen_array_test),
 	TEST_FN(print_array_test),
 	TEST_FN(array_bit_test),
 };

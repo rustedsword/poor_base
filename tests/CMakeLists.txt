@@ -70,8 +70,9 @@ target_compile_options(poor_posix_tests PRIVATE -Wall -Wextra -Werror -pedantic-
 
 foreach(test IN ITEMS
         read_write_array_test pread_pwrite_array_test send_recv_array_test sendto_recvfrom_array_test
-        readv_writev_array_test readv_writev_arrays_test poll_array_test getcwd_array_test readlink_array_test gethostname_array_test
-        getentropy_array_test mmap_munmap_array_test mmap_msync_array_test mprotect_madvise_array_test
+        readv_writev_array_test readv_writev_arrays_test poll_array_test ppoll_array_test getcwd_array_test readlink_array_test
+        gethostname_array_test getentropy_array_test getlogin_r_array_test ttyname_r_array_test confstr_array_test
+        getgroups_array_test mmap_munmap_array_test mmap_msync_array_test mprotect_madvise_array_test
         mlock_munlock_array_test)
     add_test(NAME ${test} COMMAND poor_posix_tests ${test})
 endforeach()
@@ -160,7 +161,9 @@ add_test(NAME sprint_array_test COMMAND poor_array_tests sprint_array_test)
 add_test(NAME fwrite_fread_array_test COMMAND poor_array_tests fwrite_fread_array_test)
 add_test(NAME fgets_array_test COMMAND poor_array_tests fgets_array_test)
 add_test(NAME vsnprintf_array_test COMMAND poor_array_tests vsnprintf_array_test)
+add_test(NAME snprintf_array_test COMMAND poor_array_tests snprintf_array_test)
 add_test(NAME setvbuf_array_test COMMAND poor_array_tests setvbuf_array_test)
+add_test(NAME fmemopen_array_test COMMAND poor_array_tests fmemopen_array_test)
 add_test(NAME print_array_test COMMAND poor_array_tests print_array_test)
 set_tests_properties(print_array_test PROPERTIES PASS_REGULAR_EXPRESSION "^\\[\\]\n\\[\\]\n\\[\\]\n\\[7\\]\n\\[1,2,3\\]\n\\[0xab,0x01\\]\n\\[\\[1,2\\]\n,\\[3,4\\]\n\\]\n\\[\\[5,6\\]\n,\\[7,8\\]\n\\]\ndone\n$")
 add_test(NAME array_bit_test COMMAND poor_array_tests array_bit_test)

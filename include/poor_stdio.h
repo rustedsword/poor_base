@@ -942,12 +942,13 @@ static inline char *_poor_concat(const char *fmt, ...) {
  */
 #define fgets_array(_arrm_, stream) fgets(auto_arr(_arrm_), ARRAY_SIZE(_arrm_), stream)
 
-/* vsnprintf_array(_arrm_, fmt, ap):
- * vsnprintf() into char array, output is cut to fit and always ends with '\0'
- * returns length of the whole formatted string without '\0', like vsnprintf()
+/* snprintf_array(_arrm_, fmt, ...), vsnprintf_array(_arrm_, fmt, ap):
+ * snprintf() and vsnprintf() into char array, output is cut to fit and always ends with '\0'
+ * return length of the whole formatted string without '\0', like snprintf()
  *
  * @_arrm_: a char array or a pointer to a char array
  */
+#define snprintf_array(_arrm_, ...) snprintf(auto_arr(_arrm_), ARRAY_SIZE_BYTES(_arrm_), __VA_ARGS__)
 #define vsnprintf_array(_arrm_, fmt, ap) vsnprintf(auto_arr(_arrm_), ARRAY_SIZE_BYTES(_arrm_), fmt, ap)
 
 /* setvbuf_array(stream, _arrm_, mode):
@@ -956,6 +957,7 @@ static inline char *_poor_concat(const char *fmt, ...) {
  * @_arrm_: a char array or a pointer to a char array
  */
 #define setvbuf_array(stream, _arrm_, mode) setvbuf(stream, auto_arr(_arrm_), mode, ARRAY_SIZE_BYTES(_arrm_))
+#define fmemopen_array(_arrm_, mode) fmemopen(auto_arr(_arrm_), ARRAY_SIZE_BYTES(_arrm_), mode)
 
 /* Just prints array without any formatting.
  * Type of array elements should be one of standard C types. See println() for more info.

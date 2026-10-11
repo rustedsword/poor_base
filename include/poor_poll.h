@@ -9,5 +9,6 @@
 #include <poll.h>
 
 #define poll_array(_fdsm_, timeout) poll(auto_arr(_fdsm_), ARRAY_SIZE(_fdsm_), timeout)
+#define ppoll_array(_fdsm_, timeout, sigmask) ppoll(auto_arr(_fdsm_), ARRAY_SIZE(_fdsm_), timeout, sigmask)
 
 #endif // POOR_POLL_H
