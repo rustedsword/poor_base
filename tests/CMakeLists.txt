@@ -28,6 +28,7 @@ foreach(test IN ITEMS
 endforeach()
 
 add_subdirectory(meta_link)
+add_subdirectory(rbtree)
 
 add_executable(printf_format printf_format.c )
 target_link_libraries(printf_format poor_base)
