@@ -458,6 +458,16 @@ static int copy_array_single(void) {
 		assert(t1[1][1] == 5);
 		assert(t1[1][2] == 6);
 	}
+	{	//VLA arguments are evaluated once
+		int t[2][(size_t){3}];
+		int i = 0, j = 0;
+		copy_array(t[i++], a);
+		copy_array(t[i++], t[j++]);
+		assert(i == 2 && j == 1);
+		assert(t[1][0] == 1);
+		assert(t[1][1] == 2);
+		assert(t[1][2] == 3);
+	}
 	return 0;
 }
 

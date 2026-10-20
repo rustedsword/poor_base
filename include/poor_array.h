@@ -385,11 +385,11 @@
 		println(ref->val, " ", ref->string);
 
  */
-#define copy_array(_arrp_dst_, ...) do {			\
-	(void)h_chk_dst_const_sel(_arrp_dst_, "copy_array()");	\
-	make_arrview_full(_tmp_dst_full_, _arrp_dst_);		\
-	const make_arrview_full(_tmp_src_full_, (__VA_ARGS__));	\
-	unsafe_copy_array(_tmp_dst_full_, _tmp_src_full_);	\
+#define copy_array(_arrp_dst_, ...) do {				\
+	auto _tmp_dst_full_ = &auto_arr(_arrp_dst_);			\
+	auto _tmp_src_full_ = &auto_arr(__VA_ARGS__);			\
+	(void)h_chk_dst_const_sel(_tmp_dst_full_, "copy_array()");	\
+	unsafe_copy_array(_tmp_dst_full_, _tmp_src_full_);		\
 } while(0)
 
 /* copy_arrays(_arrm_dst_, _arrm_src_1_, ..., _arrm_src_n_)
