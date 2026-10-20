@@ -903,31 +903,31 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 /* returns _is_arr_ if var is VLA
  * returns _is_p_arr if var is a pointer to VLA
  * or returns var as is */
-#define h_arrvla_chk(var) if_vla(var, (_is_arr_){0}, if_vla(*var, (_is_p_arr_){0}, var))
+#define h_arrvla_chk(var) if_vla(var, *(_is_arr_ *)0, if_vla(*var, *(_is_p_arr_ *)0, var))
 /* returns _dummy_type_ if var is VLA */
-#define vla_to_dummy(var) if_vla(var, (_dummy_type_){0}, var)
+#define vla_to_dummy(var) if_vla(var, *(_dummy_type_ *)0, var)
 
 /* returns _is_arr_ if var is an array or VLA
  * returns _is_p_arr_ if var is a pointer to VLA
  * or returns dereferenced var if it is a pointer to any other type */
 #define h_aa_l1(var)							\
-	_Generic(& (typeof(h_arrvla_chk(var))){},			\
-		typeof(vla_to_dummy(*var))(*)[]: (_is_arr_*){0},	\
-		_is_arr_ *: (_is_arr_*){0},				\
-		_is_p_arr_ *: (_is_p_arr_*){0},				\
+	_Generic((typeof(h_arrvla_chk(var)) *)0,			\
+		typeof(vla_to_dummy(*var))(*)[]: (_is_arr_ *)0,		\
+		_is_arr_ *: (_is_arr_ *)0,				\
+		_is_p_arr_ *: (_is_p_arr_ *)0,				\
 		default: *var)
 
 /* var should not be vla or pointer to vla
  * returns 2 if var is array */
 #define h_aa_l2(var)				\
-	_Generic(&var,				\
+	_Generic((typeof(var) *)0,		\
 		typeof(*var)(*)[]: 2,		\
 		_is_p_arr_ **: 2,		\
 		_is_arr_ **: 1			\
 	)
 
 #define h_auto_arr_std(var)				\
-	_Generic(&(int [h_aa_l2(h_aa_l1(var))]){0},	\
+	_Generic((int (*)[h_aa_l2(h_aa_l1(var))])0,	\
 		int(*)[1]: var,				\
 		int(*)[2]: *var)
 
@@ -945,7 +945,7 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 	h_arr_type_class((var)[0]) == h_arr_type_class(char[1]) ? 2 : -1)
 
 #define h_auto_arr_gcc(var)				\
-	_Generic(&(char [h_aa_idx(var)]){0},		\
+	_Generic((char (*)[h_aa_idx(var)])0,		\
 		char(*)[1]: var,			\
 		char(*)[2]: *var)
 
@@ -1037,8 +1037,8 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 	if(is_dummy_true(_same_)) {										\
 		memcpy(_tmp_dst_, _arrp_src_, UNSAFE_ARRAY_SIZE_BYTES(*_tmp_dst_));				\
 	} else {												\
-		__typeof__( if_dummy_true(_same_, &(char[]){0}, _tmp_dst_)) _s_dst_ = (void*)_tmp_dst_;		\
-		__typeof__( if_dummy_true(_same_, &(const char[]){0}, _arrp_src_)) _s_src_ = (void*)_arrp_src_;	\
+		__typeof__( if_dummy_true(_same_, (char (*)[1])0, _tmp_dst_)) _s_dst_ = (void*)_tmp_dst_;		\
+		__typeof__( if_dummy_true(_same_, (const char (*)[1])0, _arrp_src_)) _s_src_ = (void*)_arrp_src_;	\
 														\
 		const unsafe_make_array_first_ref(_s_src_, _src_ref_);						\
 		unsafe_foreach_array_ref(_s_dst_, _dst_ref_)							\
@@ -1217,13 +1217,13 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 
 /* auto_arr_addressof() impelementation */
 #define h_arr_addressof(var)						\
-	_Generic(& (typeof(if_vla(var, (_is_arr_){0}, var))){0},	\
+	_Generic((typeof(if_vla(var, *(_is_arr_ *)0, var)) *)0,		\
 		typeof(vla_to_dummy(*var))(*)[]: 1,			\
 		_is_arr_ *: 1,						\
 		default: 2)
 
 #define h_auto_arr_addressof(var)			\
-	&_Generic( (int (*)[h_arr_addressof(var)]){0},	\
+	&_Generic((int (*)[h_arr_addressof(var)])0,	\
 		int(*)[1]: var,				\
 		int(*)[2]: *var )
 
@@ -1234,13 +1234,13 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
  */
 #define auto_arr_addressof(...) h_auto_arr_addressof((__VA_ARGS__))
 
-/* returns compound literal of _type_ with same qualification as _var_ */
+/* lvalue of _type_ with same qualification as _var_, use only in typeof() */
 #define qualify_type_as(_type_, _var_)					\
 	_Generic( (1 ? &_var_ : (void*)1) ,				\
-		void *: (_type_){0},					\
-		const void*: (const _type_){0},				\
-		volatile void *: (volatile _type_){0},			\
-		const volatile void*: (const volatile _type_){0}	\
+		void *: *(_type_ *)0,					\
+		const void*: *(const _type_ *)0,			\
+		volatile void *: *(volatile _type_ *)0,			\
+		const volatile void*: *(const volatile _type_ *)0	\
 )
 
 /* make_arrview_bytes(_name_, _objp_):

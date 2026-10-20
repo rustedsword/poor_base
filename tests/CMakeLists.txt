@@ -203,6 +203,11 @@ target_compile_options(array_check_compile_define PRIVATE -Werror)
 add_test(NAME array_check_compile_define COMMAND ${CMAKE_COMMAND} --build . --target array_check_compile_define WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 #These tests should fail
+add_library(container_of_compile_wrong_type OBJECT EXCLUDE_FROM_ALL container_of_compile_wrong_type.c)
+target_link_libraries(container_of_compile_wrong_type poor_base)
+add_test(NAME container_of_compile_wrong_type COMMAND ${CMAKE_COMMAND} --build . --target container_of_compile_wrong_type WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(container_of_compile_wrong_type PROPERTIES WILL_FAIL TRUE)
+
 add_library(array_ptr_compile_three_args OBJECT EXCLUDE_FROM_ALL array_ptr_compile_three_args.c)
 target_link_libraries(array_ptr_compile_three_args poor_base)
 add_test(NAME array_ptr_compile_three_args COMMAND ${CMAKE_COMMAND} --build . --target array_ptr_compile_three_args WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
