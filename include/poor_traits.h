@@ -120,7 +120,7 @@
   //now s1_ptr will point to s1, so (s1_ptr == &s1) will be true
 
  */
-#define container_of(ptr, type, member) _Generic(1, int*: (void)(&(type){0}.member - (ptr)), \
+#define container_of(ptr, type, member) _Generic(1, int*: (void)(&((type *)0)->member - (ptr)), \
                                          default: h_container_of(ptr, type, member) )
 #define h_container_of(ptr, type, member) (type *)( (uintptr_t)(ptr) - offsetof(type, member) )
 
