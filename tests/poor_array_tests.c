@@ -170,6 +170,23 @@ static int fill_array_test(void) {
 	return 0;
 }
 
+static int memset_array_test(void) {
+	unsigned char a[5];
+	memset_array(a, 0x5a);
+	foreach_array_ref(a, ref)
+		assert(*ref == 0x5a);
+
+	//VLA argument is evaluated once
+	unsigned char t[2][(size_t){3}];
+	int i = 0;
+	memset_array(t[i++], 7);
+	assert(i == 1);
+	foreach_array_ref(t[0], ref)
+		assert(*ref == 7);
+
+	return 0;
+}
+
 /* Stop immediately if an empty iterator enters its body, even with a bad ref. */
 #define CHECK_EMPTY_ITERATOR(iterator, input) do { \
 	size_t visited = 0; \
@@ -1255,6 +1272,7 @@ static struct tests_struct {
 	TEST_FN(array_size),
 	TEST_FN(arrays_size),
 	TEST_FN(fill_array_test),
+	TEST_FN(memset_array_test),
 	TEST_FN(foreach_array_ref_test),
 	TEST_FN(foreach_array_index_test),
 	TEST_FN(foreach_array_index_bw_test),
