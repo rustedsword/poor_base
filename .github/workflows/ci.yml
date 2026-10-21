@@ -8,7 +8,7 @@ on:
 
 jobs:
   gcc:
-    name: gcc-${{ matrix.version }} ${{ matrix.sanitizers == 'ON' && 'sanitizers' || 'release' }}
+    name: gcc-${{ matrix.version }}${{ matrix.std != 'gnu23' && format(' {0}', matrix.std) || '' }} ${{ matrix.sanitizers == 'ON' && 'sanitizers' || 'release' }}
     runs-on: ubuntu-24.04
     container:
       image: gcc:${{ matrix.version }}
@@ -18,8 +18,12 @@ jobs:
       matrix:
         version: [15, 16]
         sanitizers: ['ON', 'OFF']
+        std: [gnu23]
+        include:
+          - {version: 16, sanitizers: 'ON', std: gnu2y}
+          - {version: 16, sanitizers: 'OFF', std: gnu2y}
     env:
-      CMAKE_ARGS: -DPOOR_BASE_TEST=1 -DPOOR_BASE_TEST_SANITIZERS=${{ matrix.sanitizers }} -DCMAKE_BUILD_TYPE=${{ matrix.sanitizers == 'ON' && 'Debug' || 'Release' }}
+      CMAKE_ARGS: -DPOOR_BASE_TEST=1 -DPOOR_BASE_TEST_SANITIZERS=${{ matrix.sanitizers }} -DCMAKE_BUILD_TYPE=${{ matrix.sanitizers == 'ON' && 'Debug' || 'Release' }} ${{ matrix.std != 'gnu23' && format('-DCMAKE_C_FLAGS=-std={0}', matrix.std) || '' }}
     steps:
       - uses: actions/checkout@v5
       - name: Install CMake
