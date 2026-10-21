@@ -213,10 +213,10 @@
 		print(*ref); //Will print: LLLLL
 
 */
-#define memset_array(_arrm_, _symbol_) do {					\
-	auto const _tmp_arr_ptr_ = &auto_arr(_arrm_);				\
-	(void)h_chk_dst_const_sel(_tmp_arr_ptr_, "memset_array()");		\
-	memset(_tmp_arr_ptr_, _symbol_, UNSAFE_ARRAY_SIZE_BYTES(*_tmp_arr_ptr_));	\
+#define memset_array(_arrm_, _symbol_) do {							\
+	auto const _tmp_memset_arr_ptr_ = &auto_arr(_arrm_);					\
+	(void)h_chk_dst_const_sel(_tmp_memset_arr_ptr_, "memset_array()");			\
+	memset(_tmp_memset_arr_ptr_, _symbol_, UNSAFE_ARRAY_SIZE_BYTES(*_tmp_memset_arr_ptr_));	\
 } while(0)
 
 /* fill_array(_arrm_, _value_)
