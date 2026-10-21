@@ -167,6 +167,15 @@ static int fill_array_test(void) {
 			assert(ref->c == true);
 		}
 	}
+
+	{	//VLA argument is evaluated once
+		int t[2][(size_t){3}];
+		int i = 0;
+		fill_array(t[i++], 7);
+		assert(i == 1);
+		foreach_array_ref(t[0], ref)
+			assert(*ref == 7);
+	}
 	return 0;
 }
 

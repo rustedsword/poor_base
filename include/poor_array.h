@@ -232,9 +232,10 @@
 
 	free(ty);
 */
-#define fill_array(_arrm_, ...)  \
-	foreach_array_ref(_arrm_, _ref_) \
-		*(_ref_) = (__VA_ARGS__)
+#define fill_array(_arrm_, ...) do {						\
+	auto const _tmp_fill_arr_ptr_ = &auto_arr(_arrm_);				\
+	unsafe_fill_array(_tmp_fill_arr_ptr_, __VA_ARGS__);				\
+} while(0)
 
 /*** Array iterators ***/
 
@@ -994,10 +995,10 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
  * @_ref_ptr_name_: name of new pointer for iteration
  */
 #define unsafe_foreach_array_ref(_array_ptr_, _ref_ptr_name_) \
-    for(unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != unsafe_array_end_ref(_array_ptr_); _ref_ptr_name_++)
+    for(UNSAFE_ARRAY_ELEMENT_TYPE(*(_array_ptr_)) *(_ref_ptr_name_) = unsafe_array_first_ref(_array_ptr_); _ref_ptr_name_ != unsafe_array_end_ref(_array_ptr_); _ref_ptr_name_++)
 
 #define unsafe_foreach_array_const_ref(_array_ptr_, _ref_ptr_name_) \
-    for(const unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != unsafe_array_end_ref(_array_ptr_); _ref_ptr_name_++)
+    for(const UNSAFE_ARRAY_ELEMENT_TYPE(*(_array_ptr_)) *(_ref_ptr_name_) = unsafe_array_first_ref(_array_ptr_); _ref_ptr_name_ != unsafe_array_end_ref(_array_ptr_); _ref_ptr_name_++)
 
 /* base macro for foreach_array_ref_bw() */
 #define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)			\
