@@ -977,6 +977,28 @@ typedef struct _is_p_arr_ {int a;} _is_p_arr_;
 for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
     for(unsigned bit_index = 0; bit_index < (ARRAY_ELEMENT_SIZE(_array_) * 8); bit_index++)
 
+/* C2y if declarations capture _arr_ once without an extra loop around the iteration.
+ * They are tested only with GCC 16, other compilers and C23 expand _arr_ into the declarator */
+#if __STDC_VERSION__ > 202311L && defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 16
+/* Declares _name_ = &auto_arr(_arr_) for the next statement. The else keeps a following else off this if */
+#define h_arr_capture(_name_, _arr_) if(auto const _name_ = &auto_arr(_arr_); false) {} else
+
+/* base macro for foreach_array_ref() */
+#define foreach_array_ref_base(prefix, _arr_, _ref_ptr_name_)					\
+	h_arr_capture(_tmp_arr_ptr_, _arr_)							\
+		for(prefix UNSAFE_ARRAY_ELEMENT_TYPE(*_tmp_arr_ptr_)				\
+			*_ref_ptr_name_ = unsafe_array_first_ref(_tmp_arr_ptr_);		\
+			_ref_ptr_name_ != unsafe_array_end_ref(_tmp_arr_ptr_);			\
+			(_ref_ptr_name_)++)
+
+/* base macro for foreach_array_ref_bw() */
+#define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)				\
+	h_arr_capture(_tmp_arr_ptr_, _arr_)							\
+		for(prefix UNSAFE_ARRAY_ELEMENT_TYPE(*_tmp_arr_ptr_)				\
+			*_ref_ptr_name_ = unsafe_array_end_ref(_tmp_arr_ptr_);			\
+			_ref_ptr_name_ != unsafe_array_first_ref(_tmp_arr_ptr_) &&		\
+				(--(_ref_ptr_name_), true);)
+#else // no C2y if declarations
 /* base macro for foreach_array_ref() */
 #define foreach_array_ref_base(prefix, _arr_, _ref_ptr_name_)                           \
         for(prefix ARRAY_ELEMENT_TYPE(_arr_)                                            \
@@ -986,6 +1008,16 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
                 _ref_ptr_name_ != unsafe_array_end_ref(_tmp_arr_ptr_);                  \
                                                                                         \
                 (_ref_ptr_name_)++)
+
+/* base macro for foreach_array_ref_bw() */
+#define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)			\
+	for(prefix ARRAY_ELEMENT_TYPE(_arr_)					\
+		(*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),	\
+		*_ref_ptr_name_ = unsafe_array_end_ref(_tmp_arr_ptr_);		\
+										\
+		_ref_ptr_name_ != unsafe_array_first_ref(_tmp_arr_ptr_) &&		\
+			(--(_ref_ptr_name_), true);)
+#endif // C2y if declarations
 
 /* unsafe_foreach_array_ref(), unsafe_foreach_array_const_ref():
  * unsafe iteration over pta. pta is not checked for being pointer to array. not safe for compound literals. only for internal usage.
@@ -997,15 +1029,6 @@ for(unsigned byte_index = 0; byte_index < ARRAY_SIZE(_array_); byte_index++) \
 
 #define unsafe_foreach_array_const_ref(_array_ptr_, _ref_ptr_name_) \
     for(const unsafe_make_array_first_ref(_array_ptr_, _ref_ptr_name_); _ref_ptr_name_ != unsafe_array_end_ref(_array_ptr_); _ref_ptr_name_++)
-
-/* base macro for foreach_array_ref_bw() */
-#define foreach_array_ref_bw_base(prefix, _arr_, _ref_ptr_name_)			\
-	for(prefix ARRAY_ELEMENT_TYPE(_arr_)					\
-		(*const _tmp_arr_ptr_)[ARRAY_SIZE(_arr_)] = & auto_arr(_arr_),	\
-		*_ref_ptr_name_ = unsafe_array_end_ref(_tmp_arr_ptr_);		\
-										\
-		_ref_ptr_name_ != unsafe_array_first_ref(_tmp_arr_ptr_) &&		\
-			(--(_ref_ptr_name_), true);)
 
 
 /* Declares pointer to first array element */
