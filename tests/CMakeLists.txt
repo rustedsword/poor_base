@@ -27,6 +27,20 @@ foreach(test IN ITEMS
     add_test(NAME ${test} COMMAND poor_list_tests ${test})
 endforeach()
 
+add_executable(container_of_tests container_of_tests.c)
+target_link_libraries(container_of_tests poor_base)
+# Compilers track objects through container_of() only when optimizing
+target_compile_options(container_of_tests PRIVATE -O2 -Wall -Wextra -Wshadow -Wcast-align -Wcast-qual -Werror -pedantic-errors -UNDEBUG)
+
+foreach(test IN ITEMS container_of_test container_of_qualifiers_test container_of_single_eval_test container_of_object_size_test)
+    add_test(NAME ${test} COMMAND container_of_tests ${test})
+endforeach()
+
+if(POOR_BASE_TEST_SANITIZERS)
+    add_test(NAME container_of_ubsan_test COMMAND container_of_tests container_of_ubsan_test)
+    set_tests_properties(container_of_ubsan_test PROPERTIES PASS_REGULAR_EXPRESSION "insufficient space for an object")
+endif()
+
 add_subdirectory(meta_link)
 add_subdirectory(meta_number)
 
@@ -208,6 +222,11 @@ add_library(container_of_compile_wrong_type OBJECT EXCLUDE_FROM_ALL container_of
 target_link_libraries(container_of_compile_wrong_type poor_base)
 add_test(NAME container_of_compile_wrong_type COMMAND ${CMAKE_COMMAND} --build . --target container_of_compile_wrong_type WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 set_tests_properties(container_of_compile_wrong_type PROPERTIES WILL_FAIL TRUE)
+
+add_library(container_of_compile_integer OBJECT EXCLUDE_FROM_ALL container_of_compile_integer.c)
+target_link_libraries(container_of_compile_integer poor_base)
+add_test(NAME container_of_compile_integer COMMAND ${CMAKE_COMMAND} --build . --target container_of_compile_integer WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(container_of_compile_integer PROPERTIES WILL_FAIL TRUE)
 
 add_library(array_ptr_compile_three_args OBJECT EXCLUDE_FROM_ALL array_ptr_compile_three_args.c)
 target_link_libraries(array_ptr_compile_three_args poor_base)
