@@ -45,6 +45,7 @@ add_subdirectory(meta_link)
 add_subdirectory(meta_number)
 add_subdirectory(vector)
 add_subdirectory(asan)
+add_subdirectory(fan)
 
 add_executable(printf_format printf_format.c )
 target_link_libraries(printf_format poor_base)
